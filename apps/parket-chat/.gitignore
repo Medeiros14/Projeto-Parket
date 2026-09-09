@@ -1,0 +1,10 @@
+node_modules/
+uploads/*
+!uploads/.gitkeep
+data/*.db
+*.log
+logs/
+public/app.js
+.env
+test-results/
+playwright-report/

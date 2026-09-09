@@ -1,0 +1,615 @@
+// kanban-fiscal-semanal-pkt1.js
+// ────────────────────────────────────────────────────────────────────
+// Kanban semanal por fiscal — colunas Seg-Sáb, cards de fiscal_agenda,
+// drag&drop pra mover entre dias + clique pro modal de detalhe.
+// Inclui modal "Adicionar Vistoria" + visualização dos serviços do
+// projeto (cronograma_pmo) vinculados via card_id.
+// ────────────────────────────────────────────────────────────────────
+import { r as RE, s as SB, j as JR } from "./index-DZtetJYP.js";
+const o = JR;
+
+// ─── Constantes
+const DAY_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const DAY_SHORT = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+const TIPO_LABEL = {
+  "1vistoria": "1ª Vistoria",
+  "2vistoria": "2ª Vistoria",
+  "acompanhamento": "Acompanhamento",
+  "entrega": "Entrega",
+  "reparo": "Reparo",
+};
+const TIPO_OPTS = [
+  ["1vistoria", "1ª Vistoria"],
+  ["2vistoria", "2ª Vistoria"],
+  ["acompanhamento", "Acompanhamento"],
+  ["entrega", "Entrega"],
+  ["reparo", "Reparo"],
+];
+const STATUS_OPTS = [
+  ["agendado", "Agendado"],
+  ["confirmado", "Confirmado"],
+  ["concluido", "Concluído"],
+  ["cancelado", "Cancelado"],
+  ["pendente", "Pendente"],
+];
+const TIPO_COR = {
+  "1vistoria": "#3B82F6",
+  "2vistoria": "#A78BFA",
+  "acompanhamento": "#10B981",
+  "entrega": "#F59E0B",
+  "reparo": "#EF4444",
+};
+const STATUS_COR = {
+  "agendado": "#3B82F6", "agendada": "#3B82F6",
+  "confirmado": "#10B981", "confirmada": "#10B981",
+  "pendente": "#F59E0B",
+  "concluido": "#9CA3AF", "concluida": "#9CA3AF",
+  "cancelado": "#EF4444", "cancelada": "#EF4444",
+};
+
+// ─── Helpers
+const getMonday = (d) => {
+  const dt = new Date(d);
+  const day = dt.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  dt.setDate(dt.getDate() + diff);
+  dt.setHours(0, 0, 0, 0);
+  return dt;
+};
+const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+const fmtDM = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+const fmtRange = (start) => `${fmtDM(start)} – ${fmtDM(addDays(start, 5))}`;
+const fmtHora = (iso) => { try { return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return "—"; } };
+
+const RX_TRELLO = /\s*\[\s*Lista\s+Trello[^\]]*\]\s*/gi;
+const RX_MD_IMG = /!\[[^\]]*\]\([^)]*\)/g;
+const RX_MD_LINK = /\[([^\]]*)\]\((?:https?:)?[^)]*\)/g;
+const RX_URL = /https?:\/\/\S+/gi;
+const cleanNotas = (s) => {
+  if (!s) return "";
+  let out = String(s).replace(RX_MD_IMG, " ").replace(RX_MD_LINK, "$1").replace(RX_TRELLO, " ").replace(RX_URL, " ");
+  return out.replace(/\s*\|\s*\|\s*/g, " | ").replace(/^\s*\|\s*|\s*\|\s*$/g, "").replace(/\s{2,}/g, " ").trim();
+};
+const cleanFiscalNome = (n) => (n || "").trim().replace(/\s+/g, " ");
+
+// Resume serviços a partir do cronograma_pmo.itens
+function extraiServicos(card) {
+  if (!card || !card.details) return [];
+  const cron = card.details.cronograma_pmo;
+  if (!cron || !Array.isArray(cron.itens)) return [];
+  return cron.itens.map(it => ({
+    servico: it.servico || it.categoria || "",
+    categoria: it.categoria || "",
+    quantidade: it.quantidade,
+    unidade: it.unidade || "",
+    valor_total: it.total || it.valor_total,
+  }));
+}
+
+// Tipo sugerido: heurística simples baseada nas datas do cronograma
+function tipoSugerido(card) {
+  if (!card || !card.details) return "1vistoria";
+  const cron = card.details.cronograma_pmo || {};
+  const prevInicio = cron.previsao_inicio ? new Date(cron.previsao_inicio) : null;
+  const hoje = new Date();
+  if (!prevInicio) return "1vistoria";
+  if (hoje < prevInicio) return "1vistoria";
+  return "acompanhamento";
+}
+
+// ─── Card thumbnail
+function CardItem({ item, fiscaisById, onClick }) {
+  const hora = fmtHora(item.data_inicio);
+  const tipoL = TIPO_LABEL[(item.tipo || "").toLowerCase()] || item.tipo || "Visita";
+  const tipoC = TIPO_COR[(item.tipo || "").toLowerCase()] || "#6B7280";
+  const statC = STATUS_COR[(item.status || "").toLowerCase()] || "#9CA3AF";
+  const fiscal = fiscaisById[item.fiscal_id];
+  const cliente = (item.cliente || item.obra || "—").trim();
+  const notas = cleanNotas(item.notas);
+  return o.jsxs("div", {
+    draggable: true,
+    onDragStart: (e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id); },
+    onClick: () => onClick(item),
+    style: {
+      background: "#0e0e0e", border: "1px solid rgba(255,255,255,0.08)",
+      borderLeft: `3px solid ${tipoC}`, borderRadius: 6, padding: "8px 10px",
+      cursor: "pointer", marginBottom: 6, userSelect: "none",
+    },
+    children: [
+      o.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }, children: [
+        o.jsx("span", { style: { fontSize: "0.6rem", color: tipoC, fontWeight: 700 }, children: hora }),
+        o.jsx("span", { style: { fontSize: "0.5rem", color: statC, textTransform: "uppercase", fontWeight: 700 }, children: item.status || "" }),
+      ] }),
+      o.jsx("div", { style: { fontSize: "0.72rem", color: "#fff", fontWeight: 600, lineHeight: 1.25, marginBottom: 3 }, children: cliente }),
+      o.jsx("div", { style: { fontSize: "0.55rem", color: "rgba(255,255,255,0.55)" }, children: tipoL }),
+      fiscal ? o.jsx("div", { style: { fontSize: "0.5rem", color: "rgba(255,255,255,0.45)", marginTop: 3 }, children: "👤 " + cleanFiscalNome(fiscal.nome).split(" ")[0] }) : null,
+      item.endereco ? o.jsx("div", { style: { fontSize: "0.55rem", color: "rgba(255,255,255,0.55)", marginTop: 4, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }, children: "📍 " + item.endereco }) : (notas ? o.jsx("div", { style: { fontSize: "0.55rem", color: "rgba(255,255,255,0.45)", marginTop: 4, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }, children: "📝 " + notas }) : null),
+      item.card_id ? o.jsx("div", { style: { fontSize: "0.48rem", color: "#34D399", marginTop: 3, fontWeight: 700 }, children: "🔗 Vinculado ao projeto" }) : null,
+    ],
+  });
+}
+
+// ─── Lista de serviços do projeto (compartilhada entre modais)
+function ServicosBox({ servicos, titulo }) {
+  if (!servicos || servicos.length === 0) return null;
+  return o.jsxs("div", {
+    style: {
+      marginTop: 10, padding: "10px 12px",
+      background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 8,
+    },
+    children: [
+      o.jsx("div", {
+        style: { fontSize: 11, color: "#34D399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 },
+        children: titulo || "🔨 Serviços do projeto",
+      }),
+      o.jsx("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: servicos.map((s, i) => o.jsxs("div", {
+        style: { fontSize: 12, color: "#fff", display: "flex", justifyContent: "space-between", gap: 8, padding: "2px 0" },
+        children: [
+          o.jsx("span", { style: { flex: 1 }, children: "• " + (s.servico || s.categoria) }),
+          s.quantidade != null
+            ? o.jsxs("span", { style: { color: "#86efac", fontFamily: "monospace", fontWeight: 600 }, children: [Number(s.quantidade).toLocaleString("pt-BR"), " ", s.unidade || ""] })
+            : null,
+        ],
+      }, i)) }),
+    ],
+  });
+}
+
+// ─── Field helpers (form)
+function _btnStyle(bg, color) {
+  return { flex: 1, padding: "10px 14px", borderRadius: 8,
+    border: "1px solid " + (bg === "transparent" ? "rgba(255,255,255,0.15)" : (bg + "55")),
+    background: bg, color, fontSize: 13, fontWeight: 700, cursor: "pointer" };
+}
+function _row(k, v, color) {
+  return o.jsxs("div", { style: { marginBottom: 8 }, children: [
+    o.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.06em" }, children: k }),
+    o.jsx("div", { style: { fontSize: 13, color: color || "#fff", fontWeight: 600, marginTop: 2, lineHeight: 1.35, whiteSpace: "pre-wrap" }, children: v }),
+  ] });
+}
+function _field(label, value, onChange, type) {
+  return o.jsxs("div", { style: { marginBottom: 10 }, children: [
+    o.jsx("label", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }, children: label }),
+    o.jsx("input", { type: type || "text", value, onChange: (e) => onChange(e.target.value),
+      style: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.12)", background: "#0a0a0a", color: "#fff", fontSize: 14, outline: "none", marginTop: 4 } }),
+  ] });
+}
+function _textarea(label, value, onChange) {
+  return o.jsxs("div", { style: { marginBottom: 10 }, children: [
+    o.jsx("label", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }, children: label }),
+    o.jsx("textarea", { value, onChange: (e) => onChange(e.target.value), rows: 3,
+      style: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.12)", background: "#0a0a0a", color: "#fff", fontSize: 14, outline: "none", marginTop: 4, resize: "vertical" } }),
+  ] });
+}
+function _select(label, value, onChange, opts) {
+  return o.jsxs("div", { style: { marginBottom: 10 }, children: [
+    o.jsx("label", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }, children: label }),
+    o.jsx("select", {
+      value, onChange: (e) => onChange(e.target.value),
+      style: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.12)", background: "#0a0a0a", color: "#fff", fontSize: 14, outline: "none", marginTop: 4 },
+      children: opts.map(([v, l]) => o.jsx("option", { value: v, children: l }, v)),
+    }),
+  ] });
+}
+function _datetime(label, value, onChange) {
+  let v = "";
+  if (value) {
+    try {
+      const d = new Date(value);
+      const off = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - off * 60000);
+      v = local.toISOString().slice(0, 16);
+    } catch (_) {}
+  }
+  return o.jsxs("div", { style: { marginBottom: 10 }, children: [
+    o.jsx("label", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }, children: label }),
+    o.jsx("input", {
+      type: "datetime-local", value: v,
+      onChange: (e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : ""),
+      style: { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.12)", background: "#0a0a0a", color: "#fff", fontSize: 14, outline: "none", marginTop: 4 },
+    }),
+  ] });
+}
+
+// ─── Detail modal
+function DetailModal({ card, fiscais, fiscaisById, onClose, onUpdate, onDelete, onMoveTo, weekStart }) {
+  const [editing, setEditing] = RE.useState(false);
+  const [draft, setDraft] = RE.useState({
+    cliente: card.cliente || "",
+    obra: card.obra || "",
+    endereco: card.endereco || "",
+    tipo: card.tipo || "1vistoria",
+    status: card.status || "agendado",
+    data_inicio: card.data_inicio || "",
+    notas: card.notas || "",
+    fiscal_id: card.fiscal_id || "",
+  });
+  const [kanCard, setKanCard] = RE.useState(null);
+
+  RE.useEffect(() => {
+    if (!card.card_id) return;
+    SB.from("kanban_cards").select("id,title,obra,column_id,dept_id,details").eq("id", card.card_id).single()
+      .then(({ data }) => setKanCard(data));
+  }, [card.card_id]);
+
+  const servicos = kanCard ? extraiServicos(kanCard) : [];
+
+  const save = async () => { await onUpdate(card.id, draft); setEditing(false); };
+
+  return o.jsx("div", {
+    style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
+    onClick: onClose,
+    children: o.jsxs("div", {
+      onClick: (e) => e.stopPropagation(),
+      style: { background: "#131313", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto", padding: 20 },
+      children: [
+        o.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }, children: [
+          o.jsx("h2", { style: { margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }, children: editing ? "Editar vistoria" : "Detalhes da vistoria" }),
+          o.jsx("button", { onClick: onClose, style: { background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 22, cursor: "pointer" }, children: "×" }),
+        ] }),
+
+        editing ? o.jsxs("div", { children: [
+          _select("Fiscal", draft.fiscal_id || "", (v) => setDraft({ ...draft, fiscal_id: v }),
+            [["", "—"]].concat(fiscais.map(f => [f.id, cleanFiscalNome(f.nome)]))),
+          _field("Cliente", draft.cliente, (v) => setDraft({ ...draft, cliente: v })),
+          _field("Obra", draft.obra, (v) => setDraft({ ...draft, obra: v })),
+          _field("📍 Endereço", draft.endereco, (v) => setDraft({ ...draft, endereco: v })),
+          _select("Tipo", draft.tipo, (v) => setDraft({ ...draft, tipo: v }), TIPO_OPTS),
+          _select("Status", draft.status, (v) => setDraft({ ...draft, status: v }), STATUS_OPTS),
+          _datetime("Data/Hora", draft.data_inicio, (v) => setDraft({ ...draft, data_inicio: v })),
+          _textarea("Notas", draft.notas, (v) => setDraft({ ...draft, notas: v })),
+          o.jsxs("div", { style: { display: "flex", gap: 8, marginTop: 14 }, children: [
+            o.jsx("button", { onClick: save, style: _btnStyle("#34D399", "#0a0a0a"), children: "Salvar" }),
+            o.jsx("button", { onClick: () => setEditing(false), style: _btnStyle("transparent", "rgba(255,255,255,0.7)"), children: "Cancelar" }),
+          ] }),
+        ] }) : o.jsxs("div", { children: [
+          _row("👤 Cliente", card.cliente || "—"),
+          _row("🏗️ Obra", card.obra || kanCard?.obra || "—"),
+          card.endereco ? _row("📍 Endereço", card.endereco) : null,
+          _row("🔧 Tipo", TIPO_LABEL[(card.tipo || "").toLowerCase()] || card.tipo || "—"),
+          _row("📌 Status", card.status || "—", STATUS_COR[(card.status || "").toLowerCase()]),
+          _row("📅 Data", card.data_inicio ? new Date(card.data_inicio).toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" }) : "—"),
+          _row("🛠️ Fiscal", cleanFiscalNome((fiscaisById[card.fiscal_id] || {}).nome) || "—"),
+          cleanNotas(card.notas) ? _row("📍 Notas", cleanNotas(card.notas)) : null,
+          kanCard ? o.jsxs("div", { style: { marginTop: 10, padding: "8px 12px", background: "rgba(212,168,83,0.08)", border: "1px solid rgba(212,168,83,0.3)", borderRadius: 8 }, children: [
+            o.jsx("div", { style: { fontSize: 11, color: "#D4A853", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }, children: "📋 Projeto vinculado" }),
+            o.jsx("div", { style: { fontSize: 13, color: "#fff", fontWeight: 600 }, children: kanCard.title || "—" }),
+            kanCard.obra ? o.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }, children: "🏗️ " + kanCard.obra + " · " + kanCard.dept_id }) : null,
+          ] }) : (card.card_id ? o.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)" }, children: "Carregando projeto…" }) : null),
+          o.jsx(ServicosBox, { servicos }),
+          o.jsxs("div", { style: { marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }, children: [
+            o.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }, children: "Mover pra dia" }),
+            o.jsx("div", { style: { display: "flex", gap: 5, flexWrap: "wrap" }, children: DAY_SHORT.map((lbl, idx) => {
+              const d = addDays(weekStart, idx);
+              return o.jsxs("button", {
+                onClick: () => onMoveTo(idx),
+                style: { padding: "6px 10px", borderRadius: 6, background: "rgba(212,168,83,0.15)", border: "1px solid rgba(212,168,83,0.4)", color: "#D4A853", fontSize: 12, fontWeight: 700, cursor: "pointer" },
+                children: [lbl, " ", o.jsx("span", { style: { fontSize: 10, opacity: 0.7 }, children: fmtDM(d) })],
+              }, idx);
+            }) }),
+          ] }),
+          o.jsxs("div", { style: { display: "flex", gap: 8, marginTop: 14 }, children: [
+            o.jsx("button", { onClick: () => setEditing(true), style: _btnStyle("rgba(96,165,250,0.15)", "#60A5FA"), children: "✏️ Editar" }),
+            o.jsx("button", { onClick: () => { if (confirm("Excluir esta vistoria?")) onDelete(card.id); }, style: _btnStyle("rgba(239,68,68,0.12)", "#F87171"), children: "🗑️ Excluir" }),
+          ] }),
+        ] }),
+      ],
+    }),
+  });
+}
+
+// ─── Modal de criação
+function CreateModal({ fiscais, weekStart, defaultFiscalId, onClose, onCreate }) {
+  const [step, setStep] = RE.useState("setup"); // setup | search
+  const [fiscalId, setFiscalId] = RE.useState(defaultFiscalId && defaultFiscalId !== "all" ? defaultFiscalId : "");
+  const [cardId, setCardId] = RE.useState("");
+  const [kanCard, setKanCard] = RE.useState(null);
+  const [cliente, setCliente] = RE.useState("");
+  const [obra, setObra] = RE.useState("");
+  const [tipo, setTipo] = RE.useState("1vistoria");
+  const [dataInicio, setDataInicio] = RE.useState(() => {
+    const d = new Date(); d.setHours(9, 0, 0, 0); return d.toISOString();
+  });
+  const [notas, setNotas] = RE.useState("");
+  const [endereco, setEndereco] = RE.useState("");
+  const [searchQ, setSearchQ] = RE.useState("");
+  const [searchRes, setSearchRes] = RE.useState([]);
+  const [searchLd, setSearchLd] = RE.useState(false);
+  const [saving, setSaving] = RE.useState(false);
+
+  // Busca de cards do kanban (qualquer dept relevante)
+  RE.useEffect(() => {
+    if (!searchQ || searchQ.length < 2) { setSearchRes([]); return; }
+    const t = setTimeout(async () => {
+      setSearchLd(true);
+      const { data } = await SB.from("kanban_cards")
+        .select("id,title,obra,dept_id,column_id,details")
+        .in("dept_id", ["operacional", "projetos", "obras", "comercial", "produtividade"])
+        .ilike("title", `%${searchQ}%`)
+        .limit(30);
+      setSearchRes(data || []);
+      setSearchLd(false);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchQ]);
+
+  const pickCard = (c) => {
+    setKanCard(c);
+    setCardId(c.id);
+    setCliente(c.title || "");
+    setObra(c.obra || "");
+    setTipo(tipoSugerido(c));
+    const det = c.details || {};
+    const end = det.endereco_obra || det.endereco || det.cidade || "";
+    if (end) setEndereco(end);
+    setStep("setup");
+  };
+
+  const servicos = kanCard ? extraiServicos(kanCard) : [];
+
+  const save = async () => {
+    if (!fiscalId) { alert("Selecione um fiscal"); return; }
+    if (!cliente.trim()) { alert("Cliente é obrigatório"); return; }
+    if (!dataInicio) { alert("Data/hora é obrigatória"); return; }
+    setSaving(true);
+    const payload = {
+      fiscal_id: fiscalId,
+      card_id: cardId || null,
+      cliente: cliente.trim(),
+      obra: obra.trim(),
+      endereco: endereco.trim() || null,
+      tipo, status: "agendado",
+      data_inicio: dataInicio,
+      notas: notas.trim() || null,
+    };
+    const { error } = await SB.from("fiscal_agenda").insert(payload);
+    setSaving(false);
+    if (error) { alert("Erro: " + error.message); return; }
+    onCreate();
+  };
+
+  return o.jsx("div", {
+    style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
+    onClick: onClose,
+    children: o.jsxs("div", {
+      onClick: (e) => e.stopPropagation(),
+      style: { background: "#131313", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto", padding: 20 },
+      children: [
+        o.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }, children: [
+          o.jsx("h2", { style: { margin: 0, fontSize: 16, fontWeight: 700, color: "#D4A853" }, children: step === "search" ? "Buscar projeto" : "+ Nova Vistoria" }),
+          o.jsx("button", { onClick: step === "search" ? () => setStep("setup") : onClose, style: { background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 22, cursor: "pointer" }, children: step === "search" ? "←" : "×" }),
+        ] }),
+
+        step === "search" ? o.jsxs("div", { children: [
+          o.jsx("input", {
+            type: "text", autoFocus: true, value: searchQ,
+            onChange: (e) => setSearchQ(e.target.value),
+            placeholder: "Digite cliente, obra ou código…",
+            style: { width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "#0a0a0a", color: "#fff", fontSize: 14, outline: "none", marginBottom: 10 },
+          }),
+          searchLd ? o.jsx("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, padding: 20 }, children: "Buscando…" })
+            : searchRes.length === 0 && searchQ.length >= 2
+              ? o.jsx("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 12, padding: 20 }, children: "Nenhum projeto encontrado" })
+              : o.jsx("div", { style: { display: "flex", flexDirection: "column", gap: 6, maxHeight: 360, overflowY: "auto" }, children: searchRes.map(c => o.jsxs("button", {
+                  onClick: () => pickCard(c),
+                  style: { textAlign: "left", padding: "10px 12px", background: "#0e0e0e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, cursor: "pointer", color: "#fff" },
+                  children: [
+                    o.jsx("div", { style: { fontSize: 13, fontWeight: 600 }, children: c.title }),
+                    o.jsxs("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }, children: [c.obra ? "🏗️ " + c.obra + " · " : "", c.dept_id, " · ", c.column_id] }),
+                  ],
+                }, c.id)) }),
+        ] }) : o.jsxs("div", { children: [
+          _select("Fiscal *", fiscalId, setFiscalId,
+            [["", "— selecione —"]].concat(fiscais.map(f => [f.id, cleanFiscalNome(f.nome)]))),
+          // Card vinculado picker
+          o.jsxs("div", { style: { marginBottom: 10 }, children: [
+            o.jsx("label", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }, children: "Projeto vinculado" }),
+            kanCard ? o.jsxs("div", {
+              style: { marginTop: 4, padding: "10px 12px", background: "rgba(212,168,83,0.08)", border: "1px solid rgba(212,168,83,0.3)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "space-between" },
+              children: [
+                o.jsxs("div", { children: [
+                  o.jsx("div", { style: { fontSize: 13, fontWeight: 700, color: "#fff" }, children: kanCard.title }),
+                  o.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }, children: (kanCard.obra ? "🏗️ " + kanCard.obra + " · " : "") + kanCard.dept_id }),
+                ] }),
+                o.jsx("button", { onClick: () => { setKanCard(null); setCardId(""); }, style: { background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }, children: "×" }),
+              ],
+            }) : o.jsx("button", {
+              onClick: () => setStep("search"),
+              style: { width: "100%", marginTop: 4, padding: "10px 14px", borderRadius: 8, border: "1px dashed rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.02)", color: "#D4A853", fontSize: 13, fontWeight: 600, cursor: "pointer" },
+              children: "🔍 Buscar projeto…",
+            }),
+          ] }),
+          _field("Cliente *", cliente, setCliente),
+          _field("Obra", obra, setObra),
+          _field("📍 Endereço", endereco, setEndereco),
+          _select("Tipo *", tipo, setTipo, TIPO_OPTS),
+          _datetime("Data/Hora *", dataInicio, setDataInicio),
+          _textarea("Notas", notas, setNotas),
+          o.jsx(ServicosBox, { servicos, titulo: "🔨 Serviços vinculados (referência)" }),
+          o.jsxs("div", { style: { display: "flex", gap: 8, marginTop: 14 }, children: [
+            o.jsx("button", { onClick: save, disabled: saving, style: { ..._btnStyle("#34D399", "#0a0a0a"), opacity: saving ? 0.5 : 1 }, children: saving ? "Salvando…" : "Criar Vistoria" }),
+            o.jsx("button", { onClick: onClose, style: _btnStyle("transparent", "rgba(255,255,255,0.7)"), children: "Cancelar" }),
+          ] }),
+        ] }),
+      ],
+    }),
+  });
+}
+
+// ─── Main
+function KanbanFiscalSemanal() {
+  const [fiscais, setFiscais] = RE.useState([]);
+  const [selFiscalId, setSelFiscal] = RE.useState("all");
+  const [weekStart, setWeekStart] = RE.useState(() => getMonday(new Date()));
+  const [agenda, setAgenda] = RE.useState([]);
+  const [loading, setLoading] = RE.useState(true);
+  const [selCard, setSelCard] = RE.useState(null);
+  const [dragOver, setDragOver] = RE.useState(null);
+  const [showCreate, setShowCreate] = RE.useState(false);
+
+  RE.useEffect(() => {
+    SB.from("fiscal_equipe").select("id,nome,whatsapp_group_jid").eq("ativo", true).order("nome")
+      .then(({ data }) => setFiscais(data || []));
+  }, []);
+
+  const loadAgenda = RE.useCallback(async () => {
+    setLoading(true);
+    const start = weekStart;
+    const end = addDays(weekStart, 7);
+    let q = SB.from("fiscal_agenda")
+      .select("id,fiscal_id,tipo,data_inicio,obra,cliente,status,notas,card_id,endereco")
+      .gte("data_inicio", start.toISOString())
+      .lt("data_inicio", end.toISOString())
+      .order("data_inicio");
+    if (selFiscalId !== "all") q = q.eq("fiscal_id", selFiscalId);
+    const { data } = await q;
+    setAgenda(data || []);
+    setLoading(false);
+  }, [weekStart, selFiscalId]);
+
+  RE.useEffect(() => { loadAgenda(); }, [loadAgenda]);
+
+  RE.useEffect(() => {
+    const ch = SB.channel("kanban_fiscal_semanal_" + (selFiscalId || "all"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "fiscal_agenda" }, () => loadAgenda())
+      .subscribe();
+    return () => { try { SB.removeChannel(ch); } catch (_) {} };
+  }, [loadAgenda, selFiscalId]);
+
+  const fiscaisById = {}; for (const f of fiscais) fiscaisById[f.id] = f;
+
+  const byDay = [[], [], [], [], [], []];
+  for (const a of agenda) {
+    try {
+      const d = new Date(a.data_inicio);
+      const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+      if (dow >= 0 && dow < 6) byDay[dow].push(a);
+    } catch (_) {}
+  }
+
+  const moveToDay = async (id, dayIdx) => {
+    const item = agenda.find((x) => x.id === id);
+    if (!item) return;
+    try {
+      const orig = new Date(item.data_inicio);
+      const newDate = addDays(weekStart, dayIdx);
+      newDate.setHours(orig.getHours(), orig.getMinutes(), 0, 0);
+      const iso = newDate.toISOString();
+      setAgenda((prev) => prev.map((x) => (x.id === id ? { ...x, data_inicio: iso } : x)));
+      const { error } = await SB.from("fiscal_agenda").update({ data_inicio: iso }).eq("id", id);
+      if (error) { console.error(error); loadAgenda(); }
+    } catch (e) { console.error(e); loadAgenda(); }
+  };
+
+  const updateCard = async (id, patch) => {
+    const { error } = await SB.from("fiscal_agenda").update(patch).eq("id", id);
+    if (error) { alert("Erro ao salvar: " + error.message); return; }
+    loadAgenda();
+    setSelCard(null);
+  };
+  const deleteCard = async (id) => {
+    await SB.from("fiscal_agenda").delete().eq("id", id);
+    loadAgenda(); setSelCard(null);
+  };
+
+  const isToday = (d) => { const t = new Date(); return d.toDateString() === t.toDateString(); };
+
+  return o.jsxs("div", {
+    style: { padding: "12px 16px 24px", display: "flex", flexDirection: "column", gap: 12, minHeight: "calc(100vh - 220px)" },
+    children: [
+      o.jsxs("div", { style: { display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }, children: [
+        o.jsxs("div", { style: { display: "flex", gap: 8, alignItems: "center" }, children: [
+          o.jsx("label", { style: { fontSize: 11, color: "rgba(255,255,255,0.55)", fontWeight: 600 }, children: "Fiscal:" }),
+          o.jsxs("select", {
+            value: selFiscalId, onChange: (e) => setSelFiscal(e.target.value),
+            style: { padding: "6px 10px", borderRadius: 6, background: "#0e0e0e", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 13, outline: "none" },
+            children: [
+              o.jsx("option", { value: "all", children: "Todos" }),
+              ...fiscais.map((f) => o.jsx("option", { value: f.id, children: cleanFiscalNome(f.nome) }, f.id)),
+            ],
+          }),
+          o.jsx("button", {
+            onClick: () => setShowCreate(true),
+            style: { marginLeft: 10, padding: "7px 14px", borderRadius: 7, background: "#34D399", border: "none", color: "#0a0a0a", fontWeight: 700, fontSize: 12, cursor: "pointer" },
+            children: "+ Adicionar Vistoria",
+          }),
+        ] }),
+        o.jsxs("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+          o.jsx("button", { onClick: () => setWeekStart(addDays(weekStart, -7)), style: _navBtn(), title: "Semana anterior", children: "‹" }),
+          o.jsx("button", { onClick: () => setWeekStart(getMonday(new Date())), style: { ..._navBtn(), padding: "6px 12px", fontSize: 12, fontWeight: 700 }, children: "Hoje" }),
+          o.jsx("span", { style: { fontSize: 13, color: "#D4A853", fontWeight: 700, padding: "0 8px", whiteSpace: "nowrap" }, children: fmtRange(weekStart) }),
+          o.jsx("button", { onClick: () => setWeekStart(addDays(weekStart, 7)), style: _navBtn(), title: "Próxima semana", children: "›" }),
+        ] }),
+      ] }),
+
+      o.jsx("div", {
+        style: { display: "grid", gridTemplateColumns: "repeat(6, minmax(180px, 1fr))", gap: 8, overflowX: "auto", paddingBottom: 8 },
+        children: DAY_LABELS.map((lbl, dayIdx) => {
+          const date = addDays(weekStart, dayIdx);
+          const today = isToday(date);
+          const isOver = dragOver === dayIdx;
+          return o.jsxs("div", {
+            onDragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragOver !== dayIdx) setDragOver(dayIdx); },
+            onDragLeave: () => setDragOver(null),
+            onDrop: (e) => {
+              e.preventDefault(); setDragOver(null);
+              const id = e.dataTransfer.getData("text/plain");
+              if (id) moveToDay(id, dayIdx);
+            },
+            style: {
+              background: isOver ? "rgba(212,168,83,0.08)" : "rgba(255,255,255,0.02)",
+              border: "1px solid " + (isOver ? "rgba(212,168,83,0.4)" : today ? "rgba(212,168,83,0.3)" : "rgba(255,255,255,0.06)"),
+              borderRadius: 8, padding: 8, minHeight: 200,
+              display: "flex", flexDirection: "column",
+            },
+            children: [
+              o.jsxs("div", {
+                style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "4px 6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 8 },
+                children: [
+                  o.jsxs("div", { children: [
+                    o.jsx("div", { style: { fontSize: 13, fontWeight: 700, color: today ? "#D4A853" : "#fff" }, children: lbl }),
+                    o.jsx("div", { style: { fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1 }, children: fmtDM(date) }),
+                  ] }),
+                  o.jsxs("div", {
+                    style: { fontSize: 10, color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 999, fontWeight: 600 },
+                    children: [byDay[dayIdx].length, " visita", byDay[dayIdx].length === 1 ? "" : "s"],
+                  }),
+                ],
+              }),
+              byDay[dayIdx].length === 0
+                ? o.jsx("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "30px 8px", fontStyle: "italic" }, children: "Arraste aqui" })
+                : byDay[dayIdx].map((item) => o.jsx(CardItem, { item, fiscaisById, onClick: () => setSelCard(item) }, item.id)),
+            ],
+          }, dayIdx);
+        }),
+      }),
+
+      loading ? o.jsx("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12 }, children: "Carregando…" }) : null,
+
+      selCard ? o.jsx(DetailModal, {
+        card: selCard, fiscais, fiscaisById, weekStart,
+        onClose: () => setSelCard(null),
+        onUpdate: updateCard, onDelete: deleteCard,
+        onMoveTo: (idx) => { moveToDay(selCard.id, idx); setSelCard(null); },
+      }) : null,
+
+      showCreate ? o.jsx(CreateModal, {
+        fiscais, weekStart, defaultFiscalId: selFiscalId,
+        onClose: () => setShowCreate(false),
+        onCreate: () => { setShowCreate(false); loadAgenda(); },
+      }) : null,
+    ],
+  });
+}
+
+function _navBtn() {
+  return {
+    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+    color: "#fff", width: 32, height: 32, borderRadius: 6, cursor: "pointer", fontSize: 18,
+    display: "flex", alignItems: "center", justifyContent: "center",
+  };
+}
+
+export const kanbanFiscalSemanalTabs = [
+  { id: "kanban-semanal", label: "🗂 Kanban Semanal", render: () => o.jsx(KanbanFiscalSemanal, {}) },
+];

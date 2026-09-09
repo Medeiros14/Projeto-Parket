@@ -1,0 +1,4 @@
+FROM parket-dashboard:golden-complete
+COPY proposta-publica-page-Cfqr-XjR.js /usr/share/nginx/html/assets/proposta-publica-page-Cfqr-XjR.js
+COPY orcamento-simulador-tab-BBO23cjn.js /usr/share/nginx/html/assets/orcamento-simulador-tab-BBO23cjn.js
+COPY orcamento-simulador-tab-BBO23cjn-P2.js /usr/share/nginx/html/assets/orcamento-simulador-tab-BBO23cjn-P2.js

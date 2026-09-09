@@ -1,0 +1,198 @@
+[
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "09:00",
+    "descricao": "Conexão Claude OAuth reconectada no parket-ai-squad",
+    "categoria": "backend",
+    "detalhes": "Token Max OAuth com billing header, auth_token e betas corretos"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "09:30",
+    "descricao": "Setor de Compras: limpeza total dos cards e importação do Trello",
+    "categoria": "compras",
+    "detalhes": "108 cards ativos + 1579 arquivados importados com checklists padrão"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "10:00",
+    "descricao": "Checklists Cotação e Interface Financeira implementados no setor Compras",
+    "categoria": "compras",
+    "detalhes": "2 abas de checklist com 4 itens cada, auto-populados em novos cards"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "10:30",
+    "descricao": "Campo de Descrição da Solicitação adicionado ao modal de Compras",
+    "categoria": "compras",
+    "detalhes": "Editável inline, salva no banco automaticamente"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "11:00",
+    "descricao": "Código PKT único gerado para todos os projetos",
+    "categoria": "dashboard",
+    "detalhes": "958 projetos backfillados (PKT100001-PKT100958), auto-geração no AddCardModal"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "11:30",
+    "descricao": "Filtros de busca e cards arquivados no kanban de Compras",
+    "categoria": "compras",
+    "detalhes": "Busca por nome/código/responsável + toggle mostrar arquivados"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "11:45",
+    "descricao": "Botão Solicitar Compra adicionado ao kanban de Compras",
+    "categoria": "compras",
+    "detalhes": "Abre modal de solicitação diretamente do kanban"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "12:00",
+    "descricao": "PMO Produtividade: novas colunas Pré-Cronograma e Cronograma Final",
+    "categoria": "pmo",
+    "detalhes": "Fluxo: Entrada > Pré-Cronograma > Cronograma Final > Monitoramento de Obras"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "12:30",
+    "descricao": "Cronograma PMO com tabela de serviços editável, cálculo automático de dias úteis",
+    "categoria": "pmo",
+    "detalhes": "Área m², rendimento/dia, Math.ceil para arredondamento, tabela de 35 serviços Parket"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "13:00",
+    "descricao": "Sincronização realtime entre cards e ficha do cliente via Supabase",
+    "categoria": "dashboard",
+    "detalhes": "Subscription por obra, dados de cronograma/checklists/alertas visíveis na aba Por Setor"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "13:30",
+    "descricao": "Geração de PDF do Cronograma de Obras com modelo oficial Parket",
+    "categoria": "pmo",
+    "detalhes": "Capa preta, tabela de serviços com status, alertas de atraso, prazo de entrega"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "14:00",
+    "descricao": "Alertas de atraso por linha de serviço no cronograma",
+    "categoria": "pmo",
+    "detalhes": "Botão por serviço, tipo (Pendência Obra/Atraso Parket/Outros), chat interno, status da ocorrência"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "14:30",
+    "descricao": "Notificações automáticas de alertas para PMO, Fiscal, Obras e Gestão",
+    "categoria": "pmo",
+    "detalhes": "9 stakeholders notificados (Natália, Dany, Felipe, Tayna, Vinicius, Karina, Douglas, Pamella)"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "14:45",
+    "descricao": "Gestão de Riscos: painel centralizado no setor PMO",
+    "categoria": "pmo",
+    "detalhes": "Aba dedicada com todos alertas ordenados por prioridade, chat e status por ocorrência"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "15:00",
+    "descricao": "Persistência automática de alertas no Supabase",
+    "categoria": "pmo",
+    "detalhes": "Salva imediatamente ao criar alerta, mudar status ou enviar chat"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "15:30",
+    "descricao": "Dropdown de serviços por categoria na tabela de rendimento Parket",
+    "categoria": "pmo",
+    "detalhes": "35 serviços categorizados (Forro/Piso/Painel/Deck/Marcenaria/Outro) com rendimento/dia"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "16:00",
+    "descricao": "Agente TEKA criada para atendimento inicial via WhatsApp DM",
+    "categoria": "teka",
+    "detalhes": "Qualificação automática de leads, criação de cards no kanban comercial-entrada"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "16:30",
+    "descricao": "Kanban Funil de Entrada atualizado com colunas TEKA",
+    "categoria": "comercial",
+    "detalhes": "Leads de Entrada > Qualificado pela IA > Em Qualificação > Novas Oportunidades"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "17:00",
+    "descricao": "Preenchimento automático do card pelo agente TEKA",
+    "categoria": "teka",
+    "detalhes": "Produto, relação, cidade, metragem, investimento, prazo, preferência de madeira"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "17:30",
+    "descricao": "Follow-up automático via cron job (30min, 3h, 10min timeout)",
+    "categoria": "teka",
+    "detalhes": "Baseado na última mensagem, contextual, move para Em Qualificação se não responder"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "18:00",
+    "descricao": "Toggle IA e aba TEKA no modal do card comercial",
+    "categoria": "comercial",
+    "detalhes": "Ativar/desativar TEKA, histórico de conversa, classificação A/B/C/D por m²"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "18:30",
+    "descricao": "Debounce de 20s para mensagens WhatsApp (padrão brasileiro)",
+    "categoria": "teka",
+    "detalhes": "Acumula mensagens antes de processar, configurável"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "19:00",
+    "descricao": "Prompt TEKA v7 com catálogos PDF e 8 passos de qualificação",
+    "categoria": "teka",
+    "detalhes": "Pisos, Forros, Decks, Painéis, Portas, Escadas, Fachadas + Produtos Geral"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "19:30",
+    "descricao": "Endpoint de reset de conversa TEKA criado",
+    "categoria": "teka",
+    "detalhes": "POST /api/webhook/teka/reset/{phone} — limpa card, Redis, debounce"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "20:00",
+    "descricao": "Botão Atualizar Kanban no setor Comercial",
+    "categoria": "comercial",
+    "detalhes": "Reload dos cards com toast de confirmação"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "20:30",
+    "descricao": "Fix: kanban context desabilitado para TEKA (causa raiz do reset)",
+    "categoria": "teka",
+    "detalhes": "kanban_enabled=False impede injeção de cards antigos no prompt"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "20:45",
+    "descricao": "Session ID com card_id para garantir reset limpo",
+    "categoria": "teka",
+    "detalhes": "teka_dm_PHONE_CARDID8 — novo card = nova session sem histórico"
+  },
+  {
+    "ts": "2026-03-26T17:27:27.325039",
+    "hora": "21:00",
+    "descricao": "Gemini 2.5 Pro configurado como LLM da TEKA",
+    "categoria": "teka",
+    "detalhes": "Substituiu Gemini Flash para melhor qualidade de conversa"
+  }
+]

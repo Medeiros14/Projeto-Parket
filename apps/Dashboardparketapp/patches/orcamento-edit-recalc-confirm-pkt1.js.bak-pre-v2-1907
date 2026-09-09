@@ -1,0 +1,214 @@
+/**
+ * Recalc proporcional ao editar valor do PRODUTO no simulador (modal Editar).
+ *
+ * Quando o orçamentista edita o valor de um item PRODUTO (não-aux) e este tem
+ * INSUMOS/INSTALAÇÃO vinculados via meta.parent_item_id, oferece:
+ *   - "Salvar só este"   → comportamento atual (gera inconsistência)
+ *   - "Recalcular tudo"  → mostra preview com novos valores → confirma → aplica
+ *                          os 3 UPDATEs mantendo split 70/10/20 (PISO/PORTA) ou 60/15/25.
+ *
+ * Expõe:
+ *   window.__pktSaveItemWithRecalc(uItemFn, itemId, newDesc, newVal)
+ *      Retorna {cancelled:true} se usuário cancelar (modal deve permanecer aberto).
+ *      Retorna undefined em sucesso (modal pode fechar).
+ *
+ * Hook: MARCFIX46.js — botão Salvar do modal Editar.
+ */
+(function () {
+  if (typeof window === "undefined") return;
+  if (window.__pktSaveItemWithRecalc) return;
+
+  var SUPA_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+  var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+  function getToken() {
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        var raw = k && localStorage.getItem(k);
+        if (!raw || (raw[0] !== "{" && raw[0] !== "[")) continue;
+        try {
+          var p = JSON.parse(raw);
+          var t = (p && p.access_token) || (p && p.currentSession && p.currentSession.access_token) || null;
+          if (t && t.length > 40) return t;
+        } catch (e) {}
+      }
+    } catch (e) {}
+    return SUPA_KEY;
+  }
+
+  function headers() {
+    return {
+      apikey: SUPA_KEY,
+      Authorization: "Bearer " + getToken(),
+      "Content-Type": "application/json",
+    };
+  }
+
+  function fetchItem(itemId) {
+    return fetch(SUPA_URL + "/rest/v1/simulacao_itens?id=eq." + encodeURIComponent(itemId) + "&select=*", {
+      headers: headers(),
+    }).then(function (r) { return r.json(); }).then(function (arr) { return arr && arr[0]; });
+  }
+
+  function fetchSiblings(simId, categoria) {
+    var url = SUPA_URL + "/rest/v1/simulacao_itens?simulacao_id=eq." + encodeURIComponent(simId)
+      + "&categoria=eq." + encodeURIComponent(categoria) + "&select=*";
+    return fetch(url, { headers: headers() }).then(function (r) { return r.json(); });
+  }
+
+  function isInsumos(it) { return /^\s*INSUMOS/i.test(String((it && it.descritivo) || "").trim()); }
+  function isInstal(it)  { return /^\s*INSTALA/i.test(String((it && it.descritivo) || "").trim()); }
+  function isAux(it)     { return isInsumos(it) || isInstal(it); }
+
+  function getSplit(categoria) {
+    var c = String(categoria || "").toUpperCase().split("||")[0].trim();
+    var isPisoPorta = c === "PISO" || c === "PORTA";
+    return isPisoPorta ? { prod: 0.70, ins: 0.10, inst: 0.20 } : { prod: 0.60, ins: 0.15, inst: 0.25 };
+  }
+
+  function fmtBRL(v) {
+    return "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function signed(v) {
+    var s = v >= 0 ? "+" : "";
+    return s + fmtBRL(v);
+  }
+
+  function showOverlay(html) {
+    var ov = document.createElement("div");
+    ov.className = "pkt-recalc-overlay";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,Segoe UI,system-ui,sans-serif;";
+    var box = document.createElement("div");
+    box.style.cssText = "background:#0e0e0e;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:24px;width:100%;max-width:540px;color:#fff;box-sizing:border-box;";
+    box.innerHTML = html;
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+    return { overlay: ov, box: box };
+  }
+  function closeOverlay(ov) { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); }
+
+  function askChoice(oldVal, newVal, split) {
+    return new Promise(function (resolve) {
+      var delta = newVal - oldVal;
+      var pctStr = Math.round(split.prod * 100) + "/" + Math.round(split.ins * 100) + "/" + Math.round(split.inst * 100);
+      var html =
+        '<div style="font-size:14px;color:#fbbf24;margin-bottom:12px;font-weight:600;">⚠️ Valor alterado</div>' +
+        '<div style="font-size:13px;color:#ccc;margin-bottom:18px;line-height:1.6;">' +
+        'Você mudou o <b>PRODUTO</b> de <b>' + fmtBRL(oldVal) + '</b> para <b>' + fmtBRL(newVal) + '</b> (<span style="color:' + (delta >= 0 ? '#22c55e' : '#ef4444') + ';">' + signed(delta) + '</span>).<br><br>' +
+        'INSUMOS e INSTALAÇÃO ainda estão nos valores antigos.<br>' +
+        'Deseja recalcular proporcionalmente (split ' + pctStr + ')?' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">' +
+        '<button id="pkt-r-cancel" style="padding:9px 18px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;">Cancelar</button>' +
+        '<button id="pkt-r-save"   style="padding:9px 18px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.05);color:#fff;border-radius:8px;cursor:pointer;font-size:12px;">Salvar só este</button>' +
+        '<button id="pkt-r-recalc" style="padding:9px 18px;border:none;background:#22c55e;color:#000;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;">🔄 Recalcular tudo</button>' +
+        '</div>';
+      var x = showOverlay(html);
+      x.box.querySelector("#pkt-r-cancel").onclick = function () { closeOverlay(x.overlay); resolve("cancel"); };
+      x.box.querySelector("#pkt-r-save").onclick   = function () { closeOverlay(x.overlay); resolve("save-only"); };
+      x.box.querySelector("#pkt-r-recalc").onclick = function () { closeOverlay(x.overlay); resolve("recalc"); };
+    });
+  }
+
+  function confirmRecalc(rows, split) {
+    return new Promise(function (resolve) {
+      var newTotal = rows.prod.novo + rows.ins.novo + rows.inst.novo;
+      var oldTotal = rows.prod.antigo + rows.ins.antigo + rows.inst.antigo;
+      var pctStr = Math.round(split.prod * 100) + " / " + Math.round(split.ins * 100) + " / " + Math.round(split.inst * 100);
+
+      function row(label, old, novo) {
+        var d = novo - old;
+        return '<tr>' +
+          '<td style="padding:6px 4px;">' + label + '</td>' +
+          '<td style="text-align:right;padding:6px 4px;color:#999;">' + fmtBRL(old) + '</td>' +
+          '<td style="text-align:right;padding:6px 4px;color:#fff;">' + fmtBRL(novo) + '</td>' +
+          '<td style="text-align:right;padding:6px 4px;color:' + (d >= 0 ? '#22c55e' : '#ef4444') + ';">' + signed(d) + '</td>' +
+          '</tr>';
+      }
+
+      var html =
+        '<div style="font-size:14px;color:#22c55e;margin-bottom:8px;font-weight:600;">Confirmar recálculo</div>' +
+        '<div style="font-size:12px;color:#999;margin-bottom:14px;">Split aplicado: ' + pctStr + '</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">' +
+        '<thead><tr style="color:#888;border-bottom:1px solid #333;">' +
+        '<th style="text-align:left;padding:6px 4px;">Linha</th>' +
+        '<th style="text-align:right;padding:6px 4px;">Antes</th>' +
+        '<th style="text-align:right;padding:6px 4px;">Depois</th>' +
+        '<th style="text-align:right;padding:6px 4px;">Δ</th>' +
+        '</tr></thead><tbody>' +
+        row("PRODUTO",    rows.prod.antigo, rows.prod.novo) +
+        row("INSUMOS",    rows.ins.antigo,  rows.ins.novo) +
+        row("INSTALAÇÃO", rows.inst.antigo, rows.inst.novo) +
+        '<tr style="border-top:1px solid #333;font-weight:700;">' +
+        '<td style="padding:8px 4px;">TOTAL</td>' +
+        '<td style="text-align:right;padding:8px 4px;color:#999;">' + fmtBRL(oldTotal) + '</td>' +
+        '<td style="text-align:right;padding:8px 4px;color:#fff;">' + fmtBRL(newTotal) + '</td>' +
+        '<td style="text-align:right;padding:8px 4px;color:' + ((newTotal - oldTotal) >= 0 ? '#22c55e' : '#ef4444') + ';">' + signed(newTotal - oldTotal) + '</td>' +
+        '</tr>' +
+        '</tbody></table>' +
+        '<div style="font-size:11px;color:#fbbf24;margin-bottom:14px;">⚠️ Vai sobrescrever 3 linhas no banco. Confirma?</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+        '<button id="pkt-c-cancel" style="padding:9px 18px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;">Cancelar</button>' +
+        '<button id="pkt-c-ok"     style="padding:9px 22px;border:none;background:#22c55e;color:#000;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;">OK</button>' +
+        '</div>';
+      var x = showOverlay(html);
+      x.box.querySelector("#pkt-c-cancel").onclick = function () { closeOverlay(x.overlay); resolve(false); };
+      x.box.querySelector("#pkt-c-ok").onclick     = function () { closeOverlay(x.overlay); resolve(true); };
+    });
+  }
+
+  window.__pktSaveItemWithRecalc = async function (uItemFn, itemId, newDesc, newVal) {
+    var fallback = function () { return uItemFn(itemId, { descritivo: newDesc, valor: newVal }); };
+
+    try {
+      var item = await fetchItem(itemId);
+      if (!item) return fallback();
+      var oldVal = Number(item.valor) || 0;
+      var n = Number(newVal) || 0;
+      if (Math.abs(n - oldVal) < 0.01) return fallback();           // sem mudança real
+      if (isAux(item)) return fallback();                            // só dispara em PRODUTO
+      var cat = String(item.categoria || "").toUpperCase();
+      if (/^(ESCADA|MARCENARIA|MAO|MÃO|LOGI|LOG[IÍ]STICA)/.test(cat)) return fallback(); // categorias sem split
+      if (!item.simulacao_id) return fallback();
+
+      var siblings = await fetchSiblings(item.simulacao_id, item.categoria);
+      var insumos = (siblings || []).find(function (s) {
+        return s.id !== item.id && isInsumos(s) && s.meta && s.meta.parent_item_id === item.id;
+      });
+      var instal = (siblings || []).find(function (s) {
+        return s.id !== item.id && isInstal(s) && s.meta && s.meta.parent_item_id === item.id;
+      });
+      if (!insumos || !instal) return fallback();                    // sem auxs ligados
+
+      var split = getSplit(item.categoria);
+      var newF = n / split.prod;
+      var newIns = +(newF * split.ins).toFixed(2);
+      var newInst = +(newF * split.inst).toFixed(2);
+
+      var choice = await askChoice(oldVal, n, split);
+      if (choice === "cancel") return { cancelled: true };           // modal fica aberto
+      if (choice === "save-only") return fallback();
+
+      var ok = await confirmRecalc(
+        {
+          prod: { antigo: oldVal, novo: n },
+          ins:  { antigo: Number(insumos.valor) || 0, novo: newIns },
+          inst: { antigo: Number(instal.valor) || 0, novo: newInst },
+        },
+        split
+      );
+      if (!ok) return { cancelled: true };
+
+      await uItemFn(itemId,    { descritivo: newDesc, valor: n });
+      await uItemFn(insumos.id,{ valor: newIns });
+      await uItemFn(instal.id, { valor: newInst });
+      try {
+        console.log("[pkt-recalc-confirm] APLICADO", { itemId: itemId, valor: n, ins: newIns, inst: newInst });
+      } catch (e) {}
+    } catch (e) {
+      console.error("[pkt-recalc-confirm] ERRO, fallback:", e);
+      return fallback();
+    }
+  };
+})();

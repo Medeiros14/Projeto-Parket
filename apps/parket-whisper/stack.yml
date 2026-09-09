@@ -1,0 +1,39 @@
+version: "3.8"
+
+# Serviço interno de transcrição — não exposto via Traefik.
+# Acessível de dentro da network parket-api_internal como http://parket-whisper_api:8080
+
+services:
+  api:
+    image: parket-whisper:latest
+    networks:
+      - parket-api_internal
+    environment:
+      WHISPER_MODEL: small
+      WHISPER_COMPUTE_TYPE: int8
+      WHISPER_LANGUAGE: pt
+      WHISPER_CPU_THREADS: "6"
+      WHISPER_NUM_WORKERS: "1"
+    volumes:
+      - whisper_models:/models
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+
+networks:
+  parket-api_internal:
+    external: true
+
+volumes:
+  whisper_models:

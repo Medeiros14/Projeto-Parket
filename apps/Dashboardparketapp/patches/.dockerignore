@@ -1,0 +1,5 @@
+*.bak*
+*.tmp
+*.bak-*
+Dockerfile.*
+patches-bak-archive/

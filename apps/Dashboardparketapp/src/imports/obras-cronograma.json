@@ -1,0 +1,482 @@
+{
+  "cronograma_obras": {
+    "marcenaria": [
+      {
+        "data": "23/02/2028",
+        "equipe": "JAILTON E IGOR",
+        "obra": "PEDRO CAMPOS",
+        "servico": "BEIRAL",
+        "localizacao": "BRASILIA",
+        "data_finalizacao": "13.02.2026"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "CARLOS E RAY",
+        "obra": "PEDRO CAMPOS",
+        "servico": "BEIRAL",
+        "localizacao": null,
+        "data_finalizacao": null
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "RODNEY E RAY FLAVIANO",
+        "obra": "PEDRO CAMPOS",
+        "servico": "ADITIVO CAVAS",
+        "localizacao": "BRASILIA",
+        "data_finalizacao": "13.02.2026",
+        "obs": "DIARIO"
+      },
+      {
+        "data": "23/02/2028",
+        "equipe": "VINY E WILSON",
+        "obra": "MARIA E MEL",
+        "servico": "MARCENARIA",
+        "localizacao": "NOVA LIMA",
+        "data_finalizacao": "20.02.2026",
+        "disposicao": "CUSTO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "RAMON E KAIQUE",
+        "obra": "MARIA E MEL",
+        "servico": "MARCENARIA",
+        "localizacao": "NOVA LIMA",
+        "data_finalizacao": "20.02.2026",
+        "disposicao": "CUSTO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "NIVALDO E VALDINEY",
+        "obra": "TRILHOS GABRIEL LACHER/BRISES",
+        "servico": "TRILHO",
+        "localizacao": "BRASILIA",
+        "data_finalizacao": "13.2.2026"
+      },
+      {
+        "data": "23/02/2028",
+        "equipe": "JOSEMARIO E ALTAIR",
+        "obra": "INACIO",
+        "servico": "MARCENARIA",
+        "localizacao": "SP-SÃO PAULO",
+        "data_finalizacao": "6.3.2026"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "MOISES E ALESSANDRO",
+        "obra": "INACIO",
+        "servico": "MARCENARIA",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "EDMILSON E RAMON",
+        "obra": "BARRA F/PAINEL VALTER E RENATA",
+        "servico": "LUSTRAÇÃO",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "data": "23/02/2020",
+        "equipe": "LUIZ E LOURIVAL",
+        "obra": "LEANDRO SILVA",
+        "servico": "ACABAMENTO",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "EDY DEVSON",
+        "obra": "RAFAELA",
+        "servico": "CORTINEIRO",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "ANDERSON E BRUNO",
+        "obra": "PRISCILA DEAR",
+        "servico": "REPARO-BANDEIRA",
+        "localizacao": "RIVIERA",
+        "disposicao": "CUSTO"
+      },
+      {
+        "data": "23/02/2020",
+        "equipe": "ANDERSON E BRUNO",
+        "obra": "AUREA ITAIM",
+        "servico": "MARCENARIA"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "FERNANDO E SILVIO",
+        "obra": "LEANDRO SILVA",
+        "servico": "RODATETO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "BRUNO SAID",
+        "obra": "BRUNO SAID",
+        "servico": null
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "MARCO ANTONIO",
+        "obra": "SANTA ELIZA",
+        "servico": "MARCENARIA",
+        "localizacao": "SP-SÃO PAULO",
+        "disposicao": "CUSTO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "FERNANDO E SILVIO",
+        "obra": "PAULO GOTIJO",
+        "servico": "ADITIVO",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "EMERSON E ATILA",
+        "obra": "AUREA ITAIM",
+        "servico": "PORTAS",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "GEADSON E WALISSON",
+        "obra": "AUREA ITAIM",
+        "servico": "ESCADA",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "data": "23/02/2028",
+        "equipe": "LUIS NOVO E VALDEDY",
+        "obra": "LEANDRO SILVA",
+        "servico": "ACABAMENTO",
+        "localizacao": "RIVIERA"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "LUIZ E LOURIVAL",
+        "obra": "PRISCILA DEAR",
+        "servico": "ACABAMENTO",
+        "localizacao": "SP-SÃO PAULO",
+        "disposicao": "CUSTO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "EDUARDO E LUCID",
+        "obra": "CASA FLORAES",
+        "servico": "FORRO LAMINA",
+        "localizacao": "CUIABA",
+        "data_finalizacao": "20.2.2026",
+        "disposicao": "CUSTO"
+      },
+      {
+        "data": "23/02/2028",
+        "equipe": "LUCAS E AJUDANTE",
+        "obra": "CASA FLORAES",
+        "servico": "FORRO LAMINA",
+        "localizacao": "CUIABA",
+        "data_finalizacao": "20.2.2026",
+        "disposicao": "CUSTO"
+      },
+      {
+        "data": "23/02/2026",
+        "equipe": "DAVID E AJUDANTE",
+        "obra": "CASA FLORAES",
+        "servico": "FORRO LAMINA",
+        "localizacao": "CUIABA",
+        "data_finalizacao": "20.2.2026",
+        "disposicao": "CUSTO"
+      }
+    ],
+    "instalacao": [
+      {
+        "equipe": "GEOMARIO (4)",
+        "obra": "MARIA E MEL",
+        "servico": "PISO FORRO/DECK",
+        "fiscal": "DAVI",
+        "localizacao": "NOVA LIMA",
+        "data_finalizacao": "20.02.2026",
+        "obs": "SOLICITAÇÃO FITA E DECK"
+      },
+      {
+        "equipe": "ROGERIO",
+        "obra": "ELSON",
+        "servico": "FORRO",
+        "fiscal": "ALVARO",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": "VANDERSON, KAUAN E SIDNEY",
+        "obra": "FERNANDO ARAGON",
+        "servico": "ACABAMENTO",
+        "fiscal": "ALVARO FISC...",
+        "localizacao": "SP-SÃO PAULO",
+        "data_finalizacao": "17.02.2026"
+      },
+      {
+        "equipe": "VANDERSON, KAUAN E SIDNEY",
+        "obra": "ROSANA BRAIDO",
+        "servico": "ACABAMENTO",
+        "fiscal": "ALVARO FISC....",
+        "localizacao": "SP-SÃO PAULO",
+        "data_finalizacao": "17.02.2026"
+      },
+      {
+        "equipe": "VANDERSON, KAUAN E SIDNEY",
+        "obra": "LUIZ ANDRÉ",
+        "servico": "ACABAMENTO",
+        "fiscal": "ALVARO",
+        "localizacao": "GUARUJA"
+      },
+      {
+        "equipe": "ISAQUE",
+        "obra": "THIAGO MIRANDA",
+        "servico": "REVESTIMENTO SUITE",
+        "fiscal": "ALVARD",
+        "localizacao": "SP-SÃO PAULO",
+        "data_finalizacao": "13.03.2026"
+      },
+      {
+        "equipe": "DIEGO JAISON",
+        "obra": "RUBENS FUGISACK",
+        "servico": "INSTALAÇÃO PISO",
+        "fiscal": "CRISTIANO",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": "TRAVADO",
+        "obra": "RAFAELA DIMASI",
+        "servico": "FORRO",
+        "fiscal": "CRISTIANO",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": "VAGNER E RAFAEL",
+        "obra": "DIOGO",
+        "servico": "8M2 DE DECK",
+        "fiscal": "VAGNER",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": "VAGNER E RAFAEL",
+        "obra": "BRUNO SAID",
+        "servico": "FECHAMENTO PAINEL",
+        "fiscal": "ALVARO",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": "VAGNER E RAFAEL",
+        "obra": "RUBEN FEFFER",
+        "servico": "DECK",
+        "fiscal": "VAGNER",
+        "localizacao": "GUARUJA"
+      },
+      {
+        "equipe": "VAGNER E RAFAEL",
+        "obra": "DAVIDSON",
+        "servico": "REMOÇÃO FORRO",
+        "fiscal": "VAGNER",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": "VAGNER E RAFAEL",
+        "obra": "MARISTELA",
+        "servico": "ACABAMENTO ESCADA",
+        "fiscal": "VAGNER",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": "ALEXANDRE E RAFAEL",
+        "obra": "LUIZ ANDRÉ",
+        "servico": "REPARO PISO",
+        "fiscal": "ALVARD",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": "JUAN E GEOVANI",
+        "obra": "LUIZ ANDRÉ",
+        "servico": "REPARO PISO",
+        "fiscal": "ALVARO",
+        "localizacao": "GUARUJA"
+      },
+      {
+        "equipe": "ROGERIO",
+        "obra": "LUIZ ANDRE",
+        "servico": "RASPAGEM DECK",
+        "fiscal": "ALVARO",
+        "localizacao": "GUARUJA"
+      },
+      {
+        "equipe": "CARLÃO E JOCEVANIO",
+        "obra": "RICARDO ERNESTO",
+        "servico": "REPARO PISO",
+        "fiscal": "CARLOS",
+        "localizacao": "PORTO ALEGRE"
+      },
+      {
+        "equipe": "ALAN (2)",
+        "obra": "FELIPE ALMEIDA",
+        "servico": "PERGOLADO",
+        "fiscal": "ALVARO",
+        "localizacao": "BARONESA",
+        "data_finalizacao": "6.3.2026"
+      },
+      {
+        "equipe": "BEDEU (5)",
+        "obra": "FELIPE ALMEIDA",
+        "servico": "FORRO PROJETO",
+        "fiscal": "ALVARO",
+        "localizacao": "BARONESA",
+        "data_finalizacao": "6.3.2026",
+        "obs": "DIARIO"
+      },
+      {
+        "equipe": "ISMAEL",
+        "obra": "ROBERTO BLOES",
+        "servico": "FORRO",
+        "fiscal": "DAVI",
+        "localizacao": "SP-SÃO PAULO",
+        "data_finalizacao": "24.02.2026"
+      },
+      {
+        "equipe": "HENRIQUE-DANY(2)",
+        "obra": "RICARDO FANIN",
+        "servico": "PISO",
+        "fiscal": "CRISTIANO",
+        "localizacao": "SP-SÃO PAULO",
+        "data_finalizacao": "13.02.2026"
+      },
+      {
+        "equipe": "HENRIQUE (2)",
+        "obra": "SANTA ELISA",
+        "servico": "VIGAS E PISO",
+        "fiscal": "ALVARD",
+        "localizacao": "HOLAMBRA",
+        "data_finalizacao": "13.02.2026",
+        "obs": "DIARIO"
+      },
+      {
+        "equipe": "GERALDO (3)",
+        "obra": "BERNADO COUTINHO",
+        "servico": "FORRO",
+        "fiscal": "DAVI",
+        "localizacao": "RIO DE JANEIRO",
+        "data_finalizacao": "27.3.2026"
+      },
+      {
+        "equipe": "REGIS (3)",
+        "obra": "LUANA BASTOS",
+        "servico": "FORRO",
+        "fiscal": "DAVI",
+        "localizacao": "RIO DE JANEIRO"
+      },
+      {
+        "equipe": null,
+        "obra": "PEDRO CAMPOS",
+        "servico": "DECK/PINOS E ROOFTOP",
+        "fiscal": "REINALDO",
+        "localizacao": "BRASILIA",
+        "data_finalizacao": "13.2.2026"
+      },
+      {
+        "equipe": "DANY(3)",
+        "obra": "BRADESCO IRECE/SALVADOR",
+        "servico": "INSTALAÇÃO TACO",
+        "fiscal": null,
+        "localizacao": "IRECE",
+        "data_finalizacao": "27.03.2026",
+        "obs": "DIARIO"
+      },
+      {
+        "equipe": "DANY(3)",
+        "obra": "BRADESCO CEILANDIA",
+        "servico": "INTALAÇÃO TACO",
+        "fiscal": null,
+        "localizacao": "CUIABA"
+      },
+      {
+        "equipe": "REINALDO 3",
+        "obra": "CASA FLORAIS",
+        "servico": "PISO",
+        "fiscal": "REINALDO",
+        "localizacao": "BRASILIA",
+        "data_finalizacao": "13.02.2026"
+      },
+      {
+        "equipe": "ADEMIR 4",
+        "obra": "JORBEL",
+        "servico": "PISO-FORRO E DECK",
+        "fiscal": "REINALDO",
+        "localizacao": "PARAGLIAY",
+        "data_finalizacao": "30.04.2026"
+      },
+      {
+        "equipe": "REINALDO 3",
+        "obra": "ILKA",
+        "servico": "ESTRUTURA",
+        "fiscal": "REINALDO",
+        "localizacao": "BRASILIA",
+        "data_finalizacao": "20.03.2026"
+      },
+      {
+        "equipe": "TRAVADO",
+        "obra": "GABRIEL LACHER",
+        "servico": "PISO E PAINEL",
+        "fiscal": "REINALDO",
+        "localizacao": "BRASILIA",
+        "data_finalizacao": "13.03.2026"
+      },
+      {
+        "equipe": "TRAVADO",
+        "obra": "ANA CRISTINA",
+        "servico": "REVESTIMENTO FORRO",
+        "fiscal": "REINALDO",
+        "localizacao": "JATAI",
+        "data_finalizacao": "13.03.2026"
+      },
+      {
+        "equipe": "REINALDO 2",
+        "obra": "PEDRO CAMPOS",
+        "servico": "REPARO PISO",
+        "fiscal": "REINALDO",
+        "localizacao": "BRASILIA"
+      },
+      {
+        "equipe": "REINALDO 2",
+        "obra": "PEDRO RAMOS",
+        "servico": "ESTRUTURA DE FORRO",
+        "fiscal": "REINALDO",
+        "localizacao": "BRASILIA"
+      },
+      {
+        "equipe": "MATERIAL",
+        "obra": "BRUNO LIMA",
+        "servico": "REPARO DECK",
+        "fiscal": "REINALDO",
+        "localizacao": "SALVADOR",
+        "data_finalizacao": "13.03.2026"
+      },
+      {
+        "equipe": "REINALDO 2",
+        "obra": "FERNANDO E MARAISA (2026)",
+        "servico": "ESTRUTURA PAINEL",
+        "fiscal": "REINALDO",
+        "localizacao": "GOIANIA",
+        "obs": "TRAVADO"
+      },
+      {
+        "equipe": null,
+        "obra": "VALTER E RENATA",
+        "servico": "FORRO",
+        "fiscal": "DAVI",
+        "localizacao": "SP-SÃO PAULO"
+      },
+      {
+        "equipe": null,
+        "obra": "ANDRE GURGEL",
+        "servico": "FORRO 5 ANDAR",
+        "fiscal": "CRISTIANO",
+        "localizacao": "SP-SÃO PAULO",
+        "data_finalizacao": "13.02.2026"
+      }
+    ]
+  }
+}

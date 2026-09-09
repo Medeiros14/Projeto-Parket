@@ -1,0 +1,20 @@
+agno[os]==2.7.1
+anthropic
+fastmcp
+psycopg[binary]
+httpx
+pgvector
+fastembed
+numpy
+pypdf
+
+# deps dos toolkits curados (/painel/toolkits) — baked pra ativar sem rebuild
+ddgs
+wikipedia
+beautifulsoup4
+requests
+youtube-transcript-api
+yfinance
+tavily-python
+exa_py
+firecrawl-py

@@ -1,0 +1,3 @@
+FROM parket-dashboard:golden
+COPY catalogos.js /usr/share/nginx/html/catalogos.js
+RUN sed -i "s|CODE_VERSION\s*=\s*'[^']*'|CODE_VERSION = '20260608-precos-v3'|" /usr/share/nginx/html/index.html

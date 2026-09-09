@@ -1,0 +1,18 @@
+{
+  "name": "Parket Base — Rastreio",
+  "short_name": "Parket Base",
+  "description": "Leitor de QR para rastreio de itens da Parket (produção, logística, obra)",
+  "start_url": "/leitor/",
+  "scope": "/leitor/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0a0a0a",
+  "background_color": "#0a0a0a",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ],
+  "categories": ["business", "productivity"]
+}

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestor de Projetos · Parket</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("gestao-theme");
+          document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+        } catch (e) { document.documentElement.setAttribute("data-theme", "dark"); }
+      })();
+    </script>
+    <style>
+      html, body, #root { height: 100%; margin: 0; }
+      * { box-sizing: border-box; }
+      /* Pré-hidratação SO Parket — bg respeita data-theme antes do React montar. */
+      html[data-theme="dark"], html[data-theme="dark"] body { background: #050505; color: #F4F1EA; color-scheme: dark; }
+      html[data-theme="light"], html[data-theme="light"] body { background: #D8D3C7; color: #050505; color-scheme: light; }
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(216,211,199,0.10); }
+      html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(216,211,199,0.22); }
+      html[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(5,5,5,0.10); }
+      html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(5,5,5,0.24); }
+
+      /* Tipografia consistente Mac/Windows: força Inter (Windows cairia em
+         Segoe UI, peso/escala diferentes) + antialiasing uniforme. */
+      html, body, input, button, textarea, select {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     Roboto, Helvetica, Arial, sans-serif;
+        font-feature-settings: "cv11", "ss01", "ss03";
+      }
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      }
+      * { scrollbar-width: thin; scrollbar-color: rgba(127,127,127,0.35) transparent; }
+
+      /* Escala fluida por largura de tela (notebook 11" → TV 4K).
+         Baseline (zoom 1) = monitores 1600–2999px. Celular (<640px) fora.
+         --pkz espelha o zoom: Chrome NÃO compensa unidades vh dentro de zoom,
+         então todo anchor 100vh do app usa calc(100vh / var(--pkz, 1)). */
+      :root { --pkz: 1; }
+      @media (min-width: 640px) and (max-width: 1599px) { :root { --pkz: 0.92; } body { zoom: 0.92; } }
+      @media (min-width: 640px) and (max-width: 1439px) { :root { --pkz: 0.85; } body { zoom: 0.85; } }
+      @media (min-width: 640px) and (max-width: 1280px) { :root { --pkz: 0.78; } body { zoom: 0.78; } }
+      @media (min-width: 640px) and (max-width: 1100px) { :root { --pkz: 0.70; } body { zoom: 0.70; } }
+      @media (min-width: 3000px) { :root { --pkz: 1.45; } body { zoom: 1.45; } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script src="https://server.parket.works/app.js" data-parket-chat data-api="https://server.parket.works" defer></script>
+  </body>
+</html>

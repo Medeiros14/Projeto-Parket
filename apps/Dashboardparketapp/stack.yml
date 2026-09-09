@@ -1,0 +1,48 @@
+version: "3.9"
+
+networks:
+  network_public:
+    external: true
+
+services:
+  dashboard:
+    image: parket-dashboard:golden-complete
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      update_config:
+        parallelism: 1
+        order: start-first
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # HTTP → HTTPS redirect
+        - "traefik.http.routers.parket-dashboard-http.rule=Host(`dash.parket.works`) || Host(`space.parket.works`) || Host(`base.parket.works`)"
+        - "traefik.http.routers.parket-dashboard-http.entrypoints=web"
+        - "traefik.http.routers.parket-dashboard-http.middlewares=https-redirect"
+        # HTTPS
+        - "traefik.http.routers.parket-dashboard.rule=Host(`dash.parket.works`) || Host(`space.parket.works`) || Host(`base.parket.works`)"
+        - "traefik.http.routers.parket-dashboard.entrypoints=websecure"
+        - "traefik.http.routers.parket-dashboard.tls=true"
+        - "traefik.http.routers.parket-dashboard.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.parket-dashboard.loadbalancer.server.port=80"
+
+        # ── proposta.parket.works → serve a mesma SPA (com tracking injetado) ──
+        - "traefik.http.routers.proposta-dash-http.rule=Host(`proposta.parket.works`)"
+        - "traefik.http.routers.proposta-dash-http.entrypoints=web"
+        - "traefik.http.routers.proposta-dash-http.middlewares=https-redirect"
+        - "traefik.http.routers.proposta-dash.rule=Host(`proposta.parket.works`)"
+        - "traefik.http.routers.proposta-dash.entrypoints=websecure"
+        - "traefik.http.routers.proposta-dash.tls=true"
+        - "traefik.http.routers.proposta-dash.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.proposta-dash.priority=50"
+        - "traefik.http.routers.proposta-dash.service=parket-dashboard"

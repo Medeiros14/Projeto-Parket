@@ -1,0 +1,35 @@
+# Stack do AMBIENTE DE TESTE do Instala (instala2.parket.works)
+# Espelho do stack.yml, mas com service/routers proprios.
+# Producao (instala.parket.works / parket-instala_web) NAO e afetada.
+# Deploy: docker stack deploy -c instala2.stack.yml parket-instala2
+version: "3.9"
+
+networks:
+  network_public:
+    external: true
+
+services:
+  web:
+    # Tag datada do ambiente de teste; taggear/buildar como instala-app:instala2-YYYYMMDD
+    image: instala-app:instala2-20260908
+    networks: [network_public]
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure, delay: 5s }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+      resources:
+        limits: { memory: 192M }
+        reservations: { memory: 48M }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        - "traefik.http.routers.instala2.rule=Host(`instala2.parket.works`)"
+        - "traefik.http.routers.instala2.entrypoints=websecure"
+        - "traefik.http.routers.instala2.tls=true"
+        - "traefik.http.routers.instala2.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.instala2.service=instala2"
+        - "traefik.http.routers.instala2-http.rule=Host(`instala2.parket.works`)"
+        - "traefik.http.routers.instala2-http.entrypoints=web"
+        - "traefik.http.routers.instala2-http.middlewares=https-redirect"
+        - "traefik.http.routers.instala2-http.service=instala2"
+        - "traefik.http.services.instala2.loadbalancer.server.port=80"

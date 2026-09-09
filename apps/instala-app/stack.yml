@@ -1,0 +1,32 @@
+version: "3.9"
+
+networks:
+  network_public:
+    external: true
+
+services:
+  web:
+    image: parket-instala:latest
+    networks: [network_public]
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure, delay: 5s }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+      resources:
+        limits: { memory: 192M }
+        reservations: { memory: 48M }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        - "traefik.http.routers.instala.rule=Host(`instala.parket.works`)"
+        - "traefik.http.routers.instala.entrypoints=websecure"
+        - "traefik.http.routers.instala.tls=true"
+        - "traefik.http.routers.instala.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.instala.service=instala"
+        - "traefik.http.routers.instala-http.rule=Host(`instala.parket.works`)"
+        - "traefik.http.routers.instala-http.entrypoints=web"
+        - "traefik.http.routers.instala-http.middlewares=https-redirect"
+        - "traefik.http.routers.instala-http.service=instala"
+        - "traefik.http.services.instala.loadbalancer.server.port=80"
+        - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"

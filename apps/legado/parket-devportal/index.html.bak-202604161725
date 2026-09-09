@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Parket Code</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  /* Identidade Orbit — base preto-azulado profundo + accents neon
+     (cyan→púrpura→magenta→azul) extraídos da referência */
+  --bg:#08070E;--panel:rgba(16,14,28,0.55);--card:rgba(20,18,34,0.5);
+  --border:rgba(180,150,255,0.08);--border-strong:rgba(180,150,255,0.22);
+  --border-soft:rgba(255,255,255,0.06);
+  --accent:#A855F7;--accent-glow:#C9A4FF;        /* primário — púrpura Orbit */
+  --neon-purple:#A855F7;--neon-cyan:#22D3EE;--neon-blue:#60A5FA;--neon-pink:#EC4899;
+  --neon-magenta:#EC4899;--neon-indigo:#5B5FED;
+  --text:#F5F0FA;--dim:rgba(245,240,250,0.42);--med:rgba(245,240,250,0.72);
+  --green:#10B981;--red:#EF4444;--blue:#3B82F6;--cyan:#22D3EE;--purple:#A855F7;--orange:#F59E0B;
+  --yellow:#F59E0B;
+  /* Tokens de superfície e blur (cards) */
+  --surface-blur:28px;
+  --radius-sm:10px;--radius-md:14px;--radius-lg:20px;--radius-pill:999px;
+  /* Tokens de glow */
+  --glow-purple:0 0 28px rgba(168,85,247,0.35),0 0 60px rgba(168,85,247,0.18);
+  --glow-cyan:0 0 22px rgba(34,211,238,0.32),0 0 50px rgba(34,211,238,0.15);
+}
+body{
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  /* Ambient — glow púrpura no topo-direito + halo cyan/magenta no rodapé,
+     reproduzindo a vibe da referência Orbit (canto superior direito vivo,
+     base com tons frios suaves). Aplicado em camada fixa pra não rolar. */
+  background-image:
+    radial-gradient(ellipse 50% 35% at 100% 0%, rgba(168,85,247,0.18), transparent 60%),
+    radial-gradient(ellipse 38% 28% at 0% 100%, rgba(16,185,129,0.06), transparent 65%),
+    radial-gradient(ellipse 60% 40% at 50% 110%, rgba(236,72,153,0.05), transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(91,95,237,0.08), transparent);
+  background-attachment:fixed;
+  background-size:cover;
+}
+/* Camada de "noise"/grain sutil pra dar a textura grão da referência */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  opacity:0.5;mix-blend-mode:overlay;
+}
+#app{position:relative;z-index:2}
+
+/* Header futurista — barra fina com neon underline */
+.hdr{
+  background:linear-gradient(180deg, rgba(11,13,20,0.92) 0%, rgba(6,7,11,0.85) 100%);
+  backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);
+  border-bottom:1px solid var(--border);padding:0 22px;display:flex;align-items:center;height:54px;
+  position:sticky;top:0;z-index:50;
+  box-shadow:0 1px 0 rgba(168,85,247,0.08), 0 12px 32px -12px rgba(0,0,0,0.6);
+}
+.hdr::after{
+  content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg, transparent 0%, rgba(168,85,247,0.4) 30%, rgba(34,211,238,0.4) 70%, transparent 100%);
+  opacity:0.6;
+}
+.logo{
+  font-size:15px;font-weight:800;color:var(--accent);margin-right:auto;display:flex;align-items:center;gap:10px;
+  letter-spacing:0.02em;text-shadow:0 0 12px rgba(201,167,99,0.4);
+}
+.logo small{
+  font-size:9px;color:var(--dim);font-weight:500;text-transform:uppercase;letter-spacing:.18em;
+  padding:3px 8px;border:1px solid var(--border);border-radius:4px;
+  background:linear-gradient(135deg, rgba(168,85,247,0.06), rgba(34,211,238,0.04));
+}
+.lay{display:flex;height:calc(100vh - 54px)}
+
+/* Sidebar futurista — vidro fosco + accent neon */
+.side{
+  width:230px;
+  background:linear-gradient(180deg, rgba(11,13,20,0.7) 0%, rgba(6,7,11,0.5) 100%);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;
+}
+.side-hdr{
+  padding:14px 16px;border-bottom:1px solid var(--border);font-size:9px;color:var(--dim);
+  text-transform:uppercase;letter-spacing:.18em;font-weight:700;
+  background:linear-gradient(90deg, rgba(168,85,247,0.04), transparent);
+}
+.side-list{flex:1;overflow-y:auto;padding:8px 0}
+.si{
+  display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;transition:.18s ease;
+  border-left:2px solid transparent;font-size:12px;color:var(--med);position:relative;
+}
+.si:hover{background:rgba(255,255,255,.025);color:var(--text)}
+.si.a{
+  background:linear-gradient(90deg, rgba(201,167,99,0.10), rgba(201,167,99,0.02) 80%);
+  color:var(--accent-glow);border-left-color:var(--accent);
+  text-shadow:0 0 12px rgba(201,167,99,0.4);
+}
+.si.a::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--accent);box-shadow:0 0 8px var(--accent), 0 0 16px var(--accent);
+}
+.si .dot{
+  width:6px;height:6px;border-radius:50%;flex-shrink:0;
+  box-shadow:0 0 6px currentColor;
+}
+.mn{flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* Terminal */
+.terminal{flex:1;overflow-y:auto;padding:12px 16px;font-family:'Cascadia Code','Fira Code','JetBrains Mono','SF Mono',Consolas,monospace;font-size:13px;line-height:1.7;scroll-behavior:smooth}
+.terminal::-webkit-scrollbar{width:6px}
+.terminal::-webkit-scrollbar-track{background:transparent}
+.terminal::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+.t-line{padding:1px 0;word-wrap:break-word;white-space:pre-wrap}
+.t-line.accent{color:var(--accent);font-weight:600}
+.t-line.dim{color:var(--dim)}
+.t-line.text{color:var(--med)}
+.t-line.cmd{color:var(--cyan);font-weight:600}
+.t-line.output{color:var(--med)}
+.t-line.success{color:var(--green);font-weight:600}
+.t-line.error{color:var(--red)}
+.t-line.warn{color:var(--orange)}
+.t-line.user-msg{color:var(--blue);border-left:2px solid var(--blue);padding-left:10px;margin:6px 0}
+.t-line.separator{border-bottom:1px solid var(--border);margin:8px 0;padding:0;height:0}
+
+.t-tool{margin:4px 0;padding:8px 12px;background:rgba(168,85,247,.06);border-left:2px solid var(--purple);border-radius:0 6px 6px 0;font-size:12px}
+.t-tool .tool-name{color:var(--purple);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.t-tool .tool-input{color:var(--dim);font-size:11px;max-height:80px;overflow:hidden;text-overflow:ellipsis}
+
+.t-result{margin:2px 0 6px;padding:6px 12px;background:rgba(16,185,129,.04);border-left:2px solid var(--green);border-radius:0 6px 6px 0;font-size:11px;color:var(--dim);max-height:120px;overflow-y:auto}
+
+.t-status{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;margin:4px 0;letter-spacing:.02em}
+.t-status.processing{background:linear-gradient(90deg,rgba(212,168,83,.14),rgba(212,168,83,.04));color:var(--accent);border:1px solid rgba(212,168,83,.18)}
+.t-status.done{background:linear-gradient(90deg,rgba(16,185,129,.14),rgba(16,185,129,.04));color:var(--green);border:1px solid rgba(16,185,129,.22);box-shadow:0 0 12px rgba(16,185,129,.12)}
+.t-status.error{background:linear-gradient(90deg,rgba(239,68,68,.14),rgba(239,68,68,.04));color:var(--red);border:1px solid rgba(239,68,68,.22)}
+
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid transparent;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Action buttons inline — botões neon glow */
+.t-actions{
+  display:flex;gap:10px;margin:12px 0;padding:14px;
+  background:linear-gradient(135deg,rgba(168,85,247,0.06),rgba(34,211,238,0.04));
+  border:1px solid var(--border-strong);border-radius:12px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  box-shadow:0 8px 32px -8px rgba(168,85,247,0.15);
+}
+.t-actions .abtn{
+  padding:10px 18px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:700;
+  display:flex;align-items:center;gap:7px;transition:.18s ease;letter-spacing:.02em;
+  text-transform:uppercase;font-size:11px;
+}
+.t-actions .abtn:hover{filter:brightness(1.18);transform:translateY(-1px)}
+.t-actions .abtn.preview{
+  background:linear-gradient(135deg,#3B82F6,#06B6D4);color:#fff;
+  box-shadow:0 4px 16px -4px rgba(59,130,246,.5);
+}
+.t-actions .abtn.deploy{
+  background:linear-gradient(135deg,#10B981,#22C55E);color:#fff;
+  box-shadow:0 4px 16px -4px rgba(16,185,129,.5);
+}
+.t-actions .abtn.cancel{
+  background:transparent;border:1px solid var(--border-strong);color:var(--dim);
+}
+.t-actions .abtn.cancel:hover{color:var(--text);border-color:rgba(255,255,255,0.3)}
+.t-actions .abtn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* Input bar futurista — gradient + glow no focus */
+.input-bar{
+  padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;
+  background:linear-gradient(180deg, rgba(11,13,20,0.85), rgba(6,7,11,0.95));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  position:relative;
+}
+.input-bar::before{
+  content:'';position:absolute;left:0;right:0;top:-1px;height:1px;
+  background:linear-gradient(90deg, transparent, rgba(168,85,247,0.4), rgba(34,211,238,0.4), transparent);
+  opacity:0.5;
+}
+.mode-toggle{
+  display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border-strong);flex-shrink:0;
+  background:rgba(0,0,0,0.3);
+}
+.mode-btn{
+  padding:8px 12px;font-size:10px;font-weight:800;border:none;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.08em;transition:.18s ease;
+}
+.mode-btn.active{
+  background:linear-gradient(135deg, var(--accent), var(--accent-glow));color:#000;
+  box-shadow:inset 0 -2px 0 rgba(0,0,0,.15);
+}
+.mode-btn:not(.active){background:transparent;color:var(--dim)}
+.mode-btn:not(.active):hover{color:var(--med);background:rgba(255,255,255,.03)}
+.input-bar input{
+  flex:1;padding:11px 16px;border-radius:10px;border:1px solid var(--border-strong);
+  background:rgba(0,0,0,0.4);color:#fff;
+  font-family:'JetBrains Mono','Cascadia Code','Fira Code',ui-monospace,monospace;font-size:13px;outline:none;
+  transition:.2s ease;letter-spacing:.01em;
+}
+.input-bar input:focus{
+  border-color:rgba(168,85,247,0.5);
+  box-shadow:0 0 0 3px rgba(168,85,247,.08), 0 0 24px -8px rgba(168,85,247,.4);
+  background:rgba(0,0,0,0.55);
+}
+.input-bar input::placeholder{color:var(--dim);letter-spacing:.02em}
+.btn{
+  padding:10px 18px;border-radius:10px;border:none;cursor:pointer;font-size:12px;font-weight:700;
+  transition:.18s ease;letter-spacing:.02em;
+}
+.bp{
+  background:linear-gradient(135deg, var(--accent), var(--accent-glow));color:#000;
+  box-shadow:0 4px 16px -4px rgba(201,167,99,.5);
+}
+.bp:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.bg{background:transparent;border:1px solid var(--border-strong);color:var(--dim)}
+.bg:hover{color:var(--text);border-color:rgba(255,255,255,0.25)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;filter:none}
+
+.conn{display:flex;align-items:center;gap:7px;font-size:10px;margin-left:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+.conn-dot{width:8px;height:8px;border-radius:50%}
+.conn-dot.on{background:var(--green);box-shadow:0 0 8px var(--green), 0 0 14px rgba(16,185,129,.4);animation:pulseDot 2s ease-in-out infinite}
+.conn-dot.off{background:var(--red);box-shadow:0 0 6px var(--red)}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(.85)}}
+
+/* Login futurista */
+.login{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:18px;
+  background:radial-gradient(ellipse at center, rgba(168,85,247,0.12), transparent 60%);
+}
+.login h1{
+  color:var(--accent);font-size:26px;font-weight:800;letter-spacing:.04em;
+  text-shadow:0 0 24px rgba(201,167,99,.5);
+}
+.login input{
+  padding:12px 18px;border-radius:10px;border:1px solid var(--border-strong);
+  background:rgba(0,0,0,.4);color:#fff;font-size:14px;outline:none;width:320px;
+  transition:.2s ease;
+}
+.login input:focus{border-color:rgba(168,85,247,.5);box-shadow:0 0 0 3px rgba(168,85,247,.08)}
+
+.admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:18px}
+.dev-card{
+  background:linear-gradient(135deg,rgba(16,19,28,.85),rgba(11,13,20,.7));
+  border:1px solid var(--border);border-radius:12px;padding:16px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:.2s ease;
+}
+.dev-card:hover{border-color:var(--border-strong);transform:translateY(-2px);box-shadow:0 12px 32px -12px rgba(168,85,247,.2)}
+.dev-card h4{font-size:14px;margin-bottom:8px;font-weight:700}
+.tag{
+  display:inline-block;font-size:9px;padding:3px 9px;border-radius:5px;margin:2px;
+  background:linear-gradient(135deg,rgba(201,167,99,.14),rgba(201,167,99,.04));
+  color:var(--accent);border:1px solid rgba(201,167,99,.18);
+  text-transform:uppercase;letter-spacing:.06em;font-weight:600;
+}
+.empty{text-align:center;padding:48px;color:var(--dim);font-size:13px;letter-spacing:.02em}
+
+.tabs{display:flex;gap:4px;padding:10px 18px;border-bottom:1px solid var(--border);background:rgba(11,13,20,.4)}
+.tab{
+  padding:7px 16px;border-radius:8px;border:none;background:transparent;color:var(--dim);
+  font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;
+  transition:.18s ease;
+}
+.tab:hover{color:var(--med);background:rgba(255,255,255,.03)}
+.tab.a{
+  background:linear-gradient(135deg,rgba(201,167,99,.14),rgba(201,167,99,.04));
+  color:var(--accent-glow);border:1px solid rgba(201,167,99,.18);
+  text-shadow:0 0 8px rgba(201,167,99,.4);
+}
+
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center}
+.mdl{
+  background:linear-gradient(135deg,rgba(16,19,28,.95),rgba(11,13,20,.92));
+  border:1px solid var(--border-strong);border-radius:14px;padding:28px;width:100%;max-width:520px;
+  box-shadow:0 20px 60px -20px rgba(168,85,247,.3), 0 0 0 1px rgba(168,85,247,.05) inset;
+}
+.fl{margin-bottom:14px}
+.fl label{display:block;font-size:10px;color:var(--dim);margin-bottom:6px;text-transform:uppercase;font-weight:700;letter-spacing:.08em}
+.fl input,.fl select{
+  width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border-strong);
+  background:rgba(0,0,0,.4);color:#fff;font-size:13px;outline:none;transition:.18s ease;
+}
+.fl input:focus,.fl select:focus{border-color:rgba(168,85,247,.5);box-shadow:0 0 0 3px rgba(168,85,247,.08)}
+
+/* Pipeline bar futurista — steps com glow */
+.pipeline{
+  display:flex;align-items:center;gap:0;padding:10px 18px;
+  background:linear-gradient(180deg,rgba(11,13,20,.7),rgba(6,7,11,.5));
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+.pipe-step{
+  display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:11px;font-weight:700;color:var(--dim);
+  position:relative;letter-spacing:.04em;text-transform:uppercase;transition:.2s ease;
+}
+.pipe-step.active{color:var(--accent-glow);text-shadow:0 0 10px rgba(201,167,99,.45)}
+.pipe-step.done{color:var(--green);text-shadow:0 0 8px rgba(16,185,129,.4)}
+.pipe-step .pipe-num{
+  width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;border:1.5px solid var(--border-strong);font-weight:800;transition:.2s ease;
+}
+.pipe-step.active .pipe-num{
+  border-color:var(--accent);color:var(--accent-glow);
+  background:radial-gradient(circle, rgba(201,167,99,.18) 0%, transparent 70%);
+  box-shadow:0 0 12px rgba(201,167,99,.35), 0 0 0 3px rgba(201,167,99,.08);
+}
+.pipe-step.done .pipe-num{
+  border-color:var(--green);background:linear-gradient(135deg,var(--green),#22C55E);color:#000;
+  box-shadow:0 0 10px rgba(16,185,129,.4);
+}
+.pipe-arrow{color:rgba(168,85,247,0.2);font-size:18px;margin:0 6px;font-weight:300}
+
+@media(max-width:768px){.side{display:none}}
+
+/* ── Neon Orb: visualização de conversa/processamento (novo modelo) ── */
+.terminal-wrap{position:relative;flex:1;display:flex;flex-direction:column;min-height:0}
+.terminal-wrap.processing .terminal{filter:blur(1.8px) saturate(0.55);opacity:.28;transition:.45s ease}
+.terminal-wrap .terminal{transition:.45s ease}
+
+.orbit-overlay{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);
+  z-index:20;display:flex;flex-direction:column;align-items:center;gap:22px;
+  padding:40px 60px 36px;min-width:360px;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at center,rgba(10,10,16,0.88) 0%,rgba(10,10,16,0.55) 55%,rgba(10,10,16,0) 100%);
+  border-radius:28px;
+  animation:orbitIn .55s cubic-bezier(.16,1,.3,1) forwards;
+}
+.orbit-overlay.fading{animation:orbitOut .5s cubic-bezier(.7,0,.84,0) forwards}
+@keyframes orbitIn{to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes orbitOut{to{opacity:0;transform:translate(-50%,-50%) scale(1.25);filter:blur(8px)}}
+
+.orbit-stage{position:relative;width:300px;height:300px}
+.orbit-stage::before{
+  content:'';position:absolute;inset:-50px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at center,
+    rgba(168,85,247,0.14) 0%,
+    rgba(59,130,246,0.09) 28%,
+    rgba(34,211,238,0.05) 52%,
+    transparent 72%);
+  filter:blur(14px);
+  animation:orbAura 3.4s ease-in-out infinite;
+}
+@keyframes orbAura{
+  0%,100%{transform:scale(1);opacity:.85}
+  50%{transform:scale(1.12);opacity:1}
+}
+.orbit-canvas{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+}
+
+.orbit-label{
+  text-align:center;font-size:13px;color:#EADCFE;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;min-height:18px;
+  font-family:'Cascadia Code','Fira Code',monospace;
+  text-shadow:0 0 14px rgba(168,85,247,.55),0 0 24px rgba(34,211,238,.25);
+  animation:orbitLabelShift .3s ease;
+}
+.orbit-label::after{
+  content:'▎';margin-left:4px;animation:orbitBlink 1s step-end infinite;color:#C084FC
+}
+@keyframes orbitBlink{50%{opacity:0}}
+@keyframes orbitLabelShift{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+.orbit-substatus{
+  font-size:10px;color:rgba(234,220,254,0.45);text-transform:uppercase;letter-spacing:.22em;
+  display:flex;align-items:center;gap:10px;
+}
+.orbit-substatus .dot{
+  width:6px;height:6px;border-radius:50%;background:#22D3EE;
+  box-shadow:0 0 10px #22D3EE,0 0 22px rgba(34,211,238,0.55);
+  animation:orbDot 1.6s ease-in-out infinite;
+}
+@keyframes orbDot{
+  0%,100%{transform:scale(1);opacity:1}
+  50%{transform:scale(1.35);opacity:.55}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const API='/api',
+APPS={dashboardparket:{nome:'Dashboard Parket',icon:'📊'},
+'parket-draw':{nome:'Draw / WoodPlanner',icon:'✏️'},
+'parket-ai-squad':{nome:'AI Squad',icon:'🤖'},
+'parket-skills':{nome:'Parket Skills',icon:'📚'}},
+SETORES=['comercial','projetos','compras','producao','logistica','obras','financeiro','fiscal','pmo','orcamento','marketing','rh','ia','atendimento'];
+
+let me=null,devs=[],curApp='dashboardparket',curSetor='',tab='terminal',showAddDev=false,newDev={},showResetSenha=null;
+let ws=null,sessionId=null,connected=false,mode='claude',processing=false;
+let authToken=null,loginError='',loginStep='credentials',pendingEmail='',pendingName='';
+// Pipeline: 1=code, 2=preview, 3=deploy
+let pipeStep=1;
+
+function connectWS(){
+  if(ws && ws.readyState<=1) return;
+  sessionId=crypto.randomUUID();
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  ws=new WebSocket(proto+'//'+location.host+'/ws/terminal/'+sessionId);
+  ws.onopen=()=>{connected=true;addLine('system','Conectado ao Parket Code Terminal','accent');addLine('system','Pipeline: Editar Codigo → Build Preview → Deploy Producao','dim');addLine('system','','dim');updateConn()};
+  ws.onclose=()=>{connected=false;updateConn();setTimeout(connectWS,3000)};
+  ws.onerror=()=>{connected=false;updateConn()};
+  ws.onmessage=(e)=>{
+    try{
+      const d=JSON.parse(e.data);
+      handleWsMessage(d);
+    }catch(err){addLine('raw',e.data,'dim')}
+  };
+}
+
+function handleWsMessage(d){
+  const t=d.type;
+  if(t==='line') addLine('line',d.text,d.style||'text');
+  else if(t==='tool'){ updateOrbit('Executando: '+(d.tool||'ferramenta')); addTool(d.tool,d.input); }
+  else if(t==='result') addResult(d.text);
+  else if(t==='status'){ updateOrbit(d.text); /* o orbit é o ÚNICO indicador de processamento — não acumular spinners no log */ }
+  else if(t==='done'){
+    hideOrbit();
+    purgeStuckProcessing();
+    addStatus(d.text,'done');
+    processing=false;
+    updateInput();
+  }
+  else if(t==='error'){
+    hideOrbit();
+    purgeStuckProcessing();
+    addLine('line',d.text,'error');
+    processing=false;
+    updateInput();
+  }
+  else if(t==='offer_preview'){
+    hideOrbit();
+    purgeStuckProcessing();
+    pipeStep=2;
+    updatePipeline();
+    addPreviewButtons();
+  }
+  else if(t==='offer_deploy'){
+    hideOrbit();
+    purgeStuckProcessing();
+    pipeStep=3;
+    updatePipeline();
+    addDeployButtons();
+  }
+  scrollTerminal();
+}
+
+/* ── Neon Orb renderer (Canvas 2D, partículas Fibonacci na esfera) ── */
+const neonOrb=(function(){
+  let canvas=null,ctx=null,particles=[],t=0,rot=0,running=false,raf=null,resizeHooked=false;
+  const N=1400;
+
+  function init(){
+    particles=[];
+    for(let i=0;i<N;i++){
+      // Distribuição Fibonacci na esfera unitária — cobertura uniforme
+      const phi=Math.acos(1-2*(i+0.5)/N);
+      const theta=Math.PI*(1+Math.sqrt(5))*i;
+      const sx=Math.sin(phi)*Math.cos(theta);
+      const sy=Math.sin(phi)*Math.sin(theta);
+      const sz=Math.cos(phi);
+      const jitter=0.965+Math.random()*0.07;
+      particles.push({
+        x:sx*jitter,y:sy*jitter,z:sz*jitter,
+        size:0.8+Math.random()*1.3,
+        phase:Math.random()*Math.PI*2,
+      });
+    }
+  }
+
+  function resize(){
+    if(!canvas||!ctx) return;
+    const rect=canvas.getBoundingClientRect();
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.max(1,Math.floor(rect.width*dpr));
+    canvas.height=Math.max(1,Math.floor(rect.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function colorForPos(x,y,z){
+    // 4-way blend baseado na posição na esfera (gira com a rotação pra parecer tex fixa)
+    // Cyan (topo-esq), Roxo (topo-dir), Magenta (baixo-dir), Azul (baixo-esq)
+    const top=Math.max(0,-y),bot=Math.max(0,y);
+    const right=Math.max(0,x),left=Math.max(0,-x);
+    const wC=Math.pow(top,0.8)*Math.pow(left,0.65);
+    const wP=Math.pow(top,0.8)*Math.pow(right,0.65);
+    const wM=Math.pow(bot,0.8)*Math.pow(right,0.65);
+    const wB=Math.pow(bot,0.8)*Math.pow(left,0.65);
+    const base=0.12;
+    const s=wC+wP+wM+wB+base*4;
+    // RGB das 4 cores + base neutra indigo
+    const r=(wC*34 +wP*168+wM*236+wB*59 +base*4*90)/s;
+    const g=(wC*211+wP*85 +wM*72 +wB*130+base*4*70)/s;
+    const b=(wC*238+wP*247+wM*153+wB*246+base*4*220)/s;
+    return [r|0,g|0,b|0];
+  }
+
+  function render(){
+    if(!running||!canvas||!canvas.isConnected){running=false;return;}
+    const rect=canvas.getBoundingClientRect();
+    const W=rect.width,H=rect.height;
+    if(W<2||H<2){raf=requestAnimationFrame(render);return;}
+    const cx=W/2,cy=H/2;
+    // R conservador: rim glow (R*1.25*pulse*~1.04) cabe dentro do canvas
+    // min(W,H)/2 com folga; nunca maior que 45% da menor dimensão.
+    const R=Math.min(W,H)*0.33;
+
+    t+=0.012;rot+=0.0035;
+    const pulse=1+Math.sin(t*0.9)*0.035;
+    const wobble=Math.sin(t*0.55)*0.11;
+
+    ctx.clearRect(0,0,W,H);
+
+    // Halo atmosférico interno
+    const halo=ctx.createRadialGradient(cx,cy,R*0.55,cx,cy,R*1.45);
+    halo.addColorStop(0,'rgba(22,12,44,0.55)');
+    halo.addColorStop(0.55,'rgba(22,12,44,0.2)');
+    halo.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=halo;
+    ctx.beginPath();ctx.arc(cx,cy,R*1.5,0,Math.PI*2);ctx.fill();
+
+    const cosR=Math.cos(rot),sinR=Math.sin(rot);
+    const cosW=Math.cos(wobble),sinW=Math.sin(wobble);
+
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i];
+      // Rotação em Y
+      const rx=p.x*cosR+p.z*sinR;
+      const rz1=-p.x*sinR+p.z*cosR;
+      // Wobble em X
+      const ry=p.y*cosW-rz1*sinW;
+      const rz=p.y*sinW+rz1*cosW;
+
+      const persp=1+rz*0.08;
+      const sx=cx+rx*R*pulse*persp;
+      const sy=cy+ry*R*pulse*persp;
+
+      const depth=(rz+1)/2;          // 0 fundo → 1 frente
+      const rim=1-Math.abs(rz);      // 1 na borda, 0 nos polos
+      const shimmer=0.78+0.22*Math.sin(t*2+p.phase);
+
+      const col=colorForPos(rx,ry,rz);
+      const alpha=(depth*0.32+rim*0.68)*shimmer;
+      const sz=p.size*(0.55+depth*0.85+rim*0.35);
+
+      ctx.fillStyle='rgba('+col[0]+','+col[1]+','+col[2]+','+alpha.toFixed(3)+')';
+      ctx.beginPath();ctx.arc(sx,sy,sz,0,Math.PI*2);ctx.fill();
+    }
+
+    // Rim glow externo: anel colorido suave ao redor da esfera
+    // R*1.25*pulse (~1.04) = R*1.30 máx → cabe em min(W,H)/2 = R/0.33 = 1.52R
+    const rimGrad=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.28);
+    rimGrad.addColorStop(0,'rgba(168,85,247,0)');
+    rimGrad.addColorStop(0.18,'rgba(168,85,247,0.28)');
+    rimGrad.addColorStop(0.45,'rgba(34,211,238,0.17)');
+    rimGrad.addColorStop(0.75,'rgba(236,72,153,0.12)');
+    rimGrad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=rimGrad;
+    ctx.beginPath();ctx.arc(cx,cy,R*1.28*pulse,0,Math.PI*2);ctx.fill();
+
+    ctx.globalCompositeOperation='source-over';
+
+    raf=requestAnimationFrame(render);
+  }
+
+  return {
+    attach(cvs){
+      canvas=cvs;
+      ctx=cvs.getContext('2d',{alpha:true});
+      init();
+      resize();
+      if(!resizeHooked){window.addEventListener('resize',resize);resizeHooked=true;}
+      return this;
+    },
+    start(){
+      if(running) return this;
+      running=true;t=0;rot=0;
+      render();
+      return this;
+    },
+    stop(){
+      running=false;
+      if(raf) cancelAnimationFrame(raf);
+      raf=null;
+    }
+  };
+})();
+
+/* ── Orbit loader controls ── */
+function showOrbit(label){
+  const wrap=document.getElementById('terminal-wrap');
+  if(!wrap) return;
+  wrap.classList.add('processing');
+  let o=document.getElementById('orbit-overlay');
+  if(o){ updateOrbit(label); return; }
+  o=document.createElement('div');
+  o.id='orbit-overlay';
+  o.className='orbit-overlay';
+  o.innerHTML=`
+    <div class="orbit-stage">
+      <canvas class="orbit-canvas" id="orbit-canvas"></canvas>
+    </div>
+    <div class="orbit-label" id="orbit-label">${escHtml(label||'Processando')}</div>
+    <div class="orbit-substatus"><span class="dot"></span> Parket Code · IA em conversa</div>
+  `;
+  wrap.appendChild(o);
+  const cvs=document.getElementById('orbit-canvas');
+  if(cvs) neonOrb.attach(cvs).start();
+}
+function updateOrbit(label){
+  const o=document.getElementById('orbit-overlay');
+  if(!o){ showOrbit(label); return; }
+  const el=document.getElementById('orbit-label');
+  if(el){
+    el.textContent=label||'Processando';
+    el.style.animation='none';
+    void el.offsetWidth;
+    el.style.animation='';
+  }
+}
+function hideOrbit(){
+  const wrap=document.getElementById('terminal-wrap');
+  if(wrap) wrap.classList.remove('processing');
+  const o=document.getElementById('orbit-overlay');
+  if(!o) return;
+  o.classList.add('fading');
+  neonOrb.stop();
+  setTimeout(()=>{ if(o.parentNode) o.parentNode.removeChild(o); },500);
+}
+
+function addLine(kind,text,style){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-line '+(style||'');
+  div.textContent=text;
+  term.appendChild(div);
+}
+
+function addTool(name,input){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-tool';
+  let inputStr='';
+  if(input){
+    if(typeof input==='string') inputStr=input;
+    else{try{const s=JSON.stringify(input,null,0);inputStr=s.length>200?s.substring(0,200)+'...':s}catch(e){inputStr=String(input)}}
+  }
+  div.innerHTML='<div class="tool-name">🔧 '+escHtml(name)+'</div>'+(inputStr?'<div class="tool-input">'+escHtml(inputStr)+'</div>':'');
+  term.appendChild(div);
+}
+
+function addResult(text){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-result';
+  div.textContent=text;
+  term.appendChild(div);
+}
+
+function addStatus(text,type){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-status '+type;
+  div.innerHTML=(type==='processing'?'<div class="spinner"></div>':type==='done'?'✅':'❌')+' '+escHtml(text);
+  term.appendChild(div);
+}
+
+/** Remove qualquer t-status.processing órfão do terminal — chamado em done/error/offer_*
+ * para garantir que nenhum spinner fique girando depois de a operação terminar.
+ * Defesa extra além de já ter parado de criar esses elementos no handleWsMessage. */
+function purgeStuckProcessing(){
+  document.querySelectorAll('#terminal .t-status.processing').forEach(el=>el.remove());
+}
+
+function addSeparator(){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-line separator';
+  term.appendChild(div);
+}
+
+function addPreviewButtons(){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-actions';
+  div.id='action-buttons';
+  div.innerHTML=`
+    <button class="abtn preview" onclick="doPreview()">🔨 Build Preview</button>
+    <button class="abtn cancel" onclick="skipPreview()">Pular (sem preview)</button>
+  `;
+  term.appendChild(div);
+}
+
+function addDeployButtons(){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const isAdmin=me&&(me.role==='superadmin'||me.role==='admin');
+  const div=document.createElement('div');
+  div.className='t-actions';
+  div.id='action-buttons';
+  div.innerHTML=`
+    <button class="abtn deploy" ${isAdmin?'':'disabled title="Apenas admin pode deployar"'} onclick="doDeploy()">🚀 Deploy Producao</button>
+    <button class="abtn cancel" onclick="skipDeploy()">Cancelar</button>
+  `;
+  term.appendChild(div);
+}
+
+function removeActionButtons(){
+  const el=document.getElementById('action-buttons');
+  if(el) el.remove();
+}
+
+function doPreview(){
+  removeActionButtons();
+  if(!ws||ws.readyState!==1)return;
+  processing=true;
+  updateInput();
+  showOrbit('Construindo preview');
+  ws.send(JSON.stringify({action:'preview',app:curApp,dev_email:me.dev_email}));
+}
+
+function skipPreview(){
+  removeActionButtons();
+  addLine('line','Preview pulado.','dim');
+  pipeStep=1;
+  updatePipeline();
+}
+
+function doDeploy(){
+  removeActionButtons();
+  if(!ws||ws.readyState!==1)return;
+  processing=true;
+  updateInput();
+  showOrbit('Fazendo deploy em produção');
+  ws.send(JSON.stringify({action:'deploy',app:curApp,dev_email:me.dev_email,role:me.role}));
+}
+
+function skipDeploy(){
+  removeActionButtons();
+  addLine('line','Deploy cancelado. A imagem staging permanece disponivel para deploy futuro.','dim');
+  pipeStep=1;
+  updatePipeline();
+}
+
+function scrollTerminal(){
+  const term=document.getElementById('terminal');
+  if(term) requestAnimationFrame(()=>term.scrollTop=term.scrollHeight);
+}
+
+function updateConn(){
+  const el=document.getElementById('conn-dot');
+  if(el) el.className='conn-dot '+(connected?'on':'off');
+  const label=document.getElementById('conn-label');
+  if(label) label.textContent=connected?'Conectado':'Desconectado';
+}
+
+function updateInput(){
+  const btn=document.getElementById('send-btn');
+  const inp=document.getElementById('cmd-input');
+  if(btn) btn.disabled=processing;
+  if(inp) inp.disabled=processing;
+}
+
+function updatePipeline(){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('pipe-'+i);
+    if(!el)return;
+    el.className='pipe-step'+(pipeStep===i?' active':'')+(pipeStep>i?' done':'');
+  });
+}
+
+function sendMessage(){
+  const inp=document.getElementById('cmd-input');
+  if(!inp||!inp.value.trim()||!ws||ws.readyState!==1||processing)return;
+  const text=inp.value.trim();
+  inp.value='';
+
+  addSeparator();
+  pipeStep=1;
+  updatePipeline();
+
+  if(mode==='claude'){
+    addLine('line','👤 '+me.dev_name+' → '+APPS[curApp].nome+(curSetor?' / '+curSetor:''),'user-msg');
+    addLine('line',text,'user-msg');
+    ws.send(JSON.stringify({action:'message',dev_email:me.dev_email,app:curApp,setor:curSetor,content:text}));
+    processing=true;
+    showOrbit('Analisando solicitação');
+  } else {
+    addLine('line','$ '+text,'cmd');
+    ws.send(JSON.stringify({action:'command',app:curApp,cmd:text}));
+    processing=true;
+    showOrbit('Executando comando shell');
+  }
+  updateInput();
+  scrollTerminal();
+}
+
+function clearTerminal(){
+  const term=document.getElementById('terminal');
+  if(term) term.innerHTML='';
+  pipeStep=1;updatePipeline();
+  addLine('system','Terminal limpo. '+APPS[curApp].nome+(curSetor?' / '+curSetor:''),'dim');
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ── API ──
+async function login(email,senha){
+  loginError='';
+  if(!email||!senha){loginError='Preencha email e senha';R();return}
+  try{
+    const r=await fetch(API+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,senha})});
+    const d=await r.json();
+    if(d.error){loginError=d.error;R();return}
+    if(d.step==='2fa'){
+      // Senha OK, agora precisa do código 2FA
+      loginStep='2fa';pendingEmail=email;pendingName=d.dev_name||'';loginError='';
+      R();return;
+    }
+    // Login direto (fallback)
+    finishLogin(d);
+  }catch(e){loginError='Erro de conexão';R()}
+}
+
+async function verify2fa(code){
+  loginError='';
+  if(!code||code.length!==6){loginError='Digite o código de 6 dígitos';R();return}
+  try{
+    const r=await fetch(API+'/verify-2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:pendingEmail,code})});
+    const d=await r.json();
+    if(d.error){loginError=d.error;R();return}
+    finishLogin(d);
+  }catch(e){loginError='Erro de conexão';R()}
+}
+
+function finishLogin(d){
+  me=d;authToken=d.token;
+  localStorage.setItem('dev-token',authToken);
+  localStorage.setItem('dev-email',d.dev_email);
+  loginStep='credentials';pendingEmail='';loginError='';
+  connectWS();
+  if(me.role==='superadmin'||me.role==='admin') fetch(API+'/devs').then(r=>r.json()).then(d=>{devs=d;R()});
+  R();
+}
+
+async function checkSession(){
+  const token=localStorage.getItem('dev-token');
+  const email=localStorage.getItem('dev-email');
+  if(!token||!email)return false;
+  const r=await fetch(API+'/me?token='+token+'&email='+email);
+  const d=await r.json();
+  if(d.error){localStorage.removeItem('dev-token');localStorage.removeItem('dev-email');return false}
+  me=d;authToken=token;
+  connectWS();
+  if(me.role==='superadmin'||me.role==='admin') devs=await(await fetch(API+'/devs')).json();
+  return true;
+}
+
+async function addDev(){
+  if(!newDev.dev_name||!newDev.dev_email||!newDev.senha){alert('Nome, email e senha obrigatórios');return}
+  if(newDev.senha.length<6){alert('Senha mínimo 6 caracteres');return}
+  try{
+    const res=await fetch(API+'/devs',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({dev_name:newDev.dev_name,dev_email:newDev.dev_email,senha:newDev.senha,
+        telefone:newDev.telefone||null,role:newDev.role||'dev',
+        apps_permitidos:newDev.apps||[],setores_permitidos:newDev.setores||[]})});
+    if(!res.ok){const e=await res.text();alert('Erro ao criar dev: '+e);return}
+    showAddDev=false;newDev={};
+    devs=await(await fetch(API+'/devs')).json();R();
+  }catch(e){alert('Erro de conexão: '+e.message)}
+}
+
+async function removeDev(id){
+  if(!confirm('Remover dev?'))return;
+  await fetch(API+'/devs/'+id,{method:'DELETE'});
+  devs=await(await fetch(API+'/devs')).json();R();
+}
+
+async function resetSenha(id){
+  const senha=document.getElementById('new-senha-'+id)?.value;
+  if(!senha||senha.length<6){alert('Senha mínimo 6 caracteres');return}
+  const r=await fetch(API+'/devs/'+id+'/reset-senha',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({senha})});
+  const d=await r.json();
+  if(d.ok){alert('Senha atualizada!');showResetSenha=null;R()}
+  else alert(d.error||'Erro');
+}
+
+// ── Render ──
+function R(){
+  const a=document.getElementById('app');
+  if(!me){
+    if(loginStep==='2fa'){
+      a.innerHTML=`<div class="login">
+        <h1>🔐 Verificação</h1>
+        <p style="color:var(--med);font-size:13px">Olá, ${escHtml(pendingName)}</p>
+        <p style="color:var(--dim);font-size:12px;max-width:300px;text-align:center;line-height:1.5">Um código de 6 dígitos foi enviado para seu WhatsApp. Digite abaixo:</p>
+        ${loginError?'<p style="color:var(--red);font-size:12px;background:rgba(239,68,68,.1);padding:8px 16px;border-radius:6px">'+escHtml(loginError)+'</p>':''}
+        <input id="otp" maxlength="6" placeholder="000000" style="width:200px;text-align:center;font-size:24px;letter-spacing:8px;font-weight:700;font-family:monospace" onkeydown="if(event.key==='Enter')verify2fa(this.value)" autofocus/>
+        <button class="btn bp" style="width:300px" onclick="verify2fa(document.getElementById('otp').value)">Verificar</button>
+        <button class="btn bg" style="width:300px;font-size:11px" onclick="loginStep='credentials';loginError='';R()">← Voltar</button>
+        <p style="color:var(--dim);font-size:10px;margin-top:8px">Código válido por 5 minutos</p>
+      </div>`;
+    } else {
+      a.innerHTML=`<div class="login">
+        <h1>⚡ Parket Code</h1>
+        <p style="color:var(--dim);font-size:13px">Portal de Desenvolvimento</p>
+        ${loginError?'<p style="color:var(--red);font-size:12px;background:rgba(239,68,68,.1);padding:8px 16px;border-radius:6px">'+escHtml(loginError)+'</p>':''}
+        <input id="em" placeholder="Email" style="width:300px" onkeydown="if(event.key==='Enter')document.getElementById('pw').focus()"/>
+        <input id="pw" type="password" placeholder="Senha" style="width:300px" onkeydown="if(event.key==='Enter')login(document.getElementById('em').value,this.value)"/>
+        <button class="btn bp" style="width:300px" onclick="login(document.getElementById('em').value,document.getElementById('pw').value)">Entrar</button>
+        <p style="color:var(--dim);font-size:10px;margin-top:8px">Acesso restrito. Solicite ao admin.</p>
+      </div>`;
+    }
+    return;
+  }
+
+  const isAdmin=me.role==='superadmin'||me.role==='admin';
+  const myApps=me.apps_permitidos||[];
+  const mySetores=me.setores_permitidos||[];
+  const canAccess=(app)=>isAdmin||myApps.includes(app);
+
+  const appList=Object.entries(APPS).filter(([k])=>canAccess(k)).map(([k,v])=>
+    `<div class="si ${curApp===k?'a':''}" onclick="selectApp('${k}')">${v.icon} ${v.nome}</div>`).join('');
+
+  const setorList=(isAdmin?SETORES:mySetores).map(s=>
+    `<div class="si ${curSetor===s?'a':''}" onclick="selectSetor('${s}')"><div class="dot" style="background:var(--accent)"></div>${s}</div>`).join('');
+
+  const tabsDef=[
+    {id:'terminal',label:'⚡ Terminal'},
+    {id:'admin',label:'👥 Devs',show:isAdmin},
+  ];
+  const tabsHtml='<div class="tabs">'+tabsDef.filter(t=>t.show!==false).map(t=>
+    `<button class="tab ${tab===t.id?'a':''}" onclick="tab='${t.id}';R()">${t.label}</button>`).join('')+'</div>';
+
+  const sidebar=`<div class="side">
+    <div class="side-hdr">Aplicacoes</div><div class="side-list">${appList}</div>
+    ${curApp==='dashboardparket'?'<div class="side-hdr">Setores</div><div class="side-list">'+setorList+'</div>':''}
+  </div>`;
+
+  const header=`<div class="hdr">
+    <div class="logo">⚡ PARKET CODE <small>Dev Portal</small></div>
+    <div class="conn"><div class="conn-dot ${connected?'on':'off'}" id="conn-dot"></div><span id="conn-label" style="color:var(--dim)">${connected?'Conectado':'Desconectado'}</span></div>
+    <span style="font-size:11px;color:var(--dim);margin-left:12px">${escHtml(me.dev_name)} · ${me.role}</span>
+    <button class="btn bg" style="margin-left:12px;font-size:10px" onclick="me=null;authToken=null;localStorage.removeItem('dev-email');localStorage.removeItem('dev-token');if(ws)ws.close();R()">Sair</button>
+  </div>`;
+
+  if(tab==='terminal'){
+    const placeholder=mode==='claude'
+      ?'Descreva o que precisa no '+APPS[curApp].nome+(curSetor?' / '+curSetor:'')+'...'
+      :'Comando shell...';
+
+    const pipelineHtml=`<div class="pipeline">
+      <div class="pipe-step ${pipeStep===1?'active':''} ${pipeStep>1?'done':''}" id="pipe-1"><div class="pipe-num">1</div> Editar Codigo</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step ${pipeStep===2?'active':''} ${pipeStep>2?'done':''}" id="pipe-2"><div class="pipe-num">2</div> Build Preview</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step ${pipeStep===3?'active':''}" id="pipe-3"><div class="pipe-num">3</div> Deploy Producao</div>
+    </div>`;
+
+    a.innerHTML=header+`<div class="lay">${sidebar}<div class="mn">${tabsHtml}${pipelineHtml}
+      <div class="terminal-wrap" id="terminal-wrap">
+        <div class="terminal" id="terminal"></div>
+      </div>
+      <div class="input-bar">
+        <div class="mode-toggle">
+          <button class="mode-btn ${mode==='claude'?'active':''}" onclick="mode='claude';updatePlaceholder()">Claude</button>
+          <button class="mode-btn ${mode==='shell'?'active':''}" onclick="mode='shell';updatePlaceholder()">Shell</button>
+        </div>
+        <input id="cmd-input" placeholder="${placeholder}" ${processing?'disabled':''} onkeydown="if(event.key==='Enter')sendMessage()"/>
+        <button class="btn bp" id="send-btn" ${processing?'disabled':''} onclick="sendMessage()">${mode==='claude'?'⚡ Enviar':'▶ Run'}</button>
+        <button class="btn bg" onclick="clearTerminal()" title="Limpar terminal" style="padding:8px 10px">🗑</button>
+      </div>
+    </div></div>`;
+
+    const term=document.getElementById('terminal');
+    if(term && term.children.length===0){
+      addLine('system','⚡ Parket Code Terminal — '+APPS[curApp].nome+(curSetor?' / '+curSetor:''),'accent');
+      addLine('system','','dim');
+      addLine('system','FLUXO DE TRABALHO:','dim');
+      addLine('system','  1. Descreva a alteracao no modo Claude → codigo editado automaticamente','dim');
+      addLine('system','  2. Clique "Build Preview" → imagem staging gerada + container de teste','dim');
+      addLine('system','  3. Valide o preview → clique "Deploy" para enviar a producao','dim');
+      addLine('system','','dim');
+      addLine('system','Modo Shell disponivel para comandos diretos (git status, ls, etc.)','dim');
+      addLine('system','','dim');
+    }
+  }
+  else if(tab==='admin'&&isAdmin){
+    const devsHtml=(Array.isArray(devs)?devs:[]).map(d=>`<div class="dev-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h4>${escHtml(d.dev_name||'')}</h4>
+        <span style="font-size:10px;color:${d.ativo?'var(--green)':'var(--red)'};">${d.ativo?'Ativo':'Inativo'}</span>
+      </div>
+      <p style="font-size:11px;color:var(--dim);margin-bottom:8px">${escHtml(d.dev_email||'')} · ${d.role||'dev'}</p>
+      <div style="margin-bottom:6px"><span style="font-size:9px;color:var(--dim)">APPS:</span> ${(d.apps_permitidos||[]).map(x=>'<span class="tag">'+escHtml(x)+'</span>').join('')}</div>
+      <div><span style="font-size:9px;color:var(--dim)">SETORES:</span> ${(d.setores_permitidos||[]).map(x=>'<span class="tag">'+escHtml(x)+'</span>').join('')}</div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn bg" style="font-size:10px" onclick="showResetSenha=showResetSenha==='${d.id}'?null:'${d.id}';R()">🔑 Senha</button>
+        <button class="btn bg" style="font-size:10px;color:var(--red)" onclick="removeDev('${d.id}')">Remover</button>
+      </div>
+      ${showResetSenha===d.id?`<div style="margin-top:8px;display:flex;gap:6px;align-items:center"><input id="new-senha-${d.id}" type="password" placeholder="Nova senha" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:#fff;font-size:12px"/><button class="btn bp" style="font-size:10px;padding:6px 12px" onclick="resetSenha('${d.id}')">Salvar</button></div>`:''}
+    </div>`).join('');
+
+    a.innerHTML=header+`<div class="lay">${sidebar}<div class="mn">${tabsHtml}
+      <div style="padding:16px;display:flex;justify-content:space-between;align-items:center">
+        <h3 style="font-size:16px">Devs & Permissoes</h3>
+        <button class="btn bp" onclick="showAddDev=true;R()">+ Novo Dev</button>
+      </div>
+      <div class="admin-grid">${devsHtml}</div>
+    </div></div>`+(showAddDev?addDevModal():'');
+  }
+}
+
+function updatePlaceholder(){
+  const inp=document.getElementById('cmd-input');
+  const btn=document.getElementById('send-btn');
+  if(inp) inp.placeholder=mode==='claude'
+    ?'Descreva o que precisa no '+APPS[curApp].nome+(curSetor?' / '+curSetor:'')+'...'
+    :'Comando shell...';
+  if(btn) btn.textContent=mode==='claude'?'⚡ Enviar':'▶ Run';
+}
+
+function selectApp(app){
+  curApp=app;R();
+  const term=document.getElementById('terminal');
+  if(term&&tab==='terminal'){addSeparator();addLine('system','📂 App: '+APPS[app].nome+(curSetor?' / '+curSetor:''),'accent')}
+}
+
+function selectSetor(setor){
+  curSetor=setor;R();
+  const term=document.getElementById('terminal');
+  if(term&&tab==='terminal'){addSeparator();addLine('system','🏷 Setor: '+setor+' ('+APPS[curApp].nome+')','accent')}
+}
+
+function addDevModal(){
+  const appsOpts=Object.keys(APPS).map(k=>`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--med);margin:4px 0"><input type="checkbox" value="${k}" onchange="var c=document.querySelectorAll('.app-chk:checked');newDev.apps=Array.from(c).map(x=>x.value)" class="app-chk"/> ${k}</label>`).join('');
+  const setOpts=SETORES.map(s=>`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--med);margin:4px 0"><input type="checkbox" value="${s}" onchange="var c=document.querySelectorAll('.set-chk:checked');newDev.setores=Array.from(c).map(x=>x.value)" class="set-chk"/> ${s}</label>`).join('');
+
+  return `<div class="mo" onclick="showAddDev=false;R()"><div class="mdl" onclick="event.stopPropagation()">
+    <h3 style="color:var(--accent);margin-bottom:16px">Adicionar Dev</h3>
+    <div class="fl"><label>Nome</label><input oninput="newDev.dev_name=this.value"/></div>
+    <div class="fl"><label>Email</label><input oninput="newDev.dev_email=this.value" placeholder="nome@parket.com.br"/></div>
+    <div class="fl"><label>Senha</label><input type="password" oninput="newDev.senha=this.value" placeholder="Mínimo 6 caracteres"/></div>
+    <div class="fl"><label>Telefone (WhatsApp / 2FA)</label><input oninput="newDev.telefone=this.value" placeholder="5511999999999"/></div>
+    <div class="fl"><label>Role</label><select onchange="newDev.role=this.value"><option value="dev" selected>Dev</option><option value="admin">Admin</option></select></div>
+    <div class="fl"><label>Apps Permitidos</label>${appsOpts}</div>
+    <div class="fl"><label>Setores Permitidos</label><div style="max-height:150px;overflow-y:auto">${setOpts}</div></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn bg" onclick="showAddDev=false;R()">Cancelar</button>
+      <button class="btn bp" onclick="addDev()">Adicionar</button>
+    </div>
+  </div></div>`;
+}
+
+// Init — check saved session
+(async()=>{
+  const ok=await checkSession();
+  R();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+import{l as x,r as n,j as e}from"./vendor-react-BCRWuP_0.js";import{s as l}from"./core-auth-D7HYo5n6.js";import{g as y}from"./propostaGenerator-DG0SxXyf.js";import"./vendor-supabase-4xig6v3J.js";import"./core-layout-Dl57Aqcp.js";import"./vendor-dnd-Ch1h4280.js";import"./core-data-DumTSR8N.js";import"./core-hooks-DpcsT2gL.js";import"./vendor-lucide-g6oBxExp.js";import"./vendor-radix-C5pSEoY-.js";import"./vendor-recharts-C8e-3zca.js";const k=`
+<style>
+  @media screen {
+    html, body {
+      background: #000 !important;
+      margin: 0; padding: 0;
+      scroll-behavior: smooth;
+      overflow-x: hidden;
+      -webkit-print-color-adjust: exact !important;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ─── Cada secao proporcional a tela, conteudo centralizado ─── */
+    .pagemargins {
+      background: #ededed !important;
+      width: 100% !important;
+      max-width: 1100px !important;
+      margin: 0 auto !important;
+      min-height: 100vh;
+      min-height: 100dvh;
+      box-sizing: border-box;
+      position: relative !important;
+      overflow: visible;
+    }
+
+    .page-fixed {
+      width: 100% !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      position: relative !important;
+      overflow: hidden !important;
+    }
+
+    /* ─── Pag 1: Info preta ─── */
+    .info-page, .info-page::before {
+      background: #000000 !important;
+    }
+    .info-logo {
+      position: absolute !important;
+      left: 8vw !important;
+      bottom: 42% !important;
+      top: auto !important;
+      font: 300 clamp(24pt, 5vw, 42pt) 'Segoe UI', system-ui, sans-serif !important;
+      color: #e9e9e9 !important;
+      z-index: 1 !important;
+    }
+    .info-block {
+      position: absolute !important;
+      left: 8vw !important;
+      bottom: 8vh !important;
+      top: auto !important;
+      right: 8vw !important;
+      z-index: 1 !important;
+      font: 300 clamp(9pt, 1.8vw, 14pt) 'Segoe UI', system-ui, sans-serif !important;
+      color: #e9e9e9 !important;
+      line-height: 1.7 !important;
+    }
+    .info-block .info-line {
+      margin: 0 !important;
+      white-space: normal !important;
+      word-wrap: break-word !important;
+    }
+    .info-block .info-gap { height: clamp(6pt, 1.5vh, 14pt) !important; }
+
+    /* ─── Pag 2: Video fullscreen ─── */
+    .video-section {
+      padding: 0 !important;
+    }
+    .video-bg {
+      width: 100% !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      object-fit: cover !important;
+      display: block !important;
+    }
+
+    /* ─── Tabela de itens ─── */
+    .table-page {
+      background: #ededed !important;
+      width: 100% !important;
+      padding: clamp(20px, 4vh, 50px) clamp(12px, 3vw, 40px) clamp(40px, 6vh, 80px) !important;
+    }
+    .ptable {
+      width: 100% !important;
+      max-width: 900px !important;
+      margin: 0 auto !important;
+      border-collapse: collapse !important;
+      font: clamp(6.5pt, 1.2vw, 10pt) 'Segoe UI', system-ui, sans-serif !important;
+    }
+    .ptable thead td.t-cliente {
+      border: none !important;
+      padding: clamp(8pt, 1.5vh, 16pt) 6pt 2pt 0 !important;
+      text-align: right !important;
+      font: clamp(7pt, 1.4vw, 12pt) 'Segoe UI', system-ui, sans-serif !important;
+      color: #1a1a1a !important;
+      background: transparent !important;
+    }
+    .ptable thead td.t-label {
+      border: none !important;
+      padding: 2pt 0 4pt 0 !important;
+      text-align: left !important;
+      font: clamp(7pt, 1.4vw, 12pt) 'Segoe UI', system-ui, sans-serif !important;
+      color: #1a1a1a !important;
+      background: transparent !important;
+    }
+    .hdr-itens, .hdr-desc, .hdr-valor {
+      background: #000000 !important;
+      color: #ffffff !important;
+      font: bold clamp(7pt, 1.2vw, 10pt) 'Segoe UI', system-ui, sans-serif !important;
+      padding: clamp(4pt, 0.8vh, 8pt) clamp(6pt, 1vw, 12pt) !important;
+    }
+    .ptable tbody td {
+      border-bottom: 2px solid #ffffff !important;
+      border-right: 2px solid #ffffff !important;
+      padding: clamp(4pt, 0.8vh, 10pt) clamp(4pt, 0.8vw, 10pt) !important;
+    }
+    .ptable tbody td:last-child { border-right: none !important; }
+    .ptable tbody tr.ftotal-row td {
+      border-top: 1px solid #000 !important;
+      border-bottom: 1px solid #000 !important;
+    }
+
+    /* ─── Aceite ─── */
+    .aceite-block {
+      max-width: 900px !important;
+      margin: 0 auto !important;
+      padding: clamp(12pt, 2vh, 24pt) clamp(12px, 3vw, 40px) 0 !important;
+      font: clamp(7pt, 1.2vw, 11pt) 'Segoe UI', system-ui, sans-serif !important;
+    }
+
+    /* ─── Contrato 2 colunas (desktop) / 1 coluna (celular) ─── */
+    .contract-page {
+      background: #ededed !important;
+      width: 100% !important;
+      padding: 0 0 clamp(30pt, 5vh, 60pt) 0 !important;
+    }
+    .contract-header {
+      padding: clamp(16pt, 3vh, 30pt) clamp(20px, 4vw, 50px) 0 0 !important;
+      font: clamp(7pt, 1.4vw, 11pt) 'Segoe UI', system-ui, sans-serif !important;
+      text-align: right !important;
+      color: #1a1a1a !important;
+    }
+    .contract-body {
+      column-count: 2 !important;
+      column-gap: clamp(16pt, 3vw, 30pt) !important;
+      column-fill: balance !important;
+      height: auto !important;
+      margin: 0 auto !important;
+      padding: clamp(12pt, 2vh, 20pt) clamp(20px, 4vw, 50px) 0 !important;
+      font: clamp(6.5pt, 0.75vw, 8pt) 'Segoe UI', system-ui, sans-serif !important;
+      text-align: justify !important;
+      line-height: 1.6 !important;
+      word-wrap: break-word !important;
+    }
+
+    /* ─── Mobile: contrato sem height fixo ─── */
+    @media (max-width: 640px) {
+      .contract-body {
+        height: auto !important;
+        column-count: 1 !important;
+        font-size: clamp(7pt, 2.5vw, 9pt) !important;
+      }
+    }
+
+    /* ─── Assinaturas ─── */
+    .contract-sigs-flow {
+      width: 48% !important;
+      margin-left: auto !important;
+      padding: clamp(12pt, 2vh, 18pt) clamp(20px, 4vw, 50px) 0 0 !important;
+      font: clamp(5pt, 0.9vw, 7pt) Verdana, sans-serif !important;
+    }
+    .contract-sigs-flow .sig-block {
+      border-top: 1px solid #000 !important;
+      margin: clamp(8pt, 1.5vh, 14pt) 0 6pt 0 !important;
+      padding-top: 4pt !important;
+    }
+    .contract-sigs-flow .sig-label {
+      font: clamp(5pt, 0.8vw, 6pt) Verdana, sans-serif !important;
+      text-align: center !important;
+    }
+    .contract-sigs-flow .sig-field {
+      font: clamp(5pt, 0.8vw, 6pt) Verdana, sans-serif !important;
+      margin-top: 4pt !important;
+    }
+
+    /* ─── Footer PARKET ─── */
+    .pagemargins::after {
+      content: "PARKET";
+      position: absolute;
+      bottom: clamp(12pt, 2vh, 24pt);
+      right: clamp(16px, 3vw, 40px);
+      font: 400 clamp(12pt, 2.5vw, 20pt) 'Segoe UI', system-ui, sans-serif;
+      letter-spacing: 1.5pt;
+      color: #1a1a1a;
+    }
+    /* Sem footer na info e video */
+    .pagemargins:first-child::after,
+    .video-section::after {
+      content: none !important;
+    }
+
+    /* ─── Mobile extras ─── */
+    @media (max-width: 640px) {
+      .contract-sigs-flow {
+        width: 100% !important;
+        max-width: none !important;
+      }
+      .info-block .info-line {
+        font-size: clamp(8pt, 3vw, 11pt) !important;
+      }
+    }
+  }
+
+  /* Fix: contrato 2 colunas desktop, 1 coluna mobile, sempre cresce pra baixo */
+  .contract-body,
+  .contract-page .contract-body {
+    column-count: 2 !important;
+    column-gap: 24pt !important;
+    column-fill: balance !important;
+    overflow: visible !important;
+    overflow-x: hidden !important;
+    padding: 20pt 26pt 40pt 26pt !important;
+    font-size: 7.5pt !important;
+    line-height: 1.65 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  @media screen and (max-width: 900px) {
+    .contract-body,
+    .contract-page .contract-body {
+      column-count: 1 !important;
+      columns: 1 !important;
+      -webkit-columns: 1 !important;
+      padding: 16pt 20pt 30pt 20pt !important;
+      font-size: 8pt !important;
+    }
+  }
+  .pagemargins,
+  .pagemargins:last-child {
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    overflow-x: hidden !important;
+  }
+  .contract-page {
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+</style>
+`,S=`
+  <!-- ═══ PAGE: Video ═══ -->
+  <div class="pagemargins video-section" style="page-break-before:always;">
+    <video autoplay loop muted playsinline class="video-bg">
+      <source src="/assets/Heromobile-v3.mp4" type="video/mp4" />
+    </video>
+  </div>
+`;function H(){const{id:r}=x(),[g,f]=n.useState(null),[c,p]=n.useState(null),[h,m]=n.useState(!0);return n.useEffect(()=>{if(!r){p("ID da proposta não informado"),m(!1);return}(async()=>{try{const{data:t,error:s}=await l.from("simulacao_projetos").select("*").eq("id",r).single();if(s||!t){p("Proposta não encontrada"),m(!1);return}const{data:v}=await l.from("simulacao_itens").select("*").eq("simulacao_id",r).order("ordem",{ascending:!0});let i={};if(t.obra_id){const{data:a}=await l.from("kanban_cards").select("details").eq("id",t.obra_id).single();a!=null&&a.details&&(i=a.details)}const b={numero:t.numero??"",cliente:t.cliente??"",cnpj_cpf:t.cnpj_cpf||i.cnpj_cpf||"",endereco:t.endereco||i.endereco_obra||"",obra_code:t.obra_code??"",vendedor:i.vendedor||t.vendedor||"",validade_dias:t.validade_dias??15,desconto_perc:t.desconto_perc??0,created_at:t.created_at??new Date().toISOString(),arquiteto:t.arquiteto||i.arquitetura||"",forma_pagamento:t.forma_pagamento||i.forma_pagamento||""},u=(v??[]).map((a,d)=>({id:a.id??String(d),categoria:a.categoria??"ITEM",descritivo:a.descritivo??"",valor:a.valor??0,ordem:a.ordem??d})),w=window.location.origin;let o=y(b,u);o=o.replace("<head>",`<head>
+<base href="${w}/">`),o=o.replace(/<!-- ═══ PAGE 1: White cover ═══ -->[\s\S]*?<\/div>\s*<\/div>/,""),o=o.replace(/<!-- ═══ PAGE 2: Photo cover ═══ -->[\s\S]*?<\/div>\s*<\/div>/,""),o=o.replace(/(<!-- ═══ PAGE 4: Items table ═══ -->)/,`${S}
+  $1`),o=o.replace("</head>",`${k}
+</head>`),f(o)}catch(t){const s=t instanceof Error?t.message:"Erro ao carregar proposta";p(s)}m(!1)})()},[r]),h?e.jsx("div",{style:{minHeight:"100vh",background:"#0a0a0a",display:"flex",alignItems:"center",justifyContent:"center"},children:e.jsx("p",{style:{color:"rgba(255,255,255,0.4)",fontSize:"0.8rem"},children:"Carregando proposta..."})}):c?e.jsxs("div",{style:{minHeight:"100vh",background:"#0a0a0a",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12},children:[e.jsx("p",{style:{color:"#F87171",fontSize:"0.9rem",fontWeight:700},children:"Proposta indisponivel"}),e.jsx("p",{style:{color:"rgba(255,255,255,0.4)",fontSize:"0.7rem"},children:c})]}):e.jsx("iframe",{srcDoc:g??"",style:{width:"100%",height:"100vh",border:"none"},title:"Proposta Parket"})}export{H as PropostaPublicaPage};

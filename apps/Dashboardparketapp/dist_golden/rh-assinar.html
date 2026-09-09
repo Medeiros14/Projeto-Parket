@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2" />
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
+<title>Termo de EPI — Assinatura</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background: #f4f4f0; color: #111; }
+  body { padding: 16px; max-width: 720px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 14px; }
+  h1 { font-size: 16px; font-weight: 800; letter-spacing: 0.04em; text-align: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #000; }
+  .legal { font-size: 12px; line-height: 1.55; text-align: justify; color: #333; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 11px; }
+  thead th { background: #000; color: #fff; padding: 6px 4px; text-align: center; font-weight: 700; letter-spacing: 0.03em; }
+  tbody td { padding: 6px 4px; border-bottom: 1px solid #e0e0e0; text-align: center; }
+  tbody td.left { text-align: left; }
+  .funcionario { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 12px; margin-bottom: 4px; }
+  .funcionario b { color: #000; }
+  .label-grey { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  canvas { display: block; width: 100%; height: 200px; background: #fff; border: 2px dashed #999; border-radius: 6px; touch-action: none; }
+  .sig-actions { display: flex; gap: 8px; margin-top: 8px; }
+  button { padding: 12px 16px; border-radius: 6px; border: 1px solid #ccc; background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+  button.primary { background: #10B981; color: #000; border: none; flex: 1; font-weight: 800; padding: 14px; }
+  button.primary:disabled { background: #999; cursor: not-allowed; }
+  .ok { background: #ecfdf5; border: 1px solid #10b981; padding: 14px; border-radius: 8px; color: #047857; text-align: center; font-weight: 600; }
+  .err { background: #fef2f2; border: 1px solid #ef4444; padding: 14px; border-radius: 8px; color: #b91c1c; text-align: center; font-weight: 600; }
+  .loader { text-align: center; padding: 40px 20px; color: #666; }
+</style>
+</head>
+<body>
+<div id="root"><div class="loader">Carregando termo…</div></div>
+<script>
+(function(){
+  var API = "https://draw.parket.works/api/rh/epi";
+  var token = (new URLSearchParams(location.search)).get("t") || location.pathname.split("/").pop();
+  var root = document.getElementById("root");
+
+  function el(html){ var d=document.createElement("div"); d.innerHTML=html.trim(); return d.firstChild; }
+
+  fetch(API + "/entregas/" + token)
+    .then(function(r){ if(!r.ok) throw new Error("Termo não encontrado"); return r.json(); })
+    .then(render)
+    .catch(function(e){ root.innerHTML = '<div class="err">'+e.message+'</div>'; });
+
+  function escape(s){ return (s||"").replace(/[<>&]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c];}); }
+
+  function render(d){
+    var f = d.funcionario || {};
+    var emp = (d.empresa && d.empresa.nome) || "PARKET";
+    var e = d.entrega || {};
+    var data = e.data_entrega || "";
+    if(/^\d{4}-\d{2}-\d{2}/.test(data)) data = data.split("-").reverse().join("/");
+
+    if(d.ja_assinado){
+      root.innerHTML = '<div class="ok">✅ Termo já assinado em '+escape(e.assinado_em||"")+'</div>';
+      return;
+    }
+
+    var rows = (e.itens||[]).map(function(it){
+      var nome = (it.nome||"") + (it.tamanho && it.tamanho!=="-" ? " — Tamanho "+it.tamanho : "");
+      return '<tr>'+
+        '<td>'+String(it.qty||1).padStart(2,"0")+'</td>'+
+        '<td class="left">'+escape(nome)+'</td>'+
+        '<td>'+data+'</td>'+
+        '<td>'+escape(it.ca||"NA")+'</td>'+
+      '</tr>';
+    }).join("");
+
+    root.innerHTML =
+      '<div class="card">'+
+        '<h1>TERMO DE RECEBIMENTO DE EPI</h1>'+
+        '<div class="funcionario">'+
+          '<div><span class="label-grey">Funcionário:</span><br><b>'+escape(f.nome||"")+'</b></div>'+
+          '<div><span class="label-grey">Cargo:</span><br><b>'+escape(f.cargo||f.funcao||"")+'</b></div>'+
+          '<div><span class="label-grey">Empresa:</span><br><b>'+escape(emp)+'</b></div>'+
+          '<div><span class="label-grey">Local:</span><br><b>'+escape(f.local||e.local||"")+'</b></div>'+
+        '</div>'+
+        '<p class="legal" style="margin-top:10px">Eu, <b>'+escape(f.nome||"")+'</b>, como <b>'+escape(f.cargo||f.funcao||"")+'</b>, declaro para todos os efeitos legais que recebi da '+escape(emp)+', os equipamentos de proteção individual (EPI) relacionados abaixo e por mim assinados, bem como as instruções para sua correta utilização, obrigando-me: 1) usar o EPI e uniforme indicado, apenas às finalidades a que se destina; 2) comunicar o setor de obras/segurança do trabalho qualquer alteração no EPI que o torne parcialmente ou totalmente danificado; 3) responsabilizar-me pelos danos do EPI, quando usado de modo inadequado ou fora das atividades a que se destina, bem como pelo seu extravio; 4) devolvê-lo quando da troca por outro ou no meu desligamento da empresa.</p>'+
+        '<table>'+
+          '<thead><tr><th>QT.</th><th>EPI / UNIFORME</th><th>DATA</th><th>C.A.</th></tr></thead>'+
+          '<tbody>'+rows+'</tbody>'+
+        '</table>'+
+        '<p class="legal">Declaro também que estou ciente das obrigações descritas na NR 06 (Portaria MTB 3214/78, item 6.7.1) e das disposições do Art. 462 §1º da CLT, autorizando o desconto salarial proporcional ao custo de reparação do dano em caso de uso inadequado, extravio ou perda.</p>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div style="margin-bottom:8px"><span class="label-grey">Assinatura digital — desenhe abaixo:</span></div>'+
+        '<canvas id="pad"></canvas>'+
+        '<div class="sig-actions">'+
+          '<button id="clear">Apagar</button>'+
+          '<button id="submit" class="primary">Confirmar e Assinar</button>'+
+        '</div>'+
+      '</div>'+
+      '<div id="status"></div>';
+
+    setupPad();
+  }
+
+  function setupPad(){
+    var canvas = document.getElementById("pad");
+    var ctx = canvas.getContext("2d");
+    function resize(){
+      var w = canvas.clientWidth, h = canvas.clientHeight;
+      var ratio = window.devicePixelRatio||1;
+      canvas.width = w*ratio; canvas.height = h*ratio;
+      ctx.setTransform(ratio,0,0,ratio,0,0);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle = "#000"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    }
+    resize(); window.addEventListener("resize", resize);
+    var drawing = false, hasDrawn = false, last = null;
+    function pos(e){
+      var r = canvas.getBoundingClientRect();
+      var x = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+      var y = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+      return [x, y];
+    }
+    function start(e){ e.preventDefault(); drawing=true; last=pos(e); hasDrawn=true; }
+    function move(e){ if(!drawing) return; e.preventDefault(); var p=pos(e); ctx.beginPath(); ctx.moveTo(last[0],last[1]); ctx.lineTo(p[0],p[1]); ctx.stroke(); last=p; }
+    function end(){ drawing=false; }
+    canvas.addEventListener("mousedown", start); canvas.addEventListener("mousemove", move); canvas.addEventListener("mouseup", end); canvas.addEventListener("mouseleave", end);
+    canvas.addEventListener("touchstart", start, {passive:false}); canvas.addEventListener("touchmove", move, {passive:false}); canvas.addEventListener("touchend", end);
+
+    document.getElementById("clear").onclick = function(){
+      var w=canvas.clientWidth, h=canvas.clientHeight;
+      ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,h);
+      hasDrawn = false;
+    };
+    document.getElementById("submit").onclick = function(){
+      if(!hasDrawn){ alert("Por favor, desenhe sua assinatura."); return; }
+      var btn = this; btn.disabled = true; btn.textContent = "Enviando…";
+      var st = document.getElementById("status");
+      var dataUrl = canvas.toDataURL("image/png");
+      fetch(API + "/entregas/" + token + "/assinar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assinatura_data_url: dataUrl }),
+      }).then(function(r){
+        if(!r.ok) return r.text().then(function(t){ throw new Error(t); });
+        return r.json();
+      }).then(function(){
+        st.innerHTML = '<div class="ok">✅ Termo assinado com sucesso! Obrigado.</div>';
+        document.querySelectorAll(".card")[1].style.display = "none";
+      }).catch(function(e){
+        st.innerHTML = '<div class="err">Erro: '+escape(e.message||e)+'</div>';
+        btn.disabled = false; btn.textContent = "Confirmar e Assinar";
+      });
+    };
+  }
+})();
+</script>
+</body>
+</html>

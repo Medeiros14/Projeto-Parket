@@ -1,0 +1,19 @@
+(function(){
+  try {
+    if (new URLSearchParams(location.search).get('print') !== '1') return;
+  } catch(_) { return; }
+  var tries = 0;
+  function ready() {
+    tries++;
+    var imgs = Array.from(document.images || []);
+    var ok = imgs.length === 0 || imgs.every(function(i){ return i.complete && i.naturalWidth > 0; });
+    if (ok || tries > 80) {
+      try { window.focus(); window.print(); } catch(e){}
+    } else {
+      setTimeout(ready, 250);
+    }
+  }
+  function boot() { setTimeout(ready, 600); }
+  if (document.readyState === 'complete') boot();
+  else window.addEventListener('load', boot);
+})();

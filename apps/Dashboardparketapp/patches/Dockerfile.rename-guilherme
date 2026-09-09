@@ -1,0 +1,5 @@
+FROM parket-dashboard:golden
+# Renomear Rafael Calazans → Guilherme Perry nas listas/dropdowns hardcoded
+COPY dept-comercial-CONVFIX2026.js /usr/share/nginx/html/assets/dept-comercial-CONVFIX2026.js
+COPY dept-layout-BtZpIBbo.js /usr/share/nginx/html/assets/dept-layout-BtZpIBbo.js
+COPY sdr-kpi-dashboard-pkt1.js /usr/share/nginx/html/assets/sdr-kpi-dashboard-pkt1.js

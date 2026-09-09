@@ -1,0 +1,33 @@
+version: "3.9"
+
+networks:
+  network_public:
+    external: true
+
+services:
+  skills:
+    image: parket-skills:latest
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: 256M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # HTTPS
+        - "traefik.http.routers.parket-skills.rule=Host(`skills.parket.works`)"
+        - "traefik.http.routers.parket-skills.entrypoints=websecure"
+        - "traefik.http.routers.parket-skills.tls=true"
+        - "traefik.http.routers.parket-skills.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.parket-skills.loadbalancer.server.port=8080"
+        # HTTP → HTTPS
+        - "traefik.http.routers.parket-skills-http.rule=Host(`skills.parket.works`)"
+        - "traefik.http.routers.parket-skills-http.entrypoints=web"
+        - "traefik.http.routers.parket-skills-http.middlewares=https-redirect"
+        - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"

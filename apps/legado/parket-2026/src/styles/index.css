@@ -1,0 +1,36 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* ─── Image Protection: prevent download/save/drag ─── */
+img,
+video,
+picture,
+source {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Re-enable pointer events on interactive image wrappers (buttons, links, carousels) */
+a img,
+button img,
+[role="button"] img,
+.cursor-pointer img {
+  pointer-events: auto;
+}
+
+/* Wrapper elements keep their pointer events */
+a,
+button,
+[role="button"],
+.cursor-pointer {
+  pointer-events: auto;
+}

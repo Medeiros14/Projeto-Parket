@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Parket Code</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  /* Identidade Parket Orbit — paleta DOURADA (igual Dashboard Parket #D4A853)
+     com efeitos visuais Orbit (glassmorphism, ambient, grain). Neons ficam
+     como acentos sutis em decorações secundárias. */
+  --bg:#08070E;--panel:rgba(16,14,28,0.55);--card:rgba(20,18,34,0.5);
+  --border:rgba(212,168,83,0.10);--border-strong:rgba(212,168,83,0.26);
+  --border-soft:rgba(255,255,255,0.06);
+  /* Dourado Parket — protagonista absoluto */
+  --accent:#D4A853;--accent-glow:#FCD34D;
+  --gold:#D4A853;--gold-bright:#FCD34D;--gold-soft:#B8AA9A;
+  /* Neons — só acentos sutis */
+  --neon-purple:#A855F7;--neon-cyan:#22D3EE;--neon-blue:#60A5FA;--neon-pink:#EC4899;
+  --neon-magenta:#EC4899;--neon-indigo:#5B5FED;
+  --text:#F5F0E8;--dim:rgba(245,240,232,0.42);--med:rgba(245,240,232,0.72);
+  --green:#10B981;--red:#EF4444;--blue:#3B82F6;--cyan:#22D3EE;--purple:#A855F7;--orange:#F59E0B;
+  --yellow:#F59E0B;
+  /* Tokens de superfície e blur (cards) */
+  --surface-blur:28px;
+  --radius-sm:10px;--radius-md:14px;--radius-lg:20px;--radius-pill:999px;
+  /* Tokens de glow — agora dourados */
+  --glow-gold:0 0 28px rgba(212,168,83,0.40),0 0 60px rgba(212,168,83,0.18);
+  --glow-purple:0 0 22px rgba(212,168,83,0.30),0 0 48px rgba(212,168,83,0.12);
+  --glow-cyan:0 0 22px rgba(34,211,238,0.28),0 0 50px rgba(34,211,238,0.12);
+}
+body{
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  /* Ambient — glow DOURADO predominante no canto superior direito (a estrela
+     da paleta), com hint sutil de púrpura/cyan apenas pra dar profundidade
+     (vibe Orbit mas identidade Parket). */
+  background-image:
+    radial-gradient(ellipse 55% 38% at 100% 0%, rgba(212,168,83,0.18), transparent 60%),
+    radial-gradient(ellipse 40% 30% at 0% 100%, rgba(184,170,154,0.07), transparent 65%),
+    radial-gradient(ellipse 50% 35% at 50% 110%, rgba(212,168,83,0.04), transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(212,168,83,0.06), transparent);
+  background-attachment:fixed;
+  background-size:cover;
+}
+/* Camada de "noise"/grain sutil pra dar a textura grão da referência */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  opacity:0.5;mix-blend-mode:overlay;
+}
+#app{position:relative;z-index:2}
+
+/* Header futurista — barra fina com neon underline */
+.hdr{
+  background:linear-gradient(180deg, rgba(11,13,20,0.92) 0%, rgba(6,7,11,0.85) 100%);
+  backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);
+  border-bottom:1px solid var(--border);padding:0 22px;display:flex;align-items:center;height:54px;
+  position:sticky;top:0;z-index:50;
+  box-shadow:0 1px 0 rgba(212,168,83,0.08), 0 12px 32px -12px rgba(0,0,0,0.6);
+}
+.hdr::after{
+  content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg, transparent 0%, rgba(212,168,83,0.4) 30%, rgba(34,211,238,0.4) 70%, transparent 100%);
+  opacity:0.6;
+}
+/* Logo Orbit — neon glow púrpura+cyan, fonte mono refinada */
+.logo{
+  font-size:15px;font-weight:800;color:var(--text);margin-right:auto;
+  display:flex;align-items:center;gap:12px;letter-spacing:.04em;
+  font-family:'Cascadia Code','Fira Code',monospace;
+  background:linear-gradient(135deg,#fff 0%,#FCD34D 50%,#D4A853 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 14px rgba(212,168,83,0.55)) drop-shadow(0 0 24px rgba(252,211,77,0.25));
+}
+.logo small{
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;
+  padding:4px 10px;border:1px solid rgba(212,168,83,0.28);border-radius:var(--radius-pill);
+  background:rgba(212,168,83,0.10);
+  color:var(--accent);-webkit-text-fill-color:var(--accent);
+  filter:none;
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+}
+.lay{display:flex;height:calc(100vh - 54px)}
+
+/* Sidebar futurista — vidro fosco + accent neon */
+.side{
+  width:230px;
+  background:linear-gradient(180deg, rgba(11,13,20,0.7) 0%, rgba(6,7,11,0.5) 100%);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;
+}
+/* Sidebar Orbit — header com letter-spacing largo, items pill estilo nav,
+   active state com indicador neon esquerdo + glow púrpura */
+.side-hdr{
+  padding:18px 18px 8px;font-size:9px;color:var(--dim);
+  text-transform:uppercase;letter-spacing:.22em;font-weight:700;
+}
+.side-list{flex:1;overflow-y:auto;padding:6px 10px 14px}
+.si{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 0;cursor:pointer;
+  font-size:12px;color:var(--med);position:relative;
+  border-radius:var(--radius-md);
+  transition:background .2s ease,color .2s ease;
+}
+.si:hover{background:rgba(212,168,83,0.06);color:var(--text)}
+.si.a{
+  background:linear-gradient(90deg,rgba(212,168,83,0.18),rgba(34,211,238,0.05));
+  color:#fff;font-weight:600;
+  box-shadow:0 0 0 1px rgba(212,168,83,0.20) inset,0 0 18px -2px rgba(212,168,83,0.30);
+}
+.si.a::before{
+  content:'';position:absolute;left:-10px;top:8px;bottom:8px;width:3px;
+  background:linear-gradient(180deg,var(--gold-bright),var(--accent),var(--gold-soft));
+  border-radius:2px;
+  box-shadow:0 0 10px rgba(212,168,83,0.6),0 0 18px rgba(252,211,77,0.35);
+}
+.si .dot{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+  background:var(--accent);
+  box-shadow:0 0 8px currentColor,0 0 14px rgba(212,168,83,0.4);
+}
+.mn{flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* Terminal */
+.terminal{flex:1;overflow-y:auto;padding:12px 16px;font-family:'Cascadia Code','Fira Code','JetBrains Mono','SF Mono',Consolas,monospace;font-size:13px;line-height:1.7;scroll-behavior:smooth}
+.terminal::-webkit-scrollbar{width:6px}
+.terminal::-webkit-scrollbar-track{background:transparent}
+.terminal::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+.t-line{padding:1px 0;word-wrap:break-word;white-space:pre-wrap}
+.t-line.accent{color:var(--accent);font-weight:600}
+.t-line.dim{color:var(--dim)}
+.t-line.text{color:var(--med)}
+.t-line.cmd{color:var(--cyan);font-weight:600}
+.t-line.output{color:var(--med)}
+.t-line.success{color:var(--green);font-weight:600}
+.t-line.error{color:var(--red)}
+.t-line.warn{color:var(--orange)}
+.t-line.user-msg{color:var(--blue);border-left:2px solid var(--blue);padding-left:10px;margin:6px 0}
+.t-line.separator{border-bottom:1px solid var(--border);margin:8px 0;padding:0;height:0}
+
+.t-tool{margin:4px 0;padding:8px 12px;background:rgba(212,168,83,.06);border-left:2px solid var(--accent);border-radius:0 6px 6px 0;font-size:12px}
+.t-tool .tool-name{color:var(--accent);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.t-tool .tool-input{color:var(--dim);font-size:11px;max-height:80px;overflow:hidden;text-overflow:ellipsis}
+
+.t-result{margin:2px 0 6px;padding:6px 12px;background:rgba(16,185,129,.04);border-left:2px solid var(--green);border-radius:0 6px 6px 0;font-size:11px;color:var(--dim);max-height:120px;overflow-y:auto}
+.t-result.error{background:rgba(239,68,68,.06);border-left-color:var(--red);color:rgba(245,230,230,0.75)}
+
+/* Assistant chat bubble — texto humanizado do Claude como se fosse chat.
+   Avatar dourado + prosa legível. Fonte sans, não monoespaçada. */
+.t-assistant{
+  display:flex;gap:12px;margin:10px 0 14px;padding:0;
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+  animation:fadeUp .3s ease;
+}
+.t-assistant .t-avatar{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  background:radial-gradient(circle at 30% 30%,#FCD34D 0%,#D4A853 55%,#8A6C30 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;color:#2A1F0A;
+  box-shadow:0 0 14px rgba(212,168,83,.45),0 0 0 1px rgba(212,168,83,.3) inset;
+}
+.t-assistant .t-bubble{
+  flex:1;min-width:0;
+  background:linear-gradient(160deg,rgba(40,34,64,0.42) 0%,rgba(16,14,28,0.55) 100%);
+  border:1px solid rgba(212,168,83,0.18);border-radius:4px 14px 14px 14px;
+  padding:12px 16px;color:var(--text);font-size:13.5px;line-height:1.6;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  box-shadow:0 4px 18px -10px rgba(0,0,0,0.5);
+}
+.t-assistant .t-bubble p{margin:0 0 8px}
+.t-assistant .t-bubble p:last-child{margin-bottom:0}
+.t-assistant .t-bubble code{
+  font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;
+  background:rgba(212,168,83,.10);color:var(--gold-bright);
+  padding:1px 6px;border-radius:4px;border:1px solid rgba(212,168,83,.14);
+}
+.t-assistant .t-bubble pre{
+  margin:8px 0;padding:10px 12px;background:rgba(8,7,14,.55);border-radius:8px;
+  border:1px solid var(--border-soft);overflow-x:auto;
+  font-family:'Cascadia Code','Fira Code',monospace;font-size:11.5px;line-height:1.5;
+  color:var(--med);
+}
+.t-assistant .t-bubble ul,.t-assistant .t-bubble ol{margin:4px 0 8px 20px}
+.t-assistant .t-bubble li{margin:3px 0}
+.t-assistant .t-bubble strong{color:var(--gold-bright);font-weight:700}
+.t-assistant .t-bubble em{color:var(--med);font-style:italic}
+
+/* Thinking block — colapsável, bem discreto */
+.t-thinking{
+  margin:6px 0 10px;padding:8px 12px;font-size:11.5px;font-style:italic;
+  color:var(--dim);border-left:2px dashed rgba(212,168,83,0.28);
+  background:rgba(212,168,83,0.03);border-radius:0 6px 6px 0;
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+}
+.t-thinking::before{content:'💭 ';font-style:normal;opacity:.7}
+
+/* Summary card — aparece ao final quando houve ações com arquivos */
+.t-summary{
+  margin:14px 0;padding:14px 16px;
+  background:linear-gradient(135deg,rgba(212,168,83,0.10),rgba(252,211,77,0.04));
+  border:1px solid rgba(212,168,83,0.26);border-radius:12px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+  box-shadow:0 6px 22px -12px rgba(212,168,83,.30);
+}
+.t-summary .s-head{
+  font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:8px;
+}
+.t-summary .s-files{font-size:12px;color:var(--med);display:flex;flex-direction:column;gap:3px}
+.t-summary .s-files .s-file{font-family:'Cascadia Code','Fira Code',monospace;font-size:11.5px;color:var(--med)}
+.t-summary .s-files .s-file::before{content:'▸ ';color:var(--accent)}
+.t-summary .s-impact{
+  display:inline-block;margin-left:8px;padding:2px 10px;border-radius:var(--radius-pill);
+  font-size:9.5px;font-weight:800;letter-spacing:.06em;letter-spacing:.10em;
+  background:rgba(255,255,255,0.05);border:1px solid var(--border-strong);
+}
+.t-summary .s-reasons{margin:6px 0 10px;font-size:11.5px;color:var(--dim);line-height:1.5;font-style:italic}
+.t-summary .s-reasons .s-reason{margin:2px 0}
+.t-summary .s-warn{
+  margin-top:12px;padding:10px 14px;
+  background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.28);
+  border-radius:8px;color:#FCA5A5;font-size:12px;font-weight:600;
+}
+/* Tom por nível */
+.t-summary.impact-low{background:linear-gradient(135deg,rgba(16,185,129,0.06),rgba(16,185,129,0.02));border-color:rgba(16,185,129,0.25)}
+.t-summary.impact-low .s-head{color:var(--green)}
+.t-summary.impact-medium{background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.02));border-color:rgba(245,158,11,0.30)}
+.t-summary.impact-medium .s-head{color:var(--yellow)}
+.t-summary.impact-high{background:linear-gradient(135deg,rgba(239,68,68,0.10),rgba(239,68,68,0.02));border-color:rgba(239,68,68,0.38);box-shadow:0 0 24px -8px rgba(239,68,68,.35)}
+.t-summary.impact-high .s-head{color:#FCA5A5}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+.t-status{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;margin:4px 0;letter-spacing:.02em}
+.t-status.processing{background:linear-gradient(90deg,rgba(212,168,83,.14),rgba(212,168,83,.04));color:var(--accent);border:1px solid rgba(212,168,83,.18)}
+.t-status.done{background:linear-gradient(90deg,rgba(16,185,129,.14),rgba(16,185,129,.04));color:var(--green);border:1px solid rgba(16,185,129,.22);box-shadow:0 0 12px rgba(16,185,129,.12)}
+.t-status.error{background:linear-gradient(90deg,rgba(239,68,68,.14),rgba(239,68,68,.04));color:var(--red);border:1px solid rgba(239,68,68,.22)}
+
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid transparent;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Action buttons inline — botões neon glow */
+.t-actions{
+  display:flex;gap:10px;margin:12px 0;padding:14px;
+  background:linear-gradient(135deg,rgba(212,168,83,0.06),rgba(34,211,238,0.04));
+  border:1px solid var(--border-strong);border-radius:12px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  box-shadow:0 8px 32px -8px rgba(212,168,83,0.15);
+}
+.t-actions .abtn{
+  padding:10px 18px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:700;
+  display:flex;align-items:center;gap:7px;transition:.18s ease;letter-spacing:.02em;
+  text-transform:uppercase;font-size:11px;
+}
+.t-actions .abtn:hover{filter:brightness(1.18);transform:translateY(-1px)}
+.t-actions .abtn.preview{
+  background:linear-gradient(135deg,#3B82F6,#06B6D4);color:#fff;
+  box-shadow:0 4px 16px -4px rgba(59,130,246,.5);
+}
+.t-actions .abtn.deploy{
+  background:linear-gradient(135deg,#10B981,#22C55E);color:#fff;
+  box-shadow:0 4px 16px -4px rgba(16,185,129,.5);
+}
+.t-actions .abtn.cancel{
+  background:transparent;border:1px solid var(--border-strong);color:var(--dim);
+}
+.t-actions .abtn.cancel:hover{color:var(--text);border-color:rgba(255,255,255,0.3)}
+.t-actions .abtn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* Input bar futurista — gradient + glow no focus */
+.input-bar{
+  padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;
+  background:linear-gradient(180deg, rgba(11,13,20,0.85), rgba(6,7,11,0.95));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  position:relative;
+}
+.input-bar::before{
+  content:'';position:absolute;left:0;right:0;top:-1px;height:1px;
+  background:linear-gradient(90deg, transparent, rgba(212,168,83,0.4), rgba(34,211,238,0.4), transparent);
+  opacity:0.5;
+}
+/* Badge fixa do Claude — substitui o antigo toggle Claude/Shell.
+   Mostra o símbolo starburst da identidade Claude + pulso dourado sutil. */
+.claude-badge{
+  display:inline-flex;align-items:center;gap:7px;flex-shrink:0;
+  padding:8px 12px;border-radius:8px;
+  background:linear-gradient(135deg,rgba(212,168,83,0.18),rgba(252,211,77,0.08));
+  border:1px solid rgba(212,168,83,0.32);
+  box-shadow:0 0 14px -4px rgba(212,168,83,0.45),inset 0 0 0 1px rgba(255,255,255,0.04);
+  color:var(--gold-bright);font-size:10px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.10em;
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+}
+.claude-badge svg{width:14px;height:14px;display:block;filter:drop-shadow(0 0 6px rgba(252,211,77,0.55))}
+.claude-badge svg path{fill:var(--gold-bright)}
+@keyframes claudePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.78;transform:scale(.96)}}
+.claude-badge svg{animation:claudePulse 2.4s ease-in-out infinite}
+/* Separador do histórico persistido — indica onde termina o passado e começa
+   a sessão atual. Pill dourado sutil, centralizado. */
+.t-history-sep{
+  display:flex;align-items:center;gap:12px;margin:14px 0 10px;
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.18em;font-weight:700;
+  color:var(--accent);
+}
+.t-history-sep::before,.t-history-sep::after{
+  content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(212,168,83,0.35),transparent);
+}
+.t-history-sep span{
+  padding:4px 12px;border-radius:999px;
+  background:rgba(212,168,83,0.08);
+  border:1px solid rgba(212,168,83,0.24);
+}
+.t-history-sep.end{color:var(--dim)}
+.t-history-sep.end span{background:transparent;border-color:rgba(255,255,255,0.08);color:var(--dim)}
+
+/* Variante read-only pra role=user — azul/cyan neutro, sem vibe de "pode executar algo" */
+.claude-badge.readonly{
+  background:linear-gradient(135deg,rgba(34,211,238,0.12),rgba(96,165,250,0.06));
+  border-color:rgba(34,211,238,0.32);
+  color:var(--cyan);
+  box-shadow:0 0 10px -4px rgba(34,211,238,0.30);
+}
+.claude-badge.readonly svg{filter:drop-shadow(0 0 6px rgba(34,211,238,0.45))}
+.claude-badge.readonly svg path{fill:var(--cyan)}
+.input-bar input{
+  flex:1;padding:11px 16px;border-radius:10px;border:1px solid var(--border-strong);
+  background:rgba(0,0,0,0.4);color:#fff;
+  font-family:'JetBrains Mono','Cascadia Code','Fira Code',ui-monospace,monospace;font-size:13px;outline:none;
+  transition:.2s ease;letter-spacing:.01em;
+}
+.input-bar input:focus{
+  border-color:rgba(212,168,83,0.5);
+  box-shadow:0 0 0 3px rgba(212,168,83,.08), 0 0 24px -8px rgba(212,168,83,.4);
+  background:rgba(0,0,0,0.55);
+}
+.input-bar input::placeholder{color:var(--dim);letter-spacing:.02em}
+/* Botões Orbit
+   .bp = primary (CTA com bola branca à esquerda, padrão Place Bid da referência)
+   .bg = ghost (outline sutil)
+   .bn = neon glow (gradient cyan→púrpura, pra ações destacadas) */
+.btn{
+  padding:11px 22px 11px 11px;border-radius:var(--radius-pill);border:1px solid transparent;cursor:pointer;
+  font-size:12px;font-weight:700;letter-spacing:.04em;
+  transition:transform .18s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease;
+  display:inline-flex;align-items:center;gap:10px;
+}
+.bp{
+  background:rgba(8,7,14,0.55);border:1px solid rgba(255,255,255,0.10);
+  color:var(--text);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.bp::before{
+  content:'❯';display:inline-flex;align-items:center;justify-content:center;
+  width:30px;height:30px;border-radius:50%;background:#fff;color:#000;
+  font-size:12px;font-weight:900;line-height:1;
+  box-shadow:0 0 0 4px rgba(255,255,255,0.04),0 6px 18px -6px rgba(255,255,255,0.5);
+}
+.bp:hover{transform:translateY(-1px);border-color:rgba(255,255,255,0.22);box-shadow:var(--glow-gold)}
+.bp:hover::before{transform:scale(1.05)}
+.bg{
+  padding:10px 18px;background:transparent;border:1px solid var(--border-strong);
+  color:var(--med);
+}
+.bg::before{display:none}
+.bg:hover{color:var(--text);border-color:rgba(212,168,83,0.45);background:rgba(212,168,83,0.04)}
+.bn{
+  padding:10px 22px;background:linear-gradient(135deg,rgba(212,168,83,0.2),rgba(34,211,238,0.18));
+  border:1px solid rgba(212,168,83,0.35);color:var(--text);
+}
+.bn::before{display:none}
+.bn:hover{box-shadow:var(--glow-gold);border-color:rgba(212,168,83,0.6)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;filter:none;box-shadow:none}
+
+/* Indicador de conexão — estilo orbit-substatus (dot pulsante com glow) */
+.conn{display:flex;align-items:center;gap:8px;font-size:10px;margin-left:14px;
+  text-transform:uppercase;letter-spacing:.18em;color:var(--dim);font-weight:700;
+  padding:6px 12px;border-radius:var(--radius-pill);
+  background:rgba(8,7,14,0.55);border:1px solid var(--border-soft);
+  backdrop-filter:blur(8px);
+}
+.conn-dot{width:8px;height:8px;border-radius:50%}
+.conn-dot.on{background:var(--green);
+  box-shadow:0 0 10px var(--green),0 0 22px rgba(16,185,129,.55);
+  animation:pulseDot 1.6s ease-in-out infinite;
+}
+.conn-dot.off{background:var(--red);box-shadow:0 0 8px var(--red),0 0 18px rgba(239,68,68,.4)}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.35)}}
+
+/* ─── Login Orbit ───
+   Tela de login com card glassmorphism centralizado, logo neon e
+   inputs estilizados. O ambient do body (gradientes radiais + grain)
+   já forma o background — aqui é só o card. */
+.login{
+  display:flex;align-items:center;justify-content:center;min-height:100vh;
+  flex-direction:column;gap:0;padding:20px;
+}
+.login-card{
+  position:relative;
+  background:linear-gradient(160deg,rgba(40,34,64,0.55) 0%,rgba(16,14,28,0.7) 60%,rgba(8,7,14,0.78) 100%);
+  border:1px solid rgba(212,168,83,0.20);border-radius:var(--radius-lg);
+  padding:42px 44px 36px;width:100%;max-width:420px;
+  display:flex;flex-direction:column;align-items:center;gap:18px;
+  backdrop-filter:blur(var(--surface-blur));-webkit-backdrop-filter:blur(var(--surface-blur));
+  box-shadow:0 30px 80px -20px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(212,168,83,0.06) inset,
+    var(--glow-gold);
+}
+.login-card::before{
+  content:'';position:absolute;top:0;left:30px;right:30px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);
+}
+.login h1{
+  font-size:30px;font-weight:800;letter-spacing:.02em;margin:0;
+  font-family:'Cascadia Code','Fira Code',monospace;
+  background:linear-gradient(135deg,#fff 0%,#FCD34D 45%,#D4A853 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 18px rgba(212,168,83,0.65)) drop-shadow(0 0 30px rgba(252,211,77,0.30));
+}
+.login h1+p{
+  font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.20em;
+  margin-top:-8px;font-weight:600;
+}
+.login input{
+  padding:13px 18px;border-radius:var(--radius-md);
+  border:1px solid var(--border-soft);
+  background:rgba(8,7,14,0.55);color:var(--text);font-size:14px;outline:none;width:320px;
+  transition:border-color .2s ease,box-shadow .2s ease,background .2s ease;
+  backdrop-filter:blur(8px);
+}
+.login input::placeholder{color:var(--dim)}
+.login input:focus{
+  border-color:rgba(212,168,83,0.55);background:rgba(212,168,83,0.06);
+  box-shadow:0 0 0 4px rgba(212,168,83,0.08),0 0 22px -2px rgba(212,168,83,0.30);
+}
+
+/* Grid de cards estilo referência Orbit (3 col responsivo, gap generoso) */
+.admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;padding:24px}
+/* Cards Orbit — glassmorphism com inner gradient + border highlight no topo */
+.dev-card{
+  position:relative;
+  background:linear-gradient(160deg,rgba(40,34,64,0.45) 0%,rgba(16,14,28,0.5) 60%,rgba(8,7,14,0.55) 100%);
+  border:1px solid var(--border-soft);border-radius:var(--radius-lg);padding:22px;
+  backdrop-filter:blur(var(--surface-blur));-webkit-backdrop-filter:blur(var(--surface-blur));
+  transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease;
+  overflow:hidden;
+}
+.dev-card::before{
+  /* Top-highlight sutil reproduzindo o brilho da borda superior dos cards
+     na referência (tipo um reflex line) */
+  content:'';position:absolute;top:0;left:18px;right:18px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.16),transparent);
+}
+.dev-card:hover{
+  transform:translateY(-3px);border-color:rgba(212,168,83,0.32);
+  box-shadow:0 14px 38px -16px rgba(212,168,83,0.4),0 0 0 1px rgba(212,168,83,0.08) inset;
+}
+.dev-card h4{font-size:15px;margin-bottom:10px;font-weight:700;color:var(--text)}
+/* Pílulas / tags Orbit — alpha 15% bg + border alpha 30%, uppercase com letter-spacing.
+   Use modificadores .tag.purple .tag.cyan .tag.pink etc pra cores semânticas. */
+.tag{
+  display:inline-flex;align-items:center;gap:5px;font-size:9.5px;
+  padding:4px 11px;border-radius:var(--radius-pill);margin:2px 4px 2px 0;
+  background:rgba(212,168,83,0.14);color:var(--accent);
+  border:1px solid rgba(212,168,83,0.28);
+  text-transform:uppercase;letter-spacing:.08em;font-weight:700;line-height:1.2;
+}
+.tag.purple{background:rgba(212,168,83,0.14);color:var(--accent);border-color:rgba(212,168,83,0.30)}
+.tag.cyan{background:rgba(34,211,238,0.14);color:var(--neon-cyan);border-color:rgba(34,211,238,0.30)}
+.tag.pink{background:rgba(236,72,153,0.14);color:var(--neon-pink);border-color:rgba(236,72,153,0.30)}
+.tag.blue{background:rgba(96,165,250,0.14);color:var(--neon-blue);border-color:rgba(96,165,250,0.30)}
+.tag.green{background:rgba(16,185,129,0.14);color:var(--green);border-color:rgba(16,185,129,0.30)}
+.tag.orange{background:rgba(245,158,11,0.14);color:var(--orange);border-color:rgba(245,158,11,0.30)}
+.tag.red{background:rgba(239,68,68,0.14);color:var(--red);border-color:rgba(239,68,68,0.30)}
+.empty{text-align:center;padding:48px;color:var(--dim);font-size:13px;letter-spacing:.02em}
+
+/* Tabs Orbit — pill estilo, active state com gradient cyan→púrpura */
+.tabs{display:flex;gap:6px;padding:14px 22px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(8,7,14,0.55),rgba(8,7,14,0.25));
+  backdrop-filter:blur(10px);
+}
+.tab{
+  padding:8px 18px;border-radius:var(--radius-pill);border:1px solid transparent;
+  background:transparent;color:var(--dim);
+  font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;
+  transition:.18s ease;
+}
+.tab:hover{color:var(--med);background:rgba(212,168,83,0.06);border-color:rgba(212,168,83,0.20)}
+.tab.a{
+  background:linear-gradient(135deg,rgba(34,211,238,0.20),rgba(212,168,83,0.18));
+  color:#fff;border-color:rgba(212,168,83,0.45);
+  box-shadow:0 0 18px -4px rgba(212,168,83,0.45),0 0 0 1px rgba(212,168,83,0.14) inset;
+}
+
+/* Modal Orbit — backdrop com blur forte + card glassmorphism + glow */
+.mo{position:fixed;inset:0;background:rgba(4,4,10,.72);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.mdl{
+  position:relative;
+  background:linear-gradient(160deg,rgba(40,34,64,0.55) 0%,rgba(16,14,28,0.7) 60%,rgba(8,7,14,0.78) 100%);
+  border:1px solid rgba(212,168,83,0.20);border-radius:var(--radius-lg);padding:28px;
+  width:100%;max-width:540px;
+  backdrop-filter:blur(var(--surface-blur));-webkit-backdrop-filter:blur(var(--surface-blur));
+  box-shadow:0 30px 80px -20px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(212,168,83,0.06) inset,
+    var(--glow-gold);
+}
+.mdl::before{
+  content:'';position:absolute;top:0;left:24px;right:24px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);
+}
+.fl{margin-bottom:16px}
+.fl label{display:block;font-size:10px;color:var(--dim);margin-bottom:6px;text-transform:uppercase;font-weight:700;letter-spacing:.10em}
+/* Inputs Orbit — glass background + border sutil + focus glow púrpura */
+.fl input,.fl select{
+  width:100%;padding:11px 14px;border-radius:var(--radius-md);
+  border:1px solid var(--border-soft);
+  background:rgba(8,7,14,0.55);color:var(--text);font-size:13px;outline:none;
+  transition:border-color .2s ease,box-shadow .2s ease,background .2s ease;
+  backdrop-filter:blur(8px);
+}
+.fl input::placeholder,.fl select::placeholder{color:var(--dim)}
+.fl input:focus,.fl select:focus{
+  border-color:rgba(212,168,83,0.55);background:rgba(212,168,83,0.06);
+  box-shadow:0 0 0 4px rgba(212,168,83,0.08),0 0 18px -2px rgba(212,168,83,0.25);
+}
+
+/* Pipeline bar futurista — steps com glow */
+.pipeline{
+  display:flex;align-items:center;gap:0;padding:10px 18px;
+  background:linear-gradient(180deg,rgba(11,13,20,.7),rgba(6,7,11,.5));
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+.pipe-step{
+  display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:11px;font-weight:700;color:var(--dim);
+  position:relative;letter-spacing:.04em;text-transform:uppercase;transition:.2s ease;
+}
+.pipe-step.active{color:#fff;
+  text-shadow:0 0 12px rgba(212,168,83,0.55),0 0 22px rgba(34,211,238,0.30);
+}
+.pipe-step.done{color:var(--green);text-shadow:0 0 10px rgba(16,185,129,0.45)}
+.pipe-step .pipe-num{
+  width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;border:1.5px solid var(--border-strong);font-weight:800;transition:.2s ease;
+}
+.pipe-step.active .pipe-num{
+  border-color:var(--accent);color:#fff;
+  background:radial-gradient(circle,rgba(212,168,83,0.30) 0%,transparent 70%);
+  box-shadow:0 0 14px rgba(212,168,83,0.55),
+    0 0 0 3px rgba(212,168,83,0.10),
+    0 0 24px rgba(252,211,77,0.30);
+}
+.pipe-step.done .pipe-num{
+  border-color:var(--green);
+  background:linear-gradient(135deg,var(--green),#22C55E);color:#000;
+  box-shadow:0 0 12px rgba(16,185,129,0.55);
+}
+.pipe-arrow{
+  color:rgba(212,168,83,0.30);font-size:18px;margin:0 6px;font-weight:300;
+}
+
+@media(max-width:768px){.side{display:none}}
+
+/* ── Neon Orb: visualização de conversa/processamento (novo modelo) ── */
+.terminal-wrap{position:relative;flex:1;display:flex;flex-direction:column;min-height:0}
+.terminal-wrap.processing .terminal{filter:blur(1.8px) saturate(0.55);opacity:.28;transition:.45s ease}
+.terminal-wrap .terminal{transition:.45s ease}
+
+.orbit-overlay{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);
+  z-index:20;display:flex;flex-direction:column;align-items:center;gap:22px;
+  padding:40px 60px 36px;min-width:360px;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at center,rgba(10,10,16,0.88) 0%,rgba(10,10,16,0.55) 55%,rgba(10,10,16,0) 100%);
+  border-radius:28px;
+  animation:orbitIn .55s cubic-bezier(.16,1,.3,1) forwards;
+}
+.orbit-overlay.fading{animation:orbitOut .5s cubic-bezier(.7,0,.84,0) forwards}
+@keyframes orbitIn{to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes orbitOut{to{opacity:0;transform:translate(-50%,-50%) scale(1.25);filter:blur(8px)}}
+
+.orbit-stage{position:relative;width:300px;height:300px}
+.orbit-stage::before{
+  content:'';position:absolute;inset:-50px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at center,
+    rgba(212,168,83,0.14) 0%,
+    rgba(59,130,246,0.09) 28%,
+    rgba(34,211,238,0.05) 52%,
+    transparent 72%);
+  filter:blur(14px);
+  animation:orbAura 3.4s ease-in-out infinite;
+}
+@keyframes orbAura{
+  0%,100%{transform:scale(1);opacity:.85}
+  50%{transform:scale(1.12);opacity:1}
+}
+.orbit-canvas{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+}
+
+.orbit-label{
+  text-align:center;font-size:13px;color:#EADCFE;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;min-height:18px;
+  font-family:'Cascadia Code','Fira Code',monospace;
+  text-shadow:0 0 14px rgba(212,168,83,.55),0 0 24px rgba(34,211,238,.25);
+  animation:orbitLabelShift .3s ease;
+}
+.orbit-label::after{
+  content:'▎';margin-left:4px;animation:orbitBlink 1s step-end infinite;color:#C084FC
+}
+@keyframes orbitBlink{50%{opacity:0}}
+@keyframes orbitLabelShift{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+.orbit-substatus{
+  font-size:10px;color:rgba(234,220,254,0.45);text-transform:uppercase;letter-spacing:.22em;
+  display:flex;align-items:center;gap:10px;
+}
+.orbit-substatus .dot{
+  width:6px;height:6px;border-radius:50%;background:#22D3EE;
+  box-shadow:0 0 10px #22D3EE,0 0 22px rgba(34,211,238,0.55);
+  animation:orbDot 1.6s ease-in-out infinite;
+}
+@keyframes orbDot{
+  0%,100%{transform:scale(1);opacity:1}
+  50%{transform:scale(1.35);opacity:.55}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const API='/api',
+APPS={dashboardparket:{nome:'Dashboard Parket',icon:'📊'},
+'parket-draw':{nome:'Draw / WoodPlanner',icon:'✏️'},
+'parket-ai-squad':{nome:'AI Squad',icon:'🤖'},
+'parket-skills':{nome:'Parket Skills',icon:'📚'}},
+SETORES=['comercial','projetos','compras','producao','logistica','obras','financeiro','fiscal','pmo','orcamento','marketing','rh','ia','atendimento'];
+
+let me=null,devs=[],curApp='dashboardparket',curSetor='',tab='terminal',showAddDev=false,newDev={},showResetSenha=null;
+let ws=null,sessionId=null,connected=false,mode='claude',processing=false;
+let authToken=null,loginError='',loginStep='credentials',pendingEmail='',pendingName='';
+// Pipeline: 1=code, 2=preview, 3=deploy
+let pipeStep=1;
+
+function connectWS(){
+  if(ws && ws.readyState<=1) return;
+  sessionId=crypto.randomUUID();
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  ws=new WebSocket(proto+'//'+location.host+'/ws/terminal/'+sessionId);
+  ws.onopen=()=>{connected=true;addLine('system','Conectado ao Parket Code Terminal','accent');addLine('system','Pipeline: Editar Codigo → Build Preview → Deploy Producao','dim');addLine('system','','dim');updateConn()};
+  ws.onclose=()=>{connected=false;updateConn();setTimeout(connectWS,3000)};
+  ws.onerror=()=>{connected=false;updateConn()};
+  ws.onmessage=(e)=>{
+    try{
+      const d=JSON.parse(e.data);
+      handleWsMessage(d);
+    }catch(err){addLine('raw',e.data,'dim')}
+  };
+}
+
+function handleWsMessage(d){
+  const t=d.type;
+  if(t==='line') addLine('line',d.text,d.style||'text');
+  else if(t==='assistant'){ updateOrbit('Claude está falando…'); addAssistant(d.text); }
+  else if(t==='thinking'){ addThinking(d.text); }
+  else if(t==='tool'){ updateOrbit('Executando: '+(d.tool||'ferramenta')); addTool(d.tool,d.input); }
+  else if(t==='result') addResult(d.text,d.is_error);
+  else if(t==='summary'){ addSummary(d.files||[],d.count||0,d.impact||'LOW',d.impact_reasons||[]); }
+  else if(t==='status'){ updateOrbit(d.text); /* o orbit é o ÚNICO indicador de processamento — não acumular spinners no log */ }
+  else if(t==='done'){
+    hideOrbit();
+    purgeStuckProcessing();
+    addStatus(d.text,'done');
+    processing=false;
+    updateInput();
+  }
+  else if(t==='error'){
+    hideOrbit();
+    purgeStuckProcessing();
+    addLine('line',d.text,'error');
+    processing=false;
+    updateInput();
+  }
+  else if(t==='offer_preview'){
+    hideOrbit();
+    purgeStuckProcessing();
+    pipeStep=2;
+    updatePipeline();
+    addPreviewButtons();
+  }
+  else if(t==='offer_deploy'){
+    hideOrbit();
+    purgeStuckProcessing();
+    pipeStep=3;
+    updatePipeline();
+    addDeployButtons();
+  }
+  scrollTerminal();
+}
+
+/* ── Neon Orb renderer (Canvas 2D, partículas Fibonacci na esfera) ── */
+const neonOrb=(function(){
+  let canvas=null,ctx=null,particles=[],t=0,rot=0,running=false,raf=null,resizeHooked=false;
+  const N=1400;
+
+  function init(){
+    particles=[];
+    for(let i=0;i<N;i++){
+      // Distribuição Fibonacci na esfera unitária — cobertura uniforme
+      const phi=Math.acos(1-2*(i+0.5)/N);
+      const theta=Math.PI*(1+Math.sqrt(5))*i;
+      const sx=Math.sin(phi)*Math.cos(theta);
+      const sy=Math.sin(phi)*Math.sin(theta);
+      const sz=Math.cos(phi);
+      const jitter=0.965+Math.random()*0.07;
+      particles.push({
+        x:sx*jitter,y:sy*jitter,z:sz*jitter,
+        size:0.8+Math.random()*1.3,
+        phase:Math.random()*Math.PI*2,
+      });
+    }
+  }
+
+  function resize(){
+    if(!canvas||!ctx) return;
+    const rect=canvas.getBoundingClientRect();
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.max(1,Math.floor(rect.width*dpr));
+    canvas.height=Math.max(1,Math.floor(rect.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function colorForPos(x,y,z){
+    // 4-way blend baseado na posição na esfera (gira com a rotação pra parecer tex fixa)
+    // Cyan (topo-esq), Roxo (topo-dir), Magenta (baixo-dir), Azul (baixo-esq)
+    const top=Math.max(0,-y),bot=Math.max(0,y);
+    const right=Math.max(0,x),left=Math.max(0,-x);
+    const wC=Math.pow(top,0.8)*Math.pow(left,0.65);
+    const wP=Math.pow(top,0.8)*Math.pow(right,0.65);
+    const wM=Math.pow(bot,0.8)*Math.pow(right,0.65);
+    const wB=Math.pow(bot,0.8)*Math.pow(left,0.65);
+    const base=0.12;
+    const s=wC+wP+wM+wB+base*4;
+    // RGB das 4 cores + base neutra indigo
+    const r=(wC*34 +wP*168+wM*236+wB*59 +base*4*90)/s;
+    const g=(wC*211+wP*85 +wM*72 +wB*130+base*4*70)/s;
+    const b=(wC*238+wP*247+wM*153+wB*246+base*4*220)/s;
+    return [r|0,g|0,b|0];
+  }
+
+  function render(){
+    if(!running||!canvas||!canvas.isConnected){running=false;return;}
+    const rect=canvas.getBoundingClientRect();
+    const W=rect.width,H=rect.height;
+    if(W<2||H<2){raf=requestAnimationFrame(render);return;}
+    const cx=W/2,cy=H/2;
+    // R conservador: rim glow (R*1.25*pulse*~1.04) cabe dentro do canvas
+    // min(W,H)/2 com folga; nunca maior que 45% da menor dimensão.
+    const R=Math.min(W,H)*0.33;
+
+    t+=0.012;rot+=0.0035;
+    const pulse=1+Math.sin(t*0.9)*0.035;
+    const wobble=Math.sin(t*0.55)*0.11;
+
+    ctx.clearRect(0,0,W,H);
+
+    // Halo atmosférico interno
+    const halo=ctx.createRadialGradient(cx,cy,R*0.55,cx,cy,R*1.45);
+    halo.addColorStop(0,'rgba(22,12,44,0.55)');
+    halo.addColorStop(0.55,'rgba(22,12,44,0.2)');
+    halo.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=halo;
+    ctx.beginPath();ctx.arc(cx,cy,R*1.5,0,Math.PI*2);ctx.fill();
+
+    const cosR=Math.cos(rot),sinR=Math.sin(rot);
+    const cosW=Math.cos(wobble),sinW=Math.sin(wobble);
+
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i];
+      // Rotação em Y
+      const rx=p.x*cosR+p.z*sinR;
+      const rz1=-p.x*sinR+p.z*cosR;
+      // Wobble em X
+      const ry=p.y*cosW-rz1*sinW;
+      const rz=p.y*sinW+rz1*cosW;
+
+      const persp=1+rz*0.08;
+      const sx=cx+rx*R*pulse*persp;
+      const sy=cy+ry*R*pulse*persp;
+
+      const depth=(rz+1)/2;          // 0 fundo → 1 frente
+      const rim=1-Math.abs(rz);      // 1 na borda, 0 nos polos
+      const shimmer=0.78+0.22*Math.sin(t*2+p.phase);
+
+      const col=colorForPos(rx,ry,rz);
+      const alpha=(depth*0.32+rim*0.68)*shimmer;
+      const sz=p.size*(0.55+depth*0.85+rim*0.35);
+
+      ctx.fillStyle='rgba('+col[0]+','+col[1]+','+col[2]+','+alpha.toFixed(3)+')';
+      ctx.beginPath();ctx.arc(sx,sy,sz,0,Math.PI*2);ctx.fill();
+    }
+
+    // Rim glow externo: anel colorido suave ao redor da esfera
+    // R*1.25*pulse (~1.04) = R*1.30 máx → cabe em min(W,H)/2 = R/0.33 = 1.52R
+    const rimGrad=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.28);
+    rimGrad.addColorStop(0,'rgba(212,168,83,0)');
+    rimGrad.addColorStop(0.18,'rgba(212,168,83,0.28)');
+    rimGrad.addColorStop(0.45,'rgba(34,211,238,0.17)');
+    rimGrad.addColorStop(0.75,'rgba(236,72,153,0.12)');
+    rimGrad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=rimGrad;
+    ctx.beginPath();ctx.arc(cx,cy,R*1.28*pulse,0,Math.PI*2);ctx.fill();
+
+    ctx.globalCompositeOperation='source-over';
+
+    raf=requestAnimationFrame(render);
+  }
+
+  return {
+    attach(cvs){
+      canvas=cvs;
+      ctx=cvs.getContext('2d',{alpha:true});
+      init();
+      resize();
+      if(!resizeHooked){window.addEventListener('resize',resize);resizeHooked=true;}
+      return this;
+    },
+    start(){
+      if(running) return this;
+      running=true;t=0;rot=0;
+      render();
+      return this;
+    },
+    stop(){
+      running=false;
+      if(raf) cancelAnimationFrame(raf);
+      raf=null;
+    }
+  };
+})();
+
+/* ── Orbit loader controls ── */
+function showOrbit(label){
+  const wrap=document.getElementById('terminal-wrap');
+  if(!wrap) return;
+  wrap.classList.add('processing');
+  let o=document.getElementById('orbit-overlay');
+  if(o){ updateOrbit(label); return; }
+  o=document.createElement('div');
+  o.id='orbit-overlay';
+  o.className='orbit-overlay';
+  o.innerHTML=`
+    <div class="orbit-stage">
+      <canvas class="orbit-canvas" id="orbit-canvas"></canvas>
+    </div>
+    <div class="orbit-label" id="orbit-label">${escHtml(label||'Processando')}</div>
+    <div class="orbit-substatus"><span class="dot"></span> Parket Code · IA em conversa</div>
+  `;
+  wrap.appendChild(o);
+  const cvs=document.getElementById('orbit-canvas');
+  if(cvs) neonOrb.attach(cvs).start();
+}
+function updateOrbit(label){
+  const o=document.getElementById('orbit-overlay');
+  if(!o){ showOrbit(label); return; }
+  const el=document.getElementById('orbit-label');
+  if(el){
+    el.textContent=label||'Processando';
+    el.style.animation='none';
+    void el.offsetWidth;
+    el.style.animation='';
+  }
+}
+function hideOrbit(){
+  const wrap=document.getElementById('terminal-wrap');
+  if(wrap) wrap.classList.remove('processing');
+  const o=document.getElementById('orbit-overlay');
+  if(!o) return;
+  o.classList.add('fading');
+  neonOrb.stop();
+  setTimeout(()=>{ if(o.parentNode) o.parentNode.removeChild(o); },500);
+}
+
+function addLine(kind,text,style){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-line '+(style||'');
+  div.textContent=text;
+  term.appendChild(div);
+}
+
+function addTool(name,input){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-tool';
+  let inputStr='';
+  if(input){
+    if(typeof input==='string') inputStr=input;
+    else{try{const s=JSON.stringify(input,null,0);inputStr=s.length>200?s.substring(0,200)+'...':s}catch(e){inputStr=String(input)}}
+  }
+  div.innerHTML='<div class="tool-name">🔧 '+escHtml(name)+'</div>'+(inputStr?'<div class="tool-input">'+escHtml(inputStr)+'</div>':'');
+  term.appendChild(div);
+}
+
+function addResult(text,isError){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-result'+(isError?' error':'');
+  div.textContent=text;
+  term.appendChild(div);
+}
+
+/* Assistente em prosa — bolha de chat dourada. Aplica markdown leve
+   (negrito, itálico, código inline, blocos de código, listas). */
+function addAssistant(text){
+  const term=document.getElementById('terminal');
+  if(!term||!text)return;
+  const wrap=document.createElement('div');
+  wrap.className='t-assistant';
+  const av=document.createElement('div');av.className='t-avatar';av.textContent='C';
+  const bubble=document.createElement('div');bubble.className='t-bubble';
+  bubble.innerHTML=renderLightMarkdown(text);
+  wrap.appendChild(av);wrap.appendChild(bubble);
+  term.appendChild(wrap);
+}
+
+function addThinking(text){
+  const term=document.getElementById('terminal');
+  if(!term||!text)return;
+  const div=document.createElement('div');
+  div.className='t-thinking';
+  // trunca — thinking às vezes é enorme
+  div.textContent=text.length>400?text.substring(0,400)+'…':text;
+  term.appendChild(div);
+}
+
+function addSummary(files,count,impact,reasons){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-summary impact-'+(impact||'LOW').toLowerCase();
+  const head=document.createElement('div');head.className='s-head';
+  const impactMeta={LOW:{emoji:'🟢',label:'Baixo impacto'},MEDIUM:{emoji:'🟡',label:'Médio impacto'},HIGH:{emoji:'🔴',label:'Alto impacto'}};
+  const im=impactMeta[impact]||impactMeta.LOW;
+  head.innerHTML='✨ Resumo — '+count+' arquivo'+(count===1?'':'s')+' alterado'+(count===1?'':'s')+
+    ' <span class="s-impact">'+im.emoji+' '+im.label+'</span>';
+  div.appendChild(head);
+  if(reasons && reasons.length){
+    const r=document.createElement('div');r.className='s-reasons';
+    r.innerHTML=reasons.slice(0,3).map(x=>'<div class="s-reason">• '+escHtml(x)+'</div>').join('');
+    div.appendChild(r);
+  }
+  const fl=document.createElement('div');fl.className='s-files';
+  files.forEach(f=>{
+    const ln=document.createElement('div');ln.className='s-file';
+    ln.textContent=f;fl.appendChild(ln);
+  });
+  div.appendChild(fl);
+  if(impact==='HIGH'){
+    const warn=document.createElement('div');warn.className='s-warn';
+    warn.innerHTML='🔔 Deploy de alto impacto — superadmin recebe notificação no privado; aprovação segue pelo grupo.';
+    div.appendChild(warn);
+  }
+  term.appendChild(div);
+}
+
+/* Markdown mínimo: ```code```, `inline`, **bold**, *italic*, - listas, \n\n parágrafos.
+   Não é um parser completo — só o suficiente pra humanizar a resposta do Claude. */
+function renderLightMarkdown(src){
+  let s=escHtml(src);
+  // Blocos de código ```lang\n...\n```
+  s=s.replace(/```([a-zA-Z0-9_+-]*)?\n([\s\S]*?)```/g,(m,lang,code)=>{
+    return '<pre>'+code.replace(/\n$/,'')+'</pre>';
+  });
+  // Código inline `...`
+  s=s.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  // Negrito **...**
+  s=s.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>');
+  // Itálico *...* (cuidadoso pra não casar dentro de palavras)
+  s=s.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s.,;:)!?]|$)/g,'$1<em>$2</em>');
+  // Listas simples (linhas começando com "- " ou "• ")
+  s=s.replace(/(^|\n)([-•] .+(?:\n[-•] .+)*)/g,(m,pre,block)=>{
+    const items=block.split(/\n/).map(l=>l.replace(/^[-•] /,'').trim()).filter(Boolean);
+    return pre+'<ul>'+items.map(i=>'<li>'+i+'</li>').join('')+'</ul>';
+  });
+  // Parágrafos por linha em branco dupla
+  const parts=s.split(/\n{2,}/).map(p=>{
+    const trimmed=p.trim();
+    if(!trimmed)return '';
+    if(/^<(pre|ul|ol)/.test(trimmed))return trimmed;
+    return '<p>'+trimmed.replace(/\n/g,'<br>')+'</p>';
+  });
+  return parts.join('');
+}
+
+function addStatus(text,type){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-status '+type;
+  div.innerHTML=(type==='processing'?'<div class="spinner"></div>':type==='done'?'✅':'❌')+' '+escHtml(text);
+  term.appendChild(div);
+}
+
+/** Remove qualquer t-status.processing órfão do terminal — chamado em done/error/offer_*
+ * para garantir que nenhum spinner fique girando depois de a operação terminar.
+ * Defesa extra além de já ter parado de criar esses elementos no handleWsMessage. */
+function purgeStuckProcessing(){
+  document.querySelectorAll('#terminal .t-status.processing').forEach(el=>el.remove());
+}
+
+function addSeparator(){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  const div=document.createElement('div');
+  div.className='t-line separator';
+  term.appendChild(div);
+}
+
+function addPreviewButtons(){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  // Só 'dev' chega aqui. user é read-only (não tem files_changed) e admin/superadmin
+  // fazem deploy direto automático pelo backend, sem passar por este botão.
+  if(me && (me.role==='user'||me.role==='admin'||me.role==='superadmin')) return;
+  const div=document.createElement('div');
+  div.className='t-actions';
+  div.id='action-buttons';
+  div.innerHTML=`
+    <button class="abtn preview" onclick="doPreview()">🔨 Build Preview</button>
+    <button class="abtn cancel" onclick="skipPreview()">Pular</button>
+  `;
+  term.appendChild(div);
+}
+
+function addDeployButtons(){
+  const term=document.getElementById('terminal');
+  if(!term)return;
+  if(me && me.role==='user') return;
+  const isAdmin=me&&(me.role==='superadmin'||me.role==='admin');
+  const div=document.createElement('div');
+  div.className='t-actions';
+  div.id='action-buttons';
+  div.innerHTML=`
+    <button class="abtn deploy" ${isAdmin?'':'disabled title="Apenas admin pode deployar"'} onclick="doDeploy()">🚀 Deploy Producao</button>
+    <button class="abtn cancel" onclick="skipDeploy()">Cancelar</button>
+  `;
+  term.appendChild(div);
+}
+
+function removeActionButtons(){
+  const el=document.getElementById('action-buttons');
+  if(el) el.remove();
+}
+
+function doPreview(){
+  removeActionButtons();
+  if(!ws||ws.readyState!==1)return;
+  processing=true;
+  updateInput();
+  showOrbit('Construindo preview');
+  ws.send(JSON.stringify({action:'preview',app:curApp,dev_email:me.dev_email}));
+}
+
+function skipPreview(){
+  removeActionButtons();
+  addLine('line','Preview pulado.','dim');
+  pipeStep=1;
+  updatePipeline();
+}
+
+function doDeploy(){
+  removeActionButtons();
+  if(!ws||ws.readyState!==1)return;
+  processing=true;
+  updateInput();
+  showOrbit('Fazendo deploy em produção');
+  ws.send(JSON.stringify({action:'deploy',app:curApp,dev_email:me.dev_email,role:me.role}));
+}
+
+function doDeployDirect(){
+  removeActionButtons();
+  if(!ws||ws.readyState!==1)return;
+  processing=true;
+  updateInput();
+  showOrbit('Build + deploy direto em produção');
+  ws.send(JSON.stringify({action:'deploy_direct',app:curApp,dev_email:me.dev_email}));
+}
+
+function skipDeploy(){
+  removeActionButtons();
+  addLine('line','Deploy cancelado. A imagem staging permanece disponivel para deploy futuro.','dim');
+  pipeStep=1;
+  updatePipeline();
+}
+
+function scrollTerminal(){
+  const term=document.getElementById('terminal');
+  if(term) requestAnimationFrame(()=>term.scrollTop=term.scrollHeight);
+}
+
+function updateConn(){
+  const el=document.getElementById('conn-dot');
+  if(el) el.className='conn-dot '+(connected?'on':'off');
+  const label=document.getElementById('conn-label');
+  if(label) label.textContent=connected?'Conectado':'Desconectado';
+}
+
+function updateInput(){
+  const btn=document.getElementById('send-btn');
+  const inp=document.getElementById('cmd-input');
+  if(btn) btn.disabled=processing;
+  if(inp) inp.disabled=processing;
+}
+
+function updatePipeline(){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('pipe-'+i);
+    if(!el)return;
+    el.className='pipe-step'+(pipeStep===i?' active':'')+(pipeStep>i?' done':'');
+  });
+}
+
+function sendMessage(){
+  const inp=document.getElementById('cmd-input');
+  if(!inp||!inp.value.trim()||!ws||ws.readyState!==1||processing)return;
+  const text=inp.value.trim();
+  inp.value='';
+
+  addSeparator();
+  pipeStep=1;
+  updatePipeline();
+
+  addLine('line','👤 '+me.dev_name+' → '+APPS[curApp].nome+(curSetor?' / '+curSetor:''),'user-msg');
+  addLine('line',text,'user-msg');
+  ws.send(JSON.stringify({action:'message',dev_email:me.dev_email,app:curApp,setor:curSetor,content:text}));
+  processing=true;
+  showOrbit('Analisando solicitação');
+  updateInput();
+  scrollTerminal();
+}
+
+function clearTerminal(){
+  const term=document.getElementById('terminal');
+  if(term) term.innerHTML='';
+  pipeStep=1;updatePipeline();
+  // Marca o escopo atual como "histórico já mostrado" pra não recarregar
+  // depois de uma limpeza manual (senão o botão 🗑 vira inútil).
+  historyLoadedFor[historyKey()]='cleared';
+  addLine('system','Terminal limpo. '+APPS[curApp].nome+(curSetor?' / '+curSetor:''),'dim');
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+/* ── Histórico persistido ───────────────────────────────────────────────
+   Busca o dev_chat do Supabase e repinta as bolhas de conversa. Agrupado
+   por (app, setor) — trocar de setor no sidebar recarrega o histórico
+   daquele contexto. Evita duplicar via historyLoadedFor. */
+const historyLoadedFor={};
+function historyKey(){return (me?.dev_email||'?')+'|'+curApp+'|'+(curSetor||'');}
+
+async function loadChatHistory(){
+  if(!me) return;
+  const key=historyKey();
+  if(historyLoadedFor[key]) return;
+  historyLoadedFor[key]='loading';
+  try{
+    const qs=new URLSearchParams({app_name:curApp});
+    if(curSetor) qs.set('setor',curSetor);
+    qs.set('limit','400');  // 400 linhas = ~20 runs completos, suficiente pra semana
+    const r=await fetch(API+'/chat/'+encodeURIComponent(me.dev_email)+'?'+qs.toString());
+    const rows=await r.json();
+    if(!Array.isArray(rows) || rows.length===0){
+      historyLoadedFor[key]='empty';
+      return;
+    }
+    addHistorySeparator(rows.length);
+    for(const row of rows){
+      const when=(row.created_at||'').slice(11,16);
+      if(row.role==='user'){
+        addLine('line','['+when+'] '+(me.dev_name||me.dev_email)+': '+(row.content||''),'user-msg');
+      } else if(row.role==='assistant'){
+        addAssistant(row.content||'');
+      } else if(row.role==='tool'){
+        try{
+          const parsed=JSON.parse(row.content||'{}');
+          addTool(parsed.tool||'tool',parsed.input||null);
+        }catch(e){ addLine('line','[tool] '+(row.content||'').substring(0,100),'dim'); }
+      } else if(row.role==='summary'){
+        addLine('line',row.content||'','dim');
+      }
+    }
+    addHistoryEnd();
+    historyLoadedFor[key]='loaded';
+    scrollTerminal();
+  }catch(e){
+    console.warn('Falha ao carregar histórico',e);
+    historyLoadedFor[key]='error';
+  }
+}
+
+function addHistorySeparator(count){
+  const term=document.getElementById('terminal');
+  if(!term) return;
+  const div=document.createElement('div');
+  div.className='t-history-sep';
+  div.innerHTML='<span>📜 Histórico de conversas ('+count+' mensagens)</span>';
+  term.appendChild(div);
+}
+function addHistoryEnd(){
+  const term=document.getElementById('terminal');
+  if(!term) return;
+  const div=document.createElement('div');
+  div.className='t-history-sep end';
+  div.innerHTML='<span>── continuando agora ──</span>';
+  term.appendChild(div);
+}
+
+// ── API ──
+async function login(email,senha){
+  loginError='';
+  if(!email||!senha){loginError='Preencha email e senha';R();return}
+  try{
+    const r=await fetch(API+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,senha})});
+    const d=await r.json();
+    if(d.error){loginError=d.error;R();return}
+    if(d.step==='2fa'){
+      // Senha OK, agora precisa do código 2FA
+      loginStep='2fa';pendingEmail=email;pendingName=d.dev_name||'';loginError='';
+      R();return;
+    }
+    // Login direto (fallback)
+    finishLogin(d);
+  }catch(e){loginError='Erro de conexão';R()}
+}
+
+async function verify2fa(code){
+  loginError='';
+  if(!code||code.length!==6){loginError='Digite o código de 6 dígitos';R();return}
+  try{
+    const r=await fetch(API+'/verify-2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:pendingEmail,code})});
+    const d=await r.json();
+    if(d.error){loginError=d.error;R();return}
+    finishLogin(d);
+  }catch(e){loginError='Erro de conexão';R()}
+}
+
+function finishLogin(d){
+  me=d;authToken=d.token;
+  localStorage.setItem('dev-token',authToken);
+  localStorage.setItem('dev-email',d.dev_email);
+  loginStep='credentials';pendingEmail='';loginError='';
+  autoSelectScope();
+  connectWS();
+  if(me.role==='superadmin'||me.role==='admin') fetch(API+'/devs').then(r=>r.json()).then(d=>{devs=d;R()});
+  R();
+}
+
+/* Auto-seleciona app/setor iniciais baseado no escopo do user.
+   Evita ficar apontando pra dashboardparket quando o user só tem acesso a outro app. */
+function autoSelectScope(){
+  if(!me) return;
+  const isAdmin=me.role==='superadmin'||me.role==='admin';
+  const apps=me.apps_permitidos||[];
+  if(!isAdmin){
+    // Se curApp atual não está liberado, escolhe o primeiro liberado
+    if(!apps.includes(curApp) && apps.length>0) curApp=apps[0];
+  }
+  // Setor: se user tem 1 só, auto-escolhe
+  const setores=me.setores_permitidos||[];
+  if(!isAdmin && setores.length===1) curSetor=setores[0];
+}
+
+async function checkSession(){
+  const token=localStorage.getItem('dev-token');
+  const email=localStorage.getItem('dev-email');
+  if(!token||!email)return false;
+  const r=await fetch(API+'/me?token='+token+'&email='+email);
+  const d=await r.json();
+  if(d.error){localStorage.removeItem('dev-token');localStorage.removeItem('dev-email');return false}
+  me=d;authToken=token;
+  autoSelectScope();
+  connectWS();
+  if(me.role==='superadmin'||me.role==='admin') devs=await(await fetch(API+'/devs')).json();
+  return true;
+}
+
+async function addDev(){
+  if(!newDev.dev_name||!newDev.dev_email||!newDev.senha){alert('Nome, email e senha obrigatórios');return}
+  if(newDev.senha.length<6){alert('Senha mínimo 6 caracteres');return}
+  try{
+    const res=await fetch(API+'/devs',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({dev_name:newDev.dev_name,dev_email:newDev.dev_email,senha:newDev.senha,
+        telefone:newDev.telefone||null,role:newDev.role||'dev',
+        apps_permitidos:newDev.apps||[],setores_permitidos:newDev.setores||[]})});
+    if(!res.ok){const e=await res.text();alert('Erro ao criar dev: '+e);return}
+    showAddDev=false;newDev={};
+    devs=await(await fetch(API+'/devs')).json();R();
+  }catch(e){alert('Erro de conexão: '+e.message)}
+}
+
+async function removeDev(id){
+  if(!confirm('Remover dev?'))return;
+  await fetch(API+'/devs/'+id,{method:'DELETE'});
+  devs=await(await fetch(API+'/devs')).json();R();
+}
+
+async function resetSenha(id){
+  const senha=document.getElementById('new-senha-'+id)?.value;
+  if(!senha||senha.length<6){alert('Senha mínimo 6 caracteres');return}
+  const r=await fetch(API+'/devs/'+id+'/reset-senha',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({senha})});
+  const d=await r.json();
+  if(d.ok){alert('Senha atualizada!');showResetSenha=null;R()}
+  else alert(d.error||'Erro');
+}
+
+// ── Render ──
+function R(){
+  const a=document.getElementById('app');
+  if(!me){
+    if(loginStep==='2fa'){
+      a.innerHTML=`<div class="login"><div class="login-card">
+        <h1>Verificação</h1>
+        <p>2FA · ${escHtml(pendingName)}</p>
+        <p style="color:var(--med);font-size:12px;max-width:320px;text-align:center;line-height:1.6;margin-top:-4px">Código de 6 dígitos enviado pro seu WhatsApp.</p>
+        ${loginError?'<p style="color:var(--red);font-size:12px;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.25);padding:8px 16px;border-radius:8px;width:100%;text-align:center">'+escHtml(loginError)+'</p>':''}
+        <input id="otp" maxlength="6" placeholder="000000" style="width:240px;text-align:center;font-size:26px;letter-spacing:10px;font-weight:700;font-family:'Cascadia Code',monospace" onkeydown="if(event.key==='Enter')verify2fa(this.value)" autofocus/>
+        <button class="btn bp" style="width:100%;justify-content:center" onclick="verify2fa(document.getElementById('otp').value)">Verificar</button>
+        <button class="btn bg" style="width:100%;justify-content:center;font-size:11px" onclick="loginStep='credentials';loginError='';R()">← Voltar</button>
+        <p style="color:var(--dim);font-size:10px;margin-top:0;letter-spacing:.18em;text-transform:uppercase">Válido por 5 minutos</p>
+      </div></div>`;
+    } else {
+      a.innerHTML=`<div class="login"><div class="login-card">
+        <h1>⚡ Parket Code</h1>
+        <p>Dev Portal</p>
+        ${loginError?'<p style="color:var(--red);font-size:12px;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.25);padding:8px 16px;border-radius:8px;width:100%;text-align:center">'+escHtml(loginError)+'</p>':''}
+        <input id="em" placeholder="Email" onkeydown="if(event.key==='Enter')document.getElementById('pw').focus()"/>
+        <input id="pw" type="password" placeholder="Senha" onkeydown="if(event.key==='Enter')login(document.getElementById('em').value,this.value)"/>
+        <button class="btn bp" style="width:100%;justify-content:center" onclick="login(document.getElementById('em').value,document.getElementById('pw').value)">Entrar</button>
+        <p style="color:var(--dim);font-size:10px;margin-top:0;letter-spacing:.18em;text-transform:uppercase">Acesso restrito · Solicite ao admin</p>
+      </div></div>`;
+    }
+    return;
+  }
+
+  const isAdmin=me.role==='superadmin'||me.role==='admin';
+  const myApps=me.apps_permitidos||[];
+  const mySetores=me.setores_permitidos||[];
+  const canAccess=(app)=>isAdmin||myApps.includes(app);
+
+  const appList=Object.entries(APPS).filter(([k])=>canAccess(k)).map(([k,v])=>
+    `<div class="si ${curApp===k?'a':''}" onclick="selectApp('${k}')">${v.icon} ${v.nome}</div>`).join('');
+
+  const setorList=(isAdmin?SETORES:mySetores).map(s=>
+    `<div class="si ${curSetor===s?'a':''}" onclick="selectSetor('${s}')"><div class="dot" style="background:var(--accent)"></div>${s}</div>`).join('');
+
+  const tabsDef=[
+    {id:'terminal',label:'⚡ Terminal'},
+    {id:'admin',label:'👥 Devs',show:isAdmin},
+  ];
+  const tabsHtml='<div class="tabs">'+tabsDef.filter(t=>t.show!==false).map(t=>
+    `<button class="tab ${tab===t.id?'a':''}" onclick="tab='${t.id}';R()">${t.label}</button>`).join('')+'</div>';
+
+  const sidebar=`<div class="side">
+    <div class="side-hdr">Aplicacoes</div><div class="side-list">${appList}</div>
+    ${curApp==='dashboardparket'?'<div class="side-hdr">Setores</div><div class="side-list">'+setorList+'</div>':''}
+  </div>`;
+
+  const header=`<div class="hdr">
+    <div class="logo">⚡ PARKET CODE <small>Dev Portal</small></div>
+    <div class="conn"><div class="conn-dot ${connected?'on':'off'}" id="conn-dot"></div><span id="conn-label" style="color:var(--dim)">${connected?'Conectado':'Desconectado'}</span></div>
+    <span style="font-size:11px;color:var(--dim);margin-left:12px">${escHtml(me.dev_name)} · ${me.role}</span>
+    <button class="btn bg" style="margin-left:12px;font-size:10px" onclick="me=null;authToken=null;localStorage.removeItem('dev-email');localStorage.removeItem('dev-token');if(ws)ws.close();R()">Sair</button>
+  </div>`;
+
+  if(tab==='terminal'){
+    const placeholder='Descreva o que precisa no '+APPS[curApp].nome+(curSetor?' / '+curSetor:'')+'...';
+
+    const pipelineHtml=`<div class="pipeline">
+      <div class="pipe-step ${pipeStep===1?'active':''} ${pipeStep>1?'done':''}" id="pipe-1"><div class="pipe-num">1</div> Editar Codigo</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step ${pipeStep===2?'active':''} ${pipeStep>2?'done':''}" id="pipe-2"><div class="pipe-num">2</div> Build Preview</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-step ${pipeStep===3?'active':''}" id="pipe-3"><div class="pipe-num">3</div> Deploy Producao</div>
+    </div>`;
+
+    a.innerHTML=header+`<div class="lay">${sidebar}<div class="mn">${tabsHtml}${pipelineHtml}
+      <div class="terminal-wrap" id="terminal-wrap">
+        <div class="terminal" id="terminal"></div>
+      </div>
+      <div class="input-bar">
+        <div class="claude-badge${me.role==='user'?' readonly':''}" title="${me.role==='user'?'Consulta (somente leitura)':'Assistente Claude'}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5 L13.2 10.3 L22 11.5 L13.2 12.9 L12 22.5 L10.8 12.9 L2 11.5 L10.8 10.3 Z"/></svg>
+          <span>${me.role==='user'?'Consulta':'Claude'}</span>
+        </div>
+        <input id="cmd-input" placeholder="${placeholder}" ${processing?'disabled':''} onkeydown="if(event.key==='Enter')sendMessage()"/>
+        <button class="btn bp" id="send-btn" ${processing?'disabled':''} onclick="sendMessage()">⚡ Enviar</button>
+        <button class="btn bg" onclick="clearTerminal()" title="Limpar terminal" style="padding:8px 10px">🗑</button>
+      </div>
+    </div></div>`;
+
+    const term=document.getElementById('terminal');
+    if(term && term.children.length===0){
+      addLine('system','⚡ Parket Code Terminal — '+APPS[curApp].nome+(curSetor?' / '+curSetor:''),'accent');
+      addLine('system','','dim');
+      addLine('system','FLUXO DE TRABALHO:','dim');
+      addLine('system','  1. Descreva a alteracao no modo Claude → codigo editado automaticamente','dim');
+      addLine('system','  2. Clique "Build Preview" → imagem staging gerada + container de teste','dim');
+      addLine('system','  3. Valide o preview → clique "Deploy" para enviar a producao','dim');
+      addLine('system','','dim');
+      addLine('system','Digite naturalmente — Claude cuida da edição, preview e deploy.','dim');
+      addLine('system','','dim');
+      // Carrega histórico persistido do Supabase — conversa não some mais em refresh.
+      loadChatHistory();
+    }
+  }
+  else if(tab==='admin'&&isAdmin){
+    const devsHtml=(Array.isArray(devs)?devs:[]).map(d=>{
+      const isAdminRole=(d.role==='superadmin'||d.role==='admin');
+      const initials=(d.dev_name||'??').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
+      const statusTag=d.ativo
+        ?'<span class="tag green">● Ativo</span>'
+        :'<span class="tag red">○ Inativo</span>';
+      const roleTag=isAdminRole
+        ?'<span class="tag pink">'+escHtml(d.role)+'</span>'
+        :'<span class="tag purple">Dev</span>';
+      return `<div class="dev-card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:46px;height:46px;border-radius:50%;flex-shrink:0;
+            background:linear-gradient(135deg,rgba(212,168,83,0.30),rgba(34,211,238,0.20));
+            border:1px solid rgba(212,168,83,0.30);
+            display:flex;align-items:center;justify-content:center;
+            font-weight:800;font-size:14px;color:#fff;letter-spacing:.05em;
+            box-shadow:0 0 18px -4px rgba(212,168,83,0.45)">
+            ${escHtml(initials)}
+          </div>
+          <div style="flex:1;min-width:0">
+            <h4 style="margin:0 0 3px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">${escHtml(d.dev_name||'')}</h4>
+            <p style="font-size:11px;color:var(--dim);margin:0;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">${escHtml(d.dev_email||'')}</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px">
+          ${statusTag}${roleTag}
+        </div>
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.18em;font-weight:700;margin-bottom:6px">Apps</div>
+        <div style="margin-bottom:12px">${(d.apps_permitidos||[]).map(x=>'<span class="tag cyan">'+escHtml(x)+'</span>').join('')||'<span style="font-size:11px;color:var(--dim);font-style:italic">Nenhum</span>'}</div>
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.18em;font-weight:700;margin-bottom:6px">Setores</div>
+        <div style="margin-bottom:14px">${(d.setores_permitidos||[]).map(x=>'<span class="tag pink">'+escHtml(x)+'</span>').join('')||'<span style="font-size:11px;color:var(--dim);font-style:italic">Nenhum</span>'}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--border-soft)">
+          <button class="btn bg" style="font-size:10px;padding:7px 14px" onclick="showResetSenha=showResetSenha==='${d.id}'?null:'${d.id}';R()">🔑 Senha</button>
+          <button class="btn bg" style="font-size:10px;padding:7px 14px;color:var(--red);border-color:rgba(239,68,68,0.30)" onclick="removeDev('${d.id}')">Remover</button>
+        </div>
+        ${showResetSenha===d.id?`<div style="margin-top:10px;display:flex;gap:6px;align-items:center"><input id="new-senha-${d.id}" type="password" placeholder="Nova senha" style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid var(--border-soft);background:rgba(8,7,14,0.55);color:#fff;font-size:12px;backdrop-filter:blur(8px)"/><button class="btn bp" style="font-size:10px;padding:8px 14px" onclick="resetSenha('${d.id}')">Salvar</button></div>`:''}
+      </div>`;
+    }).join('');
+
+    a.innerHTML=header+`<div class="lay">${sidebar}<div class="mn">${tabsHtml}
+      <div style="padding:22px 24px 8px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3 style="font-size:20px;font-weight:800;margin:0;color:#fff">Devs &amp; Permissões</h3>
+          <p style="font-size:11px;color:var(--dim);margin-top:4px;text-transform:uppercase;letter-spacing:.16em;font-weight:600">${(Array.isArray(devs)?devs.length:0)} membro(s) cadastrado(s)</p>
+        </div>
+        <button class="btn bp" onclick="showAddDev=true;R()">Novo Dev</button>
+      </div>
+      <div class="admin-grid">${devsHtml||'<div class="empty">Nenhum dev cadastrado ainda</div>'}</div>
+    </div></div>`+(showAddDev?addDevModal():'');
+  }
+}
+
+function updatePlaceholder(){
+  const inp=document.getElementById('cmd-input');
+  const btn=document.getElementById('send-btn');
+  if(inp) inp.placeholder='Descreva o que precisa no '+APPS[curApp].nome+(curSetor?' / '+curSetor:'')+'...';
+  if(btn) btn.textContent='⚡ Enviar';
+}
+
+function selectApp(app){
+  curApp=app;
+  const term=document.getElementById('terminal');
+  if(term) term.innerHTML='';  // limpa pra recarregar histórico do novo escopo
+  R();
+  if(term&&tab==='terminal'){
+    addLine('system','⚡ Parket Code Terminal — '+APPS[curApp].nome+(curSetor?' / '+curSetor:''),'accent');
+    addLine('system','','dim');
+    loadChatHistory();
+  }
+}
+
+function selectSetor(setor){
+  curSetor=setor;
+  const term=document.getElementById('terminal');
+  if(term) term.innerHTML='';  // limpa pra recarregar histórico do novo setor
+  R();
+  if(term&&tab==='terminal'){
+    addLine('system','⚡ Parket Code Terminal — '+APPS[curApp].nome+(curSetor?' / '+curSetor:''),'accent');
+    addLine('system','','dim');
+    loadChatHistory();
+  }
+}
+
+function addDevModal(){
+  const appsOpts=Object.keys(APPS).map(k=>`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--med);margin:4px 0"><input type="checkbox" value="${k}" onchange="var c=document.querySelectorAll('.app-chk:checked');newDev.apps=Array.from(c).map(x=>x.value)" class="app-chk"/> ${k}</label>`).join('');
+  const setOpts=SETORES.map(s=>`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--med);margin:4px 0"><input type="checkbox" value="${s}" onchange="var c=document.querySelectorAll('.set-chk:checked');newDev.setores=Array.from(c).map(x=>x.value)" class="set-chk"/> ${s}</label>`).join('');
+
+  return `<div class="mo" onclick="showAddDev=false;R()"><div class="mdl" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span class="tag purple">Novo</span>
+    </div>
+    <h3 style="color:#fff;margin-bottom:6px;font-size:22px;font-weight:800">Adicionar Dev</h3>
+    <p style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.16em;font-weight:600;margin-bottom:20px">Cadastro de novo membro</p>
+    <div class="fl"><label>Nome</label><input oninput="newDev.dev_name=this.value" placeholder="Nome completo"/></div>
+    <div class="fl"><label>Email</label><input oninput="newDev.dev_email=this.value" placeholder="nome@parket.com.br"/></div>
+    <div class="fl"><label>Senha</label><input type="password" oninput="newDev.senha=this.value" placeholder="Mínimo 6 caracteres"/></div>
+    <div class="fl"><label>Telefone · WhatsApp / 2FA</label><input oninput="newDev.telefone=this.value" placeholder="5511999999999"/></div>
+    <div class="fl"><label>Role</label><select onchange="newDev.role=this.value">
+      <option value="dev" selected>Dev · desenvolve no app/setor liberado</option>
+      <option value="user">User · consulta (read-only) no setor liberado</option>
+      <option value="admin">Admin · acesso amplo + aprova deploys</option>
+    </select></div>
+    <div class="fl"><label>Apps permitidos</label><div style="display:flex;flex-direction:column;gap:2px">${appsOpts}</div></div>
+    <div class="fl"><label>Setores permitidos</label><div style="max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding-right:6px">${setOpts}</div></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px">
+      <button class="btn bg" onclick="showAddDev=false;R()">Cancelar</button>
+      <button class="btn bp" onclick="addDev()">Adicionar</button>
+    </div>
+  </div></div>`;
+}
+
+// Init — check saved session
+(async()=>{
+  const ok=await checkSession();
+  R();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+version: "3.8"
+
+services:
+  api:
+    image: parket-gestao-api:latest
+    networks:
+      - network_public
+      - parket-api_internal
+      - parket-ai-squad_parket_internal
+    environment:
+      # Host pelo nome ÚNICO do service: com a network do ai-squad attachada,
+      # o alias "postgres" passa a resolver pro pgvector deles (banco errado).
+      GESTAO_PG_HOST: parket-pg-local_postgres
+      GESTAO_PG_PORT: "5432"
+      GESTAO_PG_DB: postgres
+      GESTAO_PG_USER: postgres
+      GESTAO_PG_PASSWORD_FILE: /run/secrets/parket_pg_local_password
+      # core.parket.works entra pra tela de Aprovacoes/Pagamentos do Core
+      # decidir e pagar os Custos de Terceiros direto nesta API.
+      GESTAO_CORS_ORIGINS: https://gestao.parket.works,https://verifica.parket.works,https://instala.parket.works,https://producao.parket.works,https://projetos.parket.works,https://center.parket.works,https://homebroker.parket.works,https://core.parket.works
+      # Fiscal aponta pro Supabase Cloud — MESMO banco que verifica.parket.works usa.
+      # Escritas do gestao aparecem instantâneas no PWA dos fiscais em campo.
+      SUPABASE_URL: https://hbxpilrxmitvzebluoom.supabase.co
+      SUPABASE_SERVICE_KEY_FILE: /run/secrets/supabase_service_key_hbx
+      # Docs unificados: lê a Valoria (skbjmlzgaeupflujomzw) via Management API
+      SUPABASE_MGMT_PAT_FILE: /run/secrets/supabase_mgmt_pat
+      # Atendimento WhatsApp: instância Evolution default (Will reconectou o número na CS PARKET 18/08)
+      CS_INSTANCE: CS PARKET
+      # Copiloto: token OAuth vem de public.ai_accounts do ai-squad (refresh
+      # automático); o secret teca_anthropic_oauth vira só fallback.
+      AI_ACCOUNTS_DSN: postgresql://parket:Mfcd62!!Mfcd62!!@parket-ai-squad_postgres:5432/parket_ai
+      ANTHROPIC_OAUTH_TOKEN_FILE: /run/secrets/teca_anthropic_oauth
+      CLAUDE_MODEL: claude-sonnet-4-5-20250929
+      # InstaParket → aviso no chat da obra (parket-chat, endpoint interno)
+      CHAT_INTERNAL_URL: http://parket-chat_chat:3000
+      CHAT_INTERNAL_SECRET_FILE: /run/secrets/chat_internal_secret
+      # Reunião Semanal — Whisper self-hosted + endpoint interno chat.parket.works
+      WHISPER_URL: http://parket-whisper_api:8080
+      REUNIAO_AUDIO_BUCKET: reuniao-audios
+      # HB Drive: secret que destrava o get_upload_token no Apps Script
+      # (mesmo conteúdo de /root/.compras-watcher/drive_token_secret)
+      DRIVE_TOKEN_SECRET_FILE: /run/secrets/drive_token_secret
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export GESTAO_PG_PASSWORD=$$(cat $${GESTAO_PG_PASSWORD_FILE})
+        export SUPABASE_SERVICE_KEY=$$(cat $${SUPABASE_SERVICE_KEY_FILE})
+        [ -f $${ANTHROPIC_OAUTH_TOKEN_FILE} ] && export ANTHROPIC_OAUTH_TOKEN=$$(cat $${ANTHROPIC_OAUTH_TOKEN_FILE})
+        [ -f $${CHAT_INTERNAL_SECRET_FILE} ] && export CHAT_INTERNAL_SECRET=$$(cat $${CHAT_INTERNAL_SECRET_FILE})
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    secrets:
+      - parket_pg_local_password
+      - supabase_service_key_hbx
+      - supabase_mgmt_pat
+      - teca_anthropic_oauth
+      - chat_internal_secret
+      - drive_token_secret
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+      mode: replicated
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+
+  web:
+    image: parket-gestao-web:latest
+    networks:
+      - network_public
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+      mode: replicated
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        - traefik.http.routers.parket-gestao-http.rule=Host(`gestao.parket.works`)
+        - traefik.http.routers.parket-gestao-http.entrypoints=web
+        - traefik.http.routers.parket-gestao-http.middlewares=https-redirect
+        - traefik.http.routers.parket-gestao.rule=Host(`gestao.parket.works`)
+        - traefik.http.routers.parket-gestao.entrypoints=websecure
+        - traefik.http.routers.parket-gestao.tls=true
+        - traefik.http.routers.parket-gestao.tls.certresolver=letsencryptresolver
+        - traefik.http.services.parket-gestao.loadbalancer.server.port=80
+
+networks:
+  network_public:
+    external: true
+  parket-api_internal:
+    external: true
+  parket-ai-squad_parket_internal:
+    external: true
+
+secrets:
+  parket_pg_local_password:
+    external: true
+  supabase_service_key_hbx:
+    external: true
+  supabase_mgmt_pat:
+    external: true
+  teca_anthropic_oauth:
+    external: true
+    name: teca_anthropic_oauth_1783951912
+  chat_internal_secret:
+    external: true
+  drive_token_secret:
+    external: true

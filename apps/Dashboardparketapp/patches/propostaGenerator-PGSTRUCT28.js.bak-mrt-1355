@@ -1,0 +1,774 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/index-DZtetJYP.js","assets/index-DCkZHMWs.css"])))=>i.map(i=>d[i]);
+import{_ as D}from"./index-DZtetJYP.js";function _mmToCm(s){if(!s)return s;if(/cm\b/i.test(s))return s;if(!/[×xX]/.test(s))return s;var hasLarge=false;(s.match(/\d+/g)||[]).forEach(function(n){if(Number(n)>=10)hasLarge=true;});if(!hasLarge)return s;var out=s.split(/(\d+\s*\/\s*\d+)/g).map(function(tok,i){if(i%2===1)return tok;return tok.replace(/(\d+(?:[.,]\d+)?)(-(\d+(?:[.,]\d+)?))?/g,function(m,a,_d,b){var divA=Number(a.replace(",","."))/10;var fmA=Number.isInteger(divA)?String(divA):divA.toFixed(1).replace(".",",");if(b!==undefined){var divB=Number(b.replace(",","."))/10;var fmB=Number.isInteger(divB)?String(divB):divB.toFixed(1).replace(".",",");return fmA+"-"+fmB;}return fmA;});}).join("");out=out.replace(/\s*MM\b/gi,"").replace(/\s+/g," ").trim();if(!/cm\b/i.test(out)){out=out.replace(/(.*\d)(\D.*)?$/,function(_,before,after){if(after)return before+"cm "+after.replace(/^\s+/,"");return before+"cm";});}return out;}function E(e){const _c=(typeof window!=="undefined"&&window._pktPropCurrency)||"BRL";const _l=_c==="USD"?"en-US":"pt-BR";return e.toLocaleString(_l,{style:"currency",currency:_c})}function H(e){try{return new Date(e).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"})}catch{return new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"})}}function __mergeInsumosInstalacao__(it){if(!Array.isArray(it))return it;const byCat=new Map();for(const x of it){const c=x.categoria||"";if(!byCat.has(c))byCat.set(c,[]);byCat.get(c).push(x);}const out=[];for(const[cat,arr]of byCat){const isIns=x=>/^\s*INSUMOS\b/i.test((x.descritivo||"").split("\n")[0]);const isInst=x=>/^\s*INSTALA[ÇC][AÃÁÃ]O\s+E\s+GEST/i.test((x.descritivo||"").split("\n")[0]);if(/^MARCENARIA/i.test(cat)){const _i=arr.filter(isIns);const _it=arr.filter(isInst);const _o=arr.filter(x=>!isIns(x)&&!isInst(x));const _ta=[..._i,..._it].reduce((a,b)=>a+(Number(b.valor)||0),0);if(_o.length>0&&_ta>0){_o[0]={..._o[0],valor:(Number(_o[0].valor)||0)+_ta};}out.push(..._o);continue;}const ins=arr.filter(isIns);const inst=arr.filter(isInst);const oth=arr.filter(x=>!isIns(x)&&!isInst(x));out.push(...oth);if(ins.length>0){const totIns=ins.reduce((a,b)=>a+(Number(b.valor)||0),0);let minOrd=1/0;for(const x of ins){if(typeof x.ordem=="number"&&x.ordem<minOrd)minOrd=x.ordem;}out.push({id:ins[0].id||"merged-ins-"+cat,categoria:cat,descritivo:"INSUMOS",valor:totIns,ordem:isFinite(minOrd)?minOrd:998});}if(inst.length>0){const totInst=inst.reduce((a,b)=>a+(Number(b.valor)||0),0);let minOrd=1/0;for(const x of inst){if(typeof x.ordem=="number"&&x.ordem<minOrd)minOrd=x.ordem;}out.push({id:inst[0].id||"merged-inst-"+cat,categoria:cat,descritivo:"INSTALAÇÃO E GESTÃO DE OBRAS",valor:totInst,ordem:isFinite(minOrd)?minOrd:999});}}return out;}function __mergeRecortesPorCat__(it){if(!Array.isArray(it))return it;const fmtBRL=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});const isRec=x=>/^RECORTES/i.test(x.descritivo||"");const byCat=new Map();for(const x of it){const c=x.categoria||"";if(!byCat.has(c))byCat.set(c,[]);byCat.get(c).push(x);}const out=[];for(const[cat,arr]of byCat){const _isFor=/^FORRO/i.test(cat);if(!_isFor){out.push(...arr);continue;}const rec=arr.filter(isRec);const oth=arr.filter(x=>!isRec(x));out.push(...oth);if(rec.length<=1){out.push(...rec);continue;}const rMap={};let tot=0,minOrd=1/0,id="";for(const x of rec){tot+=Number(x.valor)||0;if(typeof x.ordem=="number"&&x.ordem<minOrd)minOrd=x.ordem;if(!id)id=x.id||"";const m=(x.descritivo||"").match(/__RECDATA__:(\{[\s\S]*?\})(?=\n|$)/);if(m){try{const mp=JSON.parse(m[1]);for(const k of Object.keys(mp)){const rr=mp[k];if(rMap[k]&&!rr.custom&&!rr.pacote){rMap[k].qtd=(rMap[k].qtd||0)+(rr.qtd||0);}else{rMap[k]={...rr};}}}catch{}}}const recTxt=Object.values(rMap).map(rr=>{if(rr.pacote)return rr.nome+" ("+fmtBRL(rr.p)+")";const qq=rr.u==="UNI"?String(Math.round(rr.qtd||0)).padStart(2,"0"):(rr.qtd||0).toLocaleString("pt-BR",{minimumFractionDigits:2});return qq+" "+rr.nome;}).join(" e ")+".";const recDesc="RECORTES\n"+recTxt+"\n__RECDATA__:"+JSON.stringify(rMap);out.push({id:id||"merged-rec-"+cat,categoria:cat,descritivo:recDesc,valor:tot,ordem:isFinite(minOrd)?minOrd:999});}return out;}function Z(e,S){S=(S||[]).filter(function(_p){var _cat=String(_p.categoria||"").toUpperCase();var _h=((_p.descritivo||"").split("\n")[0]||"").trim().toUpperCase();var _ehAux=/^(INSUMOS|INSTALA|GEST|M[ÃA]O\s+DE\s+OBRA)/.test(_h);if(_ehAux && (_cat.indexOf("PORTA")>=0||_cat.indexOf("ESCADA")>=0)){return false;}return true;});S=__mergeRecortesPorCat__(S);S=__mergeInsumosInstalacao__(S);S=(function(arr){var sums={},firstMain={},result=[];for(var i=0;i<arr.length;i++){var h=((arr[i].descritivo||"").split("\n")[0]||"").trim().toUpperCase();if(/^(INSUMOS|INSTALA|GEST|M[ÃA]O\s+DE\s+OBRA)/.test(h)){sums[arr[i].categoria]=(sums[arr[i].categoria]||0)+(Number(arr[i].valor)||0);}}for(var j=0;j<arr.length;j++){var it=arr[j];var hh=((it.descritivo||"").split("\n")[0]||"").trim().toUpperCase();var ehAux=/^(INSUMOS|INSTALA|GEST|M[ÃA]O\s+DE\s+OBRA)/.test(hh);if(ehAux)continue;if(!firstMain[it.categoria]){firstMain[it.categoria]=true;it=Object.assign({},it,{valor:(Number(it.valor)||0)+(sums[it.categoria]||0)});}result.push(it);}return result;})(S);const T=S.reduce((o,t)=>{var _c=String(t.categoria||"").toUpperCase();var _k=(_c.indexOf("PORTA")>=0)?"PORTA":(t.categoria||"");if(_k==="PORTA"){var _h=((t.descritivo||"").split("\n")[0]||"").trim().toUpperCase();if(/^(INSUMOS|INSTALA[CÇ][AÃ]O\s+(E|DE)\s+GEST|GEST[AÃ]O|M[ÃA]O\s+DE\s+OBRA)/.test(_h))return o;}(o[_k]||(o[_k]=[])).push(t);return o;},{}),_=H(e.created_at||new Date().toISOString()),b=e.numero&&String(e.numero).trim()||String(Date.now()).slice(-4),m=e.cliente||"—",R=e.cnpj_cpf||"—",r=e.endereco||"—",i=e.vendedor||"—",a=e.orcamentista||"",_orcEm=e.orcamentista_email||"",p=e.contato_nome||"",c=e.contato_telefone||"",s=e.contato_email||"",f=e.arquiteto||"",q=e.forma_pagamento||"A combinar",O=f?`${m} | ${f}`:m,L=e.vendedor_telefone||"011 98675-0031",F=e.vendedor_email||"douglas@parket.com.br",M=r.split(`
+`).filter(Boolean);let y=0,w="";const x={};for(const o of Object.keys(T)){const t=o.toUpperCase();t.includes("LOG")||t==="TRANSPORTE"?y=T[o].reduce((n,v)=>n+v.valor,0):t.includes("OBS")?w=T[o].map(n=>n.descritivo).join("; "):x[o]=T[o]}const j=Object.values(x).flat().reduce((o,t)=>o+t.valor,0),_dV=Number(e.desconto_valor)||0,_dM=e.desconto_modo||(_dV>0?"valor":"perc"),k=_dM==="valor"?Math.min(j,_dV):j*(e.desconto_perc/100),_freteVal=Number(e.frete_valor)||0,G=j+y-k+_freteVal;if(!w){const o=["Fornecimento e instalação"];let _obsAuto={};for(const t of Object.keys(x)){const _lenBefore=o.length;const[n,v,d]=t.split("||"),P=x[t];let C=0,Q=0,_pm2=0;for(const d of P){const l=(d.descritivo||"").toUpperCase();if(l.includes("INSUMOS")||l.includes("INSTALAÇÃO"))continue;Q++;const _mm2=(d.descritivo||"").match(/\(([0-9]+[.,]?[0-9]*)\s*m²\)/i)||(d.descritivo||"").match(/([0-9]+[.,]?[0-9]*)\s*m²/i);if(_mm2){_pm2+=parseFloat(_mm2[1].replace(",","."));}else{const _un=(d.descritivo||"").match(/([0-9]+)\s+unidade/i);_pm2+=(_un?parseInt(_un[1]):1)*5;}const _wp=(d.descritivo||"").match(/=\s*([0-9]+[.,]?[0-9]*)\s*m²/i);const u=(d.descritivo||"").match(/metragem real total[=\\s]+([0-9]+[.,]?[0-9]*)m?²?|Metragem real ([0-9]+[.,]?[0-9]*)m²|metragem total ([0-9]+[.,]?[0-9]*)m²|\b([0-9]+[.,]?[0-9]*)m²/i);const _umtl=(d.descritivo||"").match(/metragem total ([0-9]+[.,]?[0-9]*)\s*mtl|\b([0-9]+[.,]?[0-9]*)\s*mtl\b/i);let _v=NaN;if(_umtl)_v=parseFloat((_umtl[1]||_umtl[2]).replace(",","."));else if(_wp)_v=parseFloat(_wp[1].replace(",","."));else if(u)_v=parseFloat((u[1]||u[2]||u[3]||u[4]||"0").replace(",","."));if(!isNaN(_v))C+=_v}const _Nraw=v?(d?` ${v} ${d}`:` ${v}`):"";const _nU=n.toUpperCase();const _isPorta=_nU.startsWith("PORTA");const _stripAcc=(_s)=>_s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();const N=(function(){let _s=_isPorta?_Nraw.replace(/\b(?:DN150|RO82TOP|CIR|GERIS|ITALY\s+LINE|3D)\b/gi," ").replace(/\b(ASSOALHO|LACA|LAMINA|MOLDURA[_ ]VIDRO|MUXARABI|RIPADO|TOBLERONE)\b\s+(?=\S)/gi," "):_Nraw;return _s.replace(/\s+/g," ").trim().split(" ").filter(Boolean).filter((_v,_i,_a)=>_i===0||_stripAcc(_v)!==_stripAcc(_a[_i-1])).join(" ").replace(/_/g," ");})();const _isGuarda=(v||"").toUpperCase().includes("REVESTIMENTO LAMINA");if(_isPorta&&Q>0)o.push(`${String(Q).padStart(2,"0")} - ${_nU} ${N.trimStart()} ${_pm2.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}m²`);else if(_isGuarda&&C>0)o.push(`${C.toFixed(0)}m² -${N}`);else if(_nU.startsWith("MARCENARIA")&&Q>0){const _accsObs=(v||"").split(/\s*\|\s*/).map(function(s){return s.trim().toLowerCase()}).filter(Boolean).join(" / ");const _qf=String(Q).padStart(2,"0");o.push(`${_qf} - ${Q>1?"Moveis personalizados":"Movel personalizado"} ${_accsObs}`);}else if(C>0){const _isRod=_nU.startsWith("RODAP");const _un=_isRod?"MTL":"m²";const _fmt=_isRod?{minimumFractionDigits:0,maximumFractionDigits:0}:{minimumFractionDigits:2,maximumFractionDigits:2};let _Nrod=N;if(_isRod){const _firstNonAgg=P.find(d=>{const l=(d.descritivo||"").toUpperCase();return !l.includes("INSUMOS")&&!l.includes("INSTALAÇÃO");});if(_firstNonAgg){const _raw=_firstNonAgg.descritivo||"";const _firstLine=_raw.split("\n")[0]||"";let _name=_firstLine.replace(/^\s*[\d.,]+\s*mtl\s*/i,"").replace(/^\s*RODAP[ÉE]\s*/i,"").trim();if(_name)_Nrod=" "+_name;}}o.push(`${C.toLocaleString("pt-BR",_fmt)}${_un} - ${_nU} ${_Nrod}`);}else o.push(`${_nU} - ${N}`)
+/* Recortes na observação */
+const _recs=P.filter(d=>(d.descritivo||"").toUpperCase().startsWith("RECORTES"));const _recAgg={};const _recFallback=[];for(const _r of _recs){const _m=(_r.descritivo||"").match(/__RECDATA__:(\{[\s\S]*?\})(?=\n|$)/);if(_m){try{const _data=JSON.parse(_m[1]);for(const _id in _data){const _info=_data[_id];if(!_info||!_info.nome)continue;const _key=_info.pacote?("P:"+_info.nome):_id;if(_recAgg[_key]){_recAgg[_key].qtd=(_recAgg[_key].qtd||0)+(Number(_info.qtd)||0);}else{_recAgg[_key]={nome:_info.nome,u:_info.u||"UN",qtd:Number(_info.qtd)||0,pacote:!!_info.pacote,p:Number(_info.p)||0};}}}catch(_e){}}else{const _lines=(_r.descritivo||"").split("\n").filter(l=>l.trim()&&!/^RECORTES$/i.test(l.trim()));if(_lines.length>0){const _joined=_lines.join(" ").split(" | ").map(s=>s.replace(/^\s*([\d.,]+)\s+([A-Za-zÀ-ÿ])/,"$1 - $2")).join(" | ");_recFallback.push(_joined);}}}const _recParts=Object.values(_recAgg).map(_info=>{if(_info.pacote)return _info.nome;const _qf=(Number(_info.qtd)%1===0)?String(Math.round(_info.qtd||0)).padStart(2,"0"):(_info.qtd||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});return _qf+" - "+_info.nome;});if(_recParts.length>0)o.push(_recParts.join(" | ")+".");for(const _f of _recFallback)o.push(_f);
+/* Rodapé na observação */
+const _rods=P.filter(d=>(d.descritivo||"").toUpperCase().startsWith("RODAPÉ"));for(const _rd of _rods){const _rl=(_rd.descritivo||"").split("\n").filter(l=>l.trim()&&!/^RODAPÉ$/i.test(l.trim()));if(_rl.length>0)o.push(_rl.join(" "))}if(o.length>_lenBefore){_obsAuto[t]=o.slice(_lenBefore).join("\n");}}w=o.join(`
+`)}let g="",U=1;const z=o=>/\s·\s/.test(o)||/·/.test(o),B=o=>{var n;const t=o.split("·").map(v=>v.trim()).filter(Boolean);return t.length>=2?t[1].toUpperCase():((n=t[0])==null?void 0:n.toUpperCase())||""},$=o=>{const t=(o||"").toUpperCase();return t.startsWith("RECORTES")?3:t.startsWith("INSUMOS DE")||t.includes(`
+INSUMOS DE`)||t.match(/^INSUMOS\b/)?1:t.startsWith("INSTALAÇÃO")||t.includes("INSTALAÇÃO E GEST")?2:0};const _sortedCatKeys=Object.keys(x).sort((a,b)=>{const au=a.split("||")[0].toUpperCase(),bu=b.split("||")[0].toUpperCase();const aIsRod=au==="RODAPÉ"||au==="RODAPE"?1:0,bIsRod=bu==="RODAPÉ"||bu==="RODAPE"?1:0;if(aIsRod!==bIsRod)return aIsRod-bIsRod;const _catOrder=["PISO","PAINEL","FORRO","DECK","PORTA","ESCADA","LOGISTICA","LOGÍSTICA","COMPRAS","INSUMOS"];const _ai=_catOrder.indexOf(au),_bi=_catOrder.indexOf(bu);if(au===bu)return 0;if(_ai===-1&&_bi===-1)return au.localeCompare(bu);if(_ai===-1)return 1;if(_bi===-1)return-1;return _ai-_bi});const _ambByOrdem={};for(const _cat of Object.keys(x)){if(_cat.toUpperCase().startsWith("RODAP"))continue;for(const _it of x[_cat]){const _l=(_it.descritivo||"").toUpperCase();if(_l.includes("INSUMOS")||_l.includes("INSTALAÇÃO"))continue;const _fl=(_it.descritivo||"").split("\n")[0].trim();if(_fl&&!_ambByOrdem[_it.ordem])_ambByOrdem[_it.ordem]=_fl;}}let _allObsPorProduto=[];for(const o of _sortedCatKeys){const _agg=(()=>{const _arr=x[o];const _map=new Map();const _out=[];const _isMarc=o.toUpperCase().startsWith("MARCENARIA");let _marcExtraTotal=0;for(const _it of _arr){const _d=(_it.descritivo||"").toUpperCase().trim();const _key=_d.startsWith("INSUMOS DE")?"_INSUMOS":(_d.startsWith("INSTALA")?"_INSTALACAO":null);if(_key){if(_isMarc){_marcExtraTotal+=Number(_it.valor||0);continue;}if(_map.has(_key)){const _ex=_map.get(_key);_ex.valor=Number(_ex.valor||0)+Number(_it.valor||0);}else{const _copy={..._it};_map.set(_key,_copy);_out.push(_copy)}}else{_out.push(_it)}}if(_isMarc&&_marcExtraTotal>0&&_out.length>0){const _baseTotal=_out.reduce((s,it)=>s+Number(it.valor||0),0);if(_baseTotal>0){_out.forEach(it=>{const _share=Number(it.valor||0)/_baseTotal;it.valor=Number(it.valor||0)+_marcExtraTotal*_share;});}else{_out[0].valor=Number(_out[0].valor||0)+_marcExtraTotal;}}return _out;})();const t=[..._agg].sort((d,l)=>{var _isPC=String((d.categoria||"")).toUpperCase().indexOf("PORTA")>=0&&String((l.categoria||"")).toUpperCase().indexOf("PORTA")>=0;if(_isPC){var _md=String((d.categoria||"")).split("||")[1]||"";var _ml=String((l.categoria||"")).split("||")[1]||"";if(_md!==_ml)return _md.localeCompare(_ml);}const u=$(d.descritivo),A=$(l.descritivo);if(u!==A)return u-A;return d.ordem-l.ordem;}),n=t.reduce((d,l)=>d+l.valor,0),__cParts=o.split("||"),v=__cParts[0],P=__cParts[1]||"",C=v;let N=P||"";var _cor=(t.find(d=>d.cor)||{}).cor||"";if(_cor){var _corUp=String(_cor).toUpperCase().trim();if(_corUp&&!N.toUpperCase().includes(_corUp)){N=(N.trim()+" "+_corUp).trim();}}if(C.toUpperCase()!=="DECK"){N=N.replace(/^\s*DECK\s+/i,"").trim();}if(C.toUpperCase()!=="SAUNA"){N=N.replace(/^\s*SAUNA\s+/i,"").trim();}if(C.toUpperCase()==="RODAPÉ"||C.toUpperCase()==="RODAPE"){const _firstRod=t.find(d=>!(d.descritivo||"").toUpperCase().startsWith("INSUMOS")&&!(d.descritivo||"").toUpperCase().startsWith("INSTALAÇÃO"));if(_firstRod){const _rl=(_firstRod.descritivo||"").split("\n").filter(l=>l.trim()&&!/^RODAPÉ$/i.test(l.trim()));if(_rl.length>0){const _nm=_rl[0].replace(/^[\d.,]+\s*mtl?\s*/i,"").replace(/\s*RODAP[ÉE]\s*/i,"").replace(/\s*—.*$/,"").replace(/\s*20X20XCOMP\.VARIAVEL\s*/i,"").trim();if(_nm)N=_nm.toUpperCase()}}};if(!N)for(const d of t){const l=(d.descritivo||"").split(`
+`).find(z);if(l){N=B(l);break}}if((C.toUpperCase()==="PAINEL"||C.toUpperCase()==="REVESTIMENTO")&&/LAMIN/i.test(N)){N=N.replace(/\s*\d+\/\d+\s*[×x]\s*\d+\s*MM?/gi,"").replace(/\s+/g," ").trim();}if(C.toUpperCase()!=="PORTA"){g+=`<tr>
+      <td class="cat-c">${C.toUpperCase()} </td>
+      <td class="cat-l">${(function(_x){var _w=/^PAINEL$/i.test(C);var _r=(__cParts[2]||"").trim();if(!_r){var _n=(__cParts[1]||"").toUpperCase();if(/^(FORRO|PAINEL|REVESTIMENTO)$/i.test(C)&&(/\bRIPADO\b/.test(_n)||/\bTOBLERONE\b/.test(_n))){_r=/^FORRO$/i.test(C)?"1,8 × 3,5cm × comp. variável":"1,8 × 5cm × comp. variável";}}var _isLam=_r && /\d+\/\d+\s*[×x]/i.test(_r);var _hasOtherAcab=/^\s*(RIPADO|TOBLERONE|MUXARABI|ASSOALHO|MACI[ÇC]O|MOLDURA|LACA|BLINDADA|REGUA|RÉGUA)\b/i.test(_x);var _name=_x;_name=_name.replace(/\s+MACI[ÇC][OA]\s*$/i,"").trim();if(/^(PISO|PAINEL|REVESTIMENTO)$/i.test(C)&&_r&&/^\s*1\/6\s*[×xX]/.test(_r)&&!/ESPINHA\s*DE\s*PEIXE/i.test(_name)){_name=(_name.trim()+" ESPINHA DE PEIXE").trim();}var _hasDimPattern=_r&&/\d.{0,12}[×xX].{0,12}\d/.test(_r);var _showDim=_hasDimPattern;return _showDim?(_name+'<br><span class="cat-l-dim">'+_mmToCm(_r)+'</span>'):_name;})((C.toUpperCase()==="PORTA"?N.replace(/\b(?:DN150|RO82TOP|CIR|GERIS|ITALY\s+LINE|3D)\b/gi," ").replace(/\b(ASSOALHO|LACA|LAMINA|MOLDURA[_ ]VIDRO|MUXARABI|RIPADO|TOBLERONE)\b\s+(?=\S)/gi," ").replace(/\s+/g," ").trim().split(" ").filter(Boolean).filter((_v,_i,_a)=>_i===0||_v.toUpperCase()!==_a[_i-1].toUpperCase()).join(" ").replace(/_/g," "):((function(){var _t=N.replace(/_/g," "),_c=C.toUpperCase();if(_c!=="FORRO"&&_c!=="PAINEL"&&_c!=="REVESTIMENTO")_t=_t.replace(/^\s*(ASSOALHO|L[AÂ]MINA|MACI[ÇC]O|RIPADO|TOBLERONE|MUXARABI|MOLDURA[_ ]VIDRO|LACA|R[ÉE]GUAS?)\s+/i,"");if(_c==="MARCENARIA"){return _t.split(/\s*\|\s*/).map(function(s){return s.trim().toUpperCase()}).filter(Boolean).join(" / ");}var _isLam=(_c==="PAINEL"||_c==="REVESTIMENTO")&&_t&&!/LAMINA|RIPADO|TOBLERONE|DECK|MACI[ÇC]O|MOLDURA|MUXARABI|DEMOLI[ÇC][AÃ]O|MULTIBLOC|LACA|ASSOALHO|R[ÉE]GUA/i.test(_t);return _t.replace(/\s+/g," ").trim().split(" ").filter(Boolean).filter((_v,_i,_a)=>_i===0||_v.toUpperCase()!==_a[_i-1].toUpperCase()).join(" ")})())))}</td>
+      <td class="cat-v"></td>
+    </tr>`;}let _recIdx=0,_ambSum=0,_ambCount=0,_subtotalAdded=false,_rowIdx=0,_ambMetragemSum=0,_ambPerdaPerc=10,_lastPortaModel="";t.forEach((d,l)=>{d.descritivo=(d.descritivo||"").replace(/Metragem\s+real\s+total\s*:/gi,"Metragem real").replace(/Metragem\s+real\s+total\s/gi,"Metragem real ").replace(/(\S)\s+(Metragem\s+real)/gi,"$1\n$2");const _hdU=((d.descritivo||"").split("\n")[0]||"").trim().toUpperCase();const _isAmbItem=!/^(INSTALAÇÃO\s+(E|DE)\s+GEST|INSTALACAO\s+(E|DE)\s+GEST|INSUMOS\b|RECORTES\b)/.test(_hdU);if(_isAmbItem){_ambSum+=(+d.valor||0);_ambCount++;var _amDesc=d.descritivo||"";var _amLns=_amDesc.split("\n");for(var _li=0;_li<_amLns.length;_li++){var _amPP=_amLns[_li].match(/Metragem\s+real(?:\s+total)?\s+[0-9]+(?:[.,][0-9]+)?\s*m²\s*\+\s*([0-9]+)\s*%\s*de\s+perda/i);if(_amPP){_ambPerdaPerc=parseFloat(_amPP[1])||_ambPerdaPerc;}var _amM=_amLns[_li].match(/^\s*Metragem\s+real(?:\s+total)?\s+([0-9]+(?:[.,][0-9]+)?)\s*m²/i);if(_amM){_ambMetragemSum+=Math.ceil(parseFloat(_amM[1].replace(",",".")));break;}_amM=_amLns[_li].match(/^\s*Metragem\s+total\s+com\s+perda\s+de\s+([0-9]+)\s*%\s*([0-9]+(?:[.,][0-9]+)?)\s*m²/i);if(_amM){_ambMetragemSum+=parseFloat(_amM[2].replace(",","."))/(1+parseFloat(_amM[1])/100);_ambPerdaPerc=parseFloat(_amM[1])||_ambPerdaPerc;break;}}}else if(!_subtotalAdded&&_ambCount>=2){g+=`<tr><td class="item-c"></td><td class="item-l">Metragem real total ${Math.ceil(_ambMetragemSum)}m² + ${_ambPerdaPerc}% de perda = ${Math.ceil(Math.ceil(_ambMetragemSum)*(1+_ambPerdaPerc/100))}m²</td><td class="item-v">${E(_ambSum)}</td></tr>`;_subtotalAdded=true;}const _isRec=(d.descritivo||"").toUpperCase().startsWith("RECORTES");const u=(d.descritivo||"").split(`
+`).map(I=>I.trim()).filter(Boolean).filter(I=>!z(I)&&!/^__RECDATA__:/.test(I)&&!/^\s*\d+\s+unidade(s)?\s*$/i.test(I)&&!(/^\s*\d+\/\d+\s*[×x]\s*\d+\s*(MM)?\s*$/i.test(I))&&!(C.toUpperCase()==='MARCENARIA'&&(/^\s*\(inclui ferragens/i.test(I)||/^\s*Madeiras:/i.test(I)||/^\s*Metragem (real|total)/i.test(I)))).map(I=>I.replace(/[a-záéíóúç]+_[a-záéíóúç_]+/gi,W=>W.replace(/_/g," "))).map(function(I){var _hd=((d.descritivo||"").split("\n")[0]||"").trim().toUpperCase();if(/^INSUMOS|^RECORTES/.test(_hd)){var _insM=I.match(/^(\s*INSUMOS\s+DE\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ]+)\b/i);if(_insM)return _insM[1].toUpperCase();return I;}if(/^INSTALA(?:ÇÃO|CAO)\s+(E|DE)\s+GEST/i.test(_hd)){if(/^Metragem/i.test(I) && _ambMetragemSum>0){return "Metragem total "+Math.round(_ambMetragemSum)+"m²";}return I;}var _mmF=I.match(/^Metragem\s+real(?:\s+total)?\s+([0-9]+(?:[.,][0-9]+)?)\s*m²\s*\+\s*([0-9]+)\s*%\s*de\s+perda\s*=\s*([0-9]+(?:[.,][0-9]+)?)\s*m²/i);if(_mmF){var _v1=parseFloat(_mmF[1].replace(",","."));var _vP=parseFloat(_mmF[2]);return "Metragem real "+Math.ceil(_v1)+"m² + "+_mmF[2]+"% de perda = "+Math.ceil(Math.ceil(_v1)*(1+_vP/100))+"m²";}if(/^Metragem\s+real\s+[0-9.,]+\s*m²\s*\+\s*[0-9]+\s*%\s*de\s+perda/i.test(I))return I;var _mN=I.match(/^Metragem\s+total\s+com\s+perda\s+de\s+([0-9]+)\s*%\s*([0-9]+(?:[.,][0-9]+)?)\s*m²\s*$/i);if(_mN){var _pn=parseFloat(_mN[1]);var _wn=parseFloat(_mN[2].replace(",","."));var _rn=_wn/(1+_pn/100);var _rd=_rn.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});return "Metragem real "+Math.ceil(_rn)+"m² + "+_mN[1]+"% de perda = "+Math.ceil(Math.ceil(_rn)*(1+_pn/100))+"m²";}var _mm=I.match(/^Metragem\s+real(?:\s+total)?\s+([0-9]+(?:[.,][0-9]+)?)\s*m²\s*$/i);if(!_mm)return I;var _vv=parseFloat(_mm[1].replace(",","."));if(!isFinite(_vv)||_vv<=0)return I;var _vd=_vv.toLocaleString("pt-BR",{minimumFractionDigits:2});var _vp=Math.ceil(Math.ceil(_vv)*(1+_ambPerdaPerc/100));return "Metragem real "+Math.ceil(_vv)+"m² + "+_ambPerdaPerc+"% de perda = "+_vp+"m²";});let A="";const _isPortaCat=C.toUpperCase()==="PORTA";if(_isRec){const _recItems=u.slice(1).flatMap(function(_ln){return String(_ln||"").replace(/\.$/,"").split(/\s+e\s+|\s*\|\s*/).map(function(_s){return _s.trim()}).filter(Boolean)});A+=`<p class="desc-title">Detalhamento de Projeto</p>`;if(_recItems.length>0)A+=`<p class="desc-body">${_recItems.join('</p><p class="desc-body">')}</p>`;}else if(_isPortaCat){var _portaLns=u.filter(function(_l){return !/^\s*\d+\s+Porta(s?)\s*$/i.test(_l);});if(_portaLns.length>=2){A+=`<p class="desc-title">${_portaLns[0]}</p>`;A+=`<p class="desc-body">${_portaLns.slice(1).join('</p><p class="desc-body">')}</p>`;}else if(_portaLns.length===1){A+=`<p class="desc-title">${_portaLns[0]}</p>`;}else{A+=`<p class="desc-title">${u[0]||"PORTA"}</p>`;}}else if(u.length>1){A+=`<p class="desc-title">${u[0]}</p>`;A+=`<p class="desc-body">${u.slice(1).join('</p><p class="desc-body">')}</p>`;}else if(u.length===1){A+=`<p class="desc-title">${u[0]}</p>`;}else{A+=`<p class="desc-title">${d.descritivo}</p>`;}var _CORES=["Branco Diamante Essencial","Branco TX","Naturalle","Mont Blanc","Marrone","Cappuccino","Capuccino","Baby Grey","Grigio Nero","Light Brown","Milano","Smoked","Giz","Snow","Armani","Nevado","Italy Brown","Batman","Customizado"];_CORES.sort(function(a,b){return b.length-a.length});var _corFromCat="";var _catStr=String(d.categoria||"").toUpperCase();for(var _ci=0;_ci<_CORES.length;_ci++){if(_catStr.indexOf(_CORES[_ci].toUpperCase())>=0){_corFromCat=_CORES[_ci];break;}}var _corShow=d.cor;if(_corShow&&!_isRec&&!/^(INSUMOS|INSTALA)/i.test((d.descritivo||"").trim())){A+=``;}if(C.toUpperCase()==="MARCENARIA"){const _accs=N.replace(/_/g," ").split(/\s*\|\s*/).map(function(s){return s.trim()}).filter(Boolean);if(_accs.length>=1){const _ext=_accs[0]||"";const _int=_accs[1]||"";let _accHtml=`<p class="desc-body" style="margin-top:6pt"><strong>Acabamentos:</strong></p>`;if(_ext)_accHtml+=`<p class="desc-body">• <strong>Externo:</strong> ${_ext}</p>`;if(_int)_accHtml+=`<p class="desc-body">• <strong>Interno:</strong> ${_int}</p>`;A+=_accHtml;}}if(C.toUpperCase().startsWith("RODAP")){const _amb=_ambByOrdem[d.ordem];const _mtlM=(d.descritivo||"").match(/^\s*([0-9]+[.,]?[0-9]*)\s*mtl/i);const _mtlV=_mtlM?_mtlM[1]:null;if(_amb&&_mtlV){A=`<p class="desc-body">${_amb}</p>`+`<p class="desc-body">metragem total ${_mtlV}mtl</p>`;}else{A=A.replace(/desc-title/g,"desc-body");}}if(C.toUpperCase()==="PORTA"){var _pmCur=(String(d.categoria||"").split("||")[1]||"").trim().toUpperCase();if(_pmCur&&_pmCur!==_lastPortaModel){_lastPortaModel=_pmCur;g+=`<tr><td class="cat-c">PORTA </td><td class="cat-l">${_pmCur}</td><td class="cat-v"></td></tr>`;}}const _itemLabel=U+"."+(++_rowIdx);g+=`<tr>
+        <td class="item-c">${_itemLabel}</td>
+        <td class="item-l">${A}</td>
+        <td class="item-v">${E(d.valor)}</td>
+      </tr>`}),g+=`<tr>
+      <td class="sub-c"></td>
+      <td class="sub-l">Valor parcial do ${(function(_c){var _u=String(_c||"").toUpperCase().trim();var _CATS=["MARCENARIA","REVESTIMENTO","RODAPÉ","RODAPE","SAUNA","PAINEL","ESCADA","PORTA","FORRO","DECK","PISO"];for(var _i=0;_i<_CATS.length;_i++){if(_u.indexOf(_CATS[_i])>=0)return _CATS[_i].replace("RODAPE","RODAPÉ");}return (_u.split(/\s+/)[0]||_u);})(C)} </td>
+      <td class="sub-v">${E(n)}</td>
+    </tr>`,U++}(y+_freteVal)>0&&(g+=`<tr>
+      <td class="log-c">LOGÍSTICA</td>
+      <td class="log-l">TRANSPORTE, DESLOCAMENTO, HOSPEDAGEM, E ALIMENTAÇÃO DA EQUIPE</td>
+      <td class="sub-v">${E(y+_freteVal)}</td>
+    </tr>`),g+=`<tr>
+    <td class="total-c"></td>
+    <td class="total-l">RESUMO TOTAL DOS PRODUTOS ORÇADOS</td>
+    <td class="total-v">${E(j+y+_freteVal)}</td>
+  </tr>`,(k>0)&&(g+=`<tr>
+      <td class="disc-c"></td>
+      <td class="disc-l">&nbsp;DESCONTO CONCEDIDO ${_dM==="valor"?"("+E(_dV)+")":"("+e.desconto_perc.toFixed(1)+"%)"}</td>
+      <td class="disc-v">-${E(k)}</td>
+    </tr>`),g+=`<tr class="ftotal-row">
+    <td class="ftotal-c">TOTAL</td>
+    <td class="ftotal-l"></td>
+    <td class="ftotal-v">${E(G)}</td>
+  </tr>`;const V=e.pag_garantia||"10 anos",X=e.pag_prazo_entrega||"120 dias após a contratação",J=e.pag_prazo_execucao||"120 dias após a entrega do material",K=e.pag_dados_bancarios||"Banco Itaú | Agencia 3720 CC 30.288-8 | PIX: pamella@parket.com.br",Q=e.pag_razao_social||"Mundial Export Assess. Com. e Ext. Imp e Exp Eireli | CNPJ 29.872.616/0001-34";g+=`<tr>
+    <td class="cond-c">CONDIÇÕES</td>
+    <td class="cond-l">
+      <p><b>Condições de pagamento: </b>${q}</p>
+      <p><b>Garantia: </b>${V}</p>
+      <p><b>Prazo de entrega: </b>${X}</p>
+      <p><b>Prazo de execução: </b>${J}</p>
+      <p><b>Dados bancários: </b>${K}</p>
+      <p>${Q}</p>
+    </td>
+    <td class="cond-v"></td>
+  </tr>`;let h="";if(e.composicao_faturamento||e.consideracoes){h+=`
+  <div class="pagemargins" style="page-break-before:always;">
+  <div class="page-content">
+    <div class="page-header-right">${O}, ID: ${b}</div>`,e.composicao_faturamento&&(h+=`
+    <div class="extra-section">
+      <p class="extra-title">Composição de Faturamento:</p>
+      <div class="extra-body">${e.composicao_faturamento.replace(/\n/g,"<br>")}</div>
+    </div>`),e.consideracoes&&(h+=`
+    <div class="extra-section">
+      <p class="extra-title"><b>CONSIDERAÇÕES:</b></p>
+      <div class="extra-body">${e.consideracoes.replace(/\n/g,"<br>")}</div>
+    </div>`),e.anexos&&(h+=`
+    <div class="extra-section">
+      <p class="extra-title"><b>ANEXOS:</b></p>
+      <div class="extra-body">${e.anexos.replace(/\n/g,"<br>")}</div>
+    </div>`);const o=e.remetente_nome||"",t=e.remetente_email||"",n=e.remetente_telefone||"";o&&(h+=`
+    <div class="extra-closing">
+      <p>Atenciosamente,</p>
+      <p>${o}${t?" | "+t:""}${n?" | "+n:""}</p>
+    </div>`),h+=`
+    <div class="page-footer-center">CURITIBA – SAO PAULO – RIO DE JANEIRO</div>
+    <div class="page-footer">PARKET</div>
+  </div>
+  </div><!-- end extra page -->`}return`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=595, initial-scale=1, maximum-scale=5">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+<title>Proposta ${b} - ${m}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+/* ─── Reset & Base ─── */
+* { margin:0; padding:0; box-sizing:border-box; font-synthesis:none; font-style:normal; font-family:'DM Sans', Arial, sans-serif; }
+html, body { background:#ededed; font-style:normal !important; font-family:'DM Sans', Arial, Helvetica, sans-serif; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+@page { size: A4; margin: 0; }
+/* Páginas de tabela e contrato: "PARKET" grande fixado no canto inferior direito da folha */
+@page tablePage {
+  size: A4;
+  margin: 30pt 0 60pt 0;
+  @top-left {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @top-center {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @top-right {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @bottom-left {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @bottom-center {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @bottom-right {
+    content: "PARKET";
+    font-family: 'DM Sans', Arial, Helvetica, sans-serif;
+    font-weight: 600;
+    font-size: 16pt;
+    letter-spacing: 1.5pt;
+    color: #000000;
+    padding: 0 28pt 18pt 0;
+    vertical-align: bottom;
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+@page contractPage {
+  size: A4;
+  margin: 30pt 0 60pt 0;
+  @top-left {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @top-center {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @top-right {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @bottom-left {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @bottom-center {
+    content: "";
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @bottom-right {
+    content: "PARKET";
+    font-family: 'DM Sans', Arial, Helvetica, sans-serif;
+    font-weight: 600;
+    font-size: 16pt;
+    letter-spacing: 1.5pt;
+    color: #000000;
+    padding: 0 28pt 18pt 0;
+    vertical-align: bottom;
+    background: #ededed;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+.table-page { page: tablePage; }
+.contract-page { page: contractPage; }
+@media print {
+  html, body { width:210mm; height:297mm; }
+  body { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+  .info-page, .info-page::before { background-color:#000000 !important; }
+  .cover-white { background-color:#ffffff !important; }
+  .table-page, .contract-page, .page-content { background-color:#ededed !important; }
+  .hdr-itens, .hdr-desc, .hdr-valor { background-color:#000000 !important; color:#ffffff !important; }
+  .ptable tbody td { border-bottom-color:#ffffff !important; border-right-color:#ffffff !important; }
+}
+.pagemargins { padding:0; border:0; }
+
+/* ─── Page containers ─── */
+.page-fixed {
+  width:595pt; height:842pt;
+  position:relative; overflow:hidden;
+}
+.page-content {
+  width:595pt; min-height:842pt;
+  position:relative;
+  padding:0 0 60pt 0;
+  background:#ededed;
+  -webkit-print-color-adjust:exact !important;
+  print-color-adjust:exact !important;
+}
+
+/* ─── Page 1: White cover ─── */
+.cover-white { background:#ffffff; }
+.cover-logo {
+  position:absolute; left:60pt; top:440pt;
+  font:300 34pt 'DM Sans', Arial, Helvetica, sans-serif;
+  color:#000; letter-spacing:1pt;
+}
+
+/* ─── Page 2: Photo cover ─── */
+.cover-photo { background:#000; }
+.cover-photo img {
+  width:100%; height:100%;
+  object-fit:cover; display:block;
+}
+.cover-photo-watermark {
+  position:absolute; right:24pt; bottom:24pt;
+  font:300 14pt 'DM Sans', Arial, Helvetica, sans-serif;
+  color:#fff; letter-spacing:1pt;
+}
+
+/* ─── Page 3: Black info page ─── */
+.info-page {
+  background-color:#000000 !important;
+  -webkit-print-color-adjust:exact !important;
+  print-color-adjust:exact !important;
+}
+.info-page::before {
+  content:''; position:absolute; inset:0;
+  background:#000000 !important;
+  z-index:0;
+}
+.info-logo {
+  position:absolute; left:59pt; top:398pt; z-index:1;
+  font-family:'DM Sans', Arial, Helvetica, sans-serif;
+  font-weight:300; font-size:34pt;
+  color:#e9e9e9; letter-spacing:0.5pt;
+  line-height:1;
+}
+.info-block {
+  position:absolute; left:59pt; top:488pt; z-index:1;
+  font-family:'DM Sans', Arial, Helvetica, sans-serif;
+  font-weight:300; font-size:11.5pt;
+  color:#e9e9e9; line-height:1.65;
+}
+.info-block .info-line {
+  white-space:nowrap;
+  margin:0; padding:0;
+}
+.info-block .info-gap { height:10pt; }
+
+/* ─── Page 4+: Table page ─── */
+.table-page {
+  width:595pt;
+  position:relative;
+  padding:0;
+  background:#ededed;
+  -webkit-print-color-adjust:exact !important;
+  print-color-adjust:exact !important;
+}
+.page-header-right {
+  font:11pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right; padding:16pt 28pt 0 0;
+  color:#1a1a1a;
+}
+.page-label {
+  font:11pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; padding:2pt 0 6pt 28pt;
+  color:#1a1a1a;
+}
+.page-footer {
+  font:26pt 'DM Sans', Arial, Helvetica, sans-serif;
+  font-weight:400; letter-spacing:2pt;
+  text-align:right; padding:0 28pt 22pt 0;
+  color:#1a1a1a;
+  position:absolute; bottom:0; right:0;
+}
+.page-footer-center {
+  font:9pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; padding:40pt 0 20pt 0;
+  color:#333; letter-spacing:0.5pt;
+}
+
+/* ─── Items table ─── 3 colunas FIXAS: 15% / 65% / 20% */
+.ptable {
+  width:calc(100% - 56pt); margin:0 28pt;
+  border-collapse:collapse;
+  table-layout:fixed;
+  font:8pt 'DM Sans', Arial, Helvetica, sans-serif;
+}
+.ptable td, .ptable th { margin:0; word-wrap:break-word; overflow-wrap:break-word; }
+.ptable tbody td {
+  border-bottom:2px solid #ffffff;
+  border-right:2px solid #ffffff;
+}
+.ptable tbody td:last-child { border-right:none; }
+.ptable tbody tr:last-child td { border-bottom:none; }
+.ptable col.c1 { width:18%; }
+.ptable col.c2 { width:59%; }
+.ptable col.c3 { width:23%; }
+
+/* Table repeating header (cliente, label) + footer (PARKET) — repetem em cada quebra de página via thead/tfoot */
+.ptable thead td.t-cliente {
+  border:none !important;
+  padding:14pt 6pt 2pt 0;
+  text-align:right;
+  font:9pt 'DM Sans', Arial, Helvetica, sans-serif;
+  color:#1a1a1a;
+  background:transparent !important;
+}
+.ptable thead td.t-label {
+  border:none !important;
+  padding:2pt 0 4pt 0;
+  text-align:left;
+  font:9pt 'DM Sans', Arial, Helvetica, sans-serif;
+  color:#1a1a1a;
+  background:transparent !important;
+}
+.ptable tfoot td.t-footer {
+  border:none !important;
+  padding:28pt 28pt 22pt 0;
+  text-align:right;
+  font:26pt 'DM Sans', Arial, Helvetica, sans-serif;
+  font-weight:400; letter-spacing:2pt;
+  color:#1a1a1a;
+  background:transparent !important;
+}
+.ptable { page-break-inside:auto; }
+.ptable tr { page-break-inside:avoid; page-break-after:auto; }
+.ptable thead { display:table-header-group; }
+.ptable tfoot { display:table-footer-group; }
+
+/* Table header — fundo preto, texto branco */
+.hdr-itens, .hdr-desc, .hdr-valor {
+  background:#000000 !important; color:#ffffff;
+  font:bold 9pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; vertical-align:middle;
+  height:22pt; padding:4pt 8pt;
+  -webkit-print-color-adjust:exact !important;
+  print-color-adjust:exact !important;
+}
+.hdr-itens { border-right:0.5px solid #444; }
+.hdr-desc  { border-left:0.5px solid #444; border-right:0.5px solid #444; }
+.hdr-valor { border-left:0.5px solid #444; }
+
+/* Categoria (PISO, PORTA...) */
+.cat-l-dim{display:block;font-size:8.5pt;font-weight:400;color:#666;margin-top:1.5pt;letter-spacing:0;text-transform:none;}
+.cat-c {
+  font:bold 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; vertical-align:middle;
+  padding:7pt 8pt;
+}
+.cat-l {
+  font:bold 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; vertical-align:middle;
+  padding:7pt 8pt;
+}
+.cat-v {
+  font:bold 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right; vertical-align:middle;
+  padding:7pt 8pt;
+}
+
+/* Subitem (1.1, 1.2...) */
+.item-c {
+  font:8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; vertical-align:middle;
+  padding:8pt 8pt;
+}
+.item-l {
+  font:8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; vertical-align:top;
+  padding:8pt 8pt;
+}
+.item-l .desc-title {
+  margin:0 0 3pt 0; font-weight:bold;
+  font-size:8pt; line-height:1.655;
+}
+.item-l .desc-body {
+  margin:0 0 5pt 0; font-size:8pt; line-height:1.655;
+  font-weight:normal;
+}
+.item-v {
+  font:8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right; vertical-align:middle;
+  padding:8pt 12pt 8pt 6pt;
+  white-space:nowrap;
+}
+
+/* Valor parcial */
+.sub-c, .sub-l, .sub-v {
+  font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  vertical-align:middle;
+  white-space:nowrap;
+  text-align:right;
+  padding:7pt 12pt 7pt 6pt;
+}
+.sub-c { text-align:center; padding:7pt 8pt; }
+.sub-l { text-align:left; padding:7pt 8pt; }
+.sub-v { text-align:right; padding:7pt 12pt 7pt 6pt; }
+
+/* LOGÍSTICA */
+.log-c {
+  font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; vertical-align:middle;
+  padding:7pt 8pt;
+}
+.log-l {
+  font:normal 7pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; vertical-align:middle;
+  padding:7pt 8pt;
+  letter-spacing:-0.02em;
+}
+
+/* OBSERVAÇÃO */
+.obs-c {
+  font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; vertical-align:middle;
+  padding:7pt 8pt;
+  white-space:nowrap;
+  word-break:keep-all;
+  letter-spacing:-0.04em;
+}
+.obs-l {
+  font:8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; vertical-align:middle;
+  padding:7pt 8pt;
+  font-weight:normal;
+}
+.obs-v {
+  font:8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right; vertical-align:middle;
+  padding:7pt 8pt;
+}
+
+/* RESUMO TOTAL */
+.total-c {
+  font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; vertical-align:middle;
+  padding:7pt 8pt;
+  white-space:nowrap;
+  word-break:keep-all;
+}
+.total-l {
+  font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; vertical-align:middle;
+  padding:7pt 8pt;
+  word-break:keep-all;
+}
+.total-v {
+  font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right; vertical-align:middle;
+  padding:7pt 12pt 7pt 6pt;
+  white-space:nowrap;
+}
+
+/* DESCONTO */
+.disc-c {
+  font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; vertical-align:middle;
+  padding:7pt 8pt;
+}
+.disc-l {
+  font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; vertical-align:middle;
+  padding:7pt 8pt;
+}
+.disc-v {
+  color:#c00; font:normal 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right; vertical-align:middle;
+  padding:7pt 12pt 7pt 6pt;
+}
+
+/* Linha antes do TOTAL — borda inferior preta */
+.ptable tbody tr.pre-total-row td {
+  border-bottom:0.5px solid #000000 !important;
+}
+/* TOTAL final — bordas pretas finas para destacar */
+.ptable tbody tr.ftotal-row td {
+  border-top:1px solid #000000 !important;
+  border-bottom:0.5px solid #000000 !important;
+  border-right:none !important;
+}
+.ftotal-c {
+  font:bold 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center; vertical-align:middle;
+  padding:8pt 8pt;
+  white-space:nowrap;
+  word-break:keep-all;
+}
+.ftotal-l {
+  font:bold 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; vertical-align:middle;
+  padding:8pt 8pt;
+  word-break:keep-all;
+}
+.ftotal-v {
+  font:bold 8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right; vertical-align:middle;
+  padding:8pt 12pt 8pt 6pt;
+  white-space:nowrap;
+}
+
+/* CONDIÇÕES */
+.cond-c {
+  font:bold 8pt 'DM Sans', Arial, Helvetica, sans-serif !important;
+  text-align:center !important;
+  vertical-align:middle !important;
+  padding:8pt 4pt !important;
+  white-space:nowrap;
+  word-break:keep-all;
+  letter-spacing:0;
+}
+.cond-l {
+  font:7.5pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:left; vertical-align:top;
+  padding:7pt 8pt;
+  line-height:1.6;
+}
+.cond-l p { margin:0 0 5pt; text-align:left; }
+.cond-v {
+  font:8pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right; vertical-align:middle;
+  padding:7pt 8pt;
+}
+
+/* ─── Signature area ─── */
+.aceite-block {
+  padding:18pt 28pt 0 28pt;
+  font:9pt 'DM Sans', Arial, Helvetica, sans-serif;
+  color:#1a1a1a;
+  display:grid;
+  grid-template-columns: 1fr auto;
+  column-gap:20pt;
+  align-items:start;
+}
+.aceite-block > div:first-child { grid-column:1; grid-row:1; }
+.aceite-line {
+  margin:10pt 0 0 0; width:320pt;
+  border-top:1px solid #000;
+  grid-column:1 / span 2; grid-row:2;
+}
+.aceite-text {
+  font:6.5pt 'DM Sans', Arial, sans-serif; padding-top:3pt; color:#333;
+  grid-column:1 / span 2; grid-row:3;
+}
+.aceite-date {
+  font:9pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right;
+  color:#1a1a1a;
+  white-space:nowrap;
+  grid-column:2; grid-row:1;
+  padding-right:60pt;
+}
+
+/* ─── Contract page ─── */
+.contract-page {
+  width:595pt;
+  position:relative;
+  padding:0;
+  background:#ededed;
+  -webkit-print-color-adjust:exact !important;
+  print-color-adjust:exact !important;
+}
+.contract-header {
+  padding:20pt 26pt 0 0;
+  font:11pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:right;
+}
+.contract-body {
+  column-count:2;
+  column-gap:18pt;
+  column-fill:balance;
+  padding:12pt 26pt 0 26pt;
+  font:6.5pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:justify;
+  line-height:1.65;
+  word-wrap:break-word;
+  orphans:3; widows:3;
+}
+.contract-body p { margin:0 0 4pt 0; break-inside:avoid; }
+.contract-sigs-flow {
+  padding:18pt 26pt 0 0;
+  width:48%;
+  margin-left:auto;
+  font:7pt 'DM Sans', Verdana, sans-serif;
+}
+.contract-sigs-flow .sig-block {
+  border-top:1px solid #000;
+  margin:14pt 0 6pt 0; padding-top:4pt;
+  break-inside:avoid;
+}
+.contract-sigs-flow .sig-label {
+  font:6pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center;
+}
+.contract-sigs-flow .sig-field {
+  font:6pt 'DM Sans', Arial, Helvetica, sans-serif;
+  margin-top:4pt;
+}
+.contract-signatures {
+  padding:28pt 26pt 0 26pt;
+  font:7pt 'DM Sans', Verdana, sans-serif;
+}
+.contract-signatures .sig-block {
+  border-top:1px solid #000;
+  margin:20pt 0 6pt 0; padding-top:4pt;
+  width:260pt;
+}
+.contract-signatures .sig-block.right {
+  margin-left:auto;
+}
+.contract-signatures .sig-label {
+  font:6pt 'DM Sans', Arial, Helvetica, sans-serif;
+  text-align:center;
+}
+.contract-signatures .sig-field {
+  font:6pt 'DM Sans', Arial, Helvetica, sans-serif;
+  margin-top:4pt;
+}
+.contract-footer {
+  font:26pt 'DM Sans', Arial, Helvetica, sans-serif;
+  font-weight:400; letter-spacing:2pt;
+  text-align:right; padding:30pt 28pt 22pt 0;
+  color:#1a1a1a;
+}
+
+/* ─── Extra pages ─── */
+.extra-section {
+  padding:20pt 56pt 0 56pt;
+  font:11pt 'DM Sans', Arial, Helvetica, sans-serif;
+  line-height:1.8;
+}
+.extra-title {
+  font:normal 12pt 'DM Sans', Arial, Helvetica, sans-serif;
+  margin-bottom:12pt;
+}
+.extra-body {
+  font:11pt 'DM Sans', Arial, Helvetica, sans-serif;
+  line-height:1.8; text-align:justify;
+}
+.extra-closing {
+  padding:30pt 56pt 0 56pt;
+  font:11pt 'DM Sans', Arial, Helvetica, sans-serif;
+  line-height:2;
+}
+</style>
+</head>
+<body>
+
+  <!-- ═══ PAGE 1: White cover ═══ -->
+  <div class="pagemargins">
+  <div class="page-fixed cover-white">
+    <div class="cover-logo">PARKET</div>
+  </div>
+  </div>
+
+  <!-- ═══ PAGE 2: Photo cover ═══ -->
+  <div class="pagemargins" style="page-break-before:always;">
+  <div class="page-fixed cover-photo">
+    <img src="/proposta-cover.png" alt="Parket" />
+  </div>
+  </div>
+
+  <!-- ═══ PAGE 3: Black info page ═══ -->
+  <div class="pagemargins" style="page-break-before:always;">
+  <div class="page-fixed info-page">
+    <div class="info-logo">PARKET</div>
+    <div class="info-block">
+      <div class="info-line">São Paulo, ${_}</div>
+
+      <div class="info-gap"></div>
+      <div class="info-line">Proposta comercial - ${b}</div>
+
+      <div class="info-gap"></div>
+      <div class="info-line">Contratante: ${O}</div>
+${r&&r!=="—"?M.map(o=>`      <div class="info-line">${o}</div>`).join(`
+`):""}${p?`
+      <div class="info-line">Contato: ${p}</div>`:""}${c?`
+      <div class="info-line">${c}${s?` | ${s}`:""}</div>`:s?`
+      <div class="info-line">${s}</div>`:""}
+
+      <div class="info-gap"></div>
+      <div class="info-line">Contratado: Parket</div>
+      <div class="info-line">Vendedor: ${i}</div>${a?`
+      <div class="info-line">Orçamentista: ${a}${_orcEm?` | ${_orcEm}`:""}</div>`:""}
+      <div class="info-line">${L} | ${F}</div>
+
+      <div class="info-gap"></div>
+      <div class="info-line">Validade da proposta: ${e.validade_dias} dias</div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ═══ PAGE 4: Items table ═══ -->
+  <div class="pagemargins" style="page-break-before:always;">
+  <div class="table-page">
+
+    <table class="ptable">
+      <colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
+      <thead>
+        <tr><td class="t-cliente" colspan="3">${O}, ID: ${b}</td></tr>
+        <tr><td class="t-label" colspan="3">Itens orçados:</td></tr>
+        <tr>
+          <th class="hdr-itens">ITENS</th>
+          <th class="hdr-desc">DESCRITIVO</th>
+          <th class="hdr-valor">VALOR</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${g}
+      </tbody>
+    </table>
+
+    <!-- Aceite -->
+    <div class="aceite-block">
+      <div>Para confirmar este pedido</div>
+      <div class="aceite-line"></div>
+      <div class="aceite-text">Com a assinatura deste documento, aceita as condições gerais que estão em anexo</div>
+      <div class="aceite-date">de &nbsp;&nbsp;&nbsp;&nbsp;/ &nbsp;&nbsp;&nbsp;&nbsp;/</div>
+    </div>
+
+  </div>
+  </div>
+
+  <!-- ═══ PAGE 5+: Contract terms ═══ -->
+  <div class="pagemargins" style="page-break-before:always;">
+  <div class="contract-page">
+    <div class="contract-header">${O}, ID: ${b}</div>
+
+    <div class="contract-body">CONTRATANTE:<br>${O} CPF/CNPJ ${R} residente ao ${r}<br><br>CONTRATADA:<br>MUNDIAL EXPORT ASSESSORIA COMERCIO EXTERIOR IMPORTACAO E EXPORTACAO LTDA. Pessoa Jurídica de direito privado, inscrita no CNPJ nº 29.872.616/0001-34, com sede na Avenida Francisco Ferreira da Cruz, nº 6030, , Galpao 93, Eucalipto, Fazendo Rio Grande/PR CEP 83820-293, por seu representante legal CLODOALDO DONIZETE OLIVEIRA, brasileiro, inscrito no CPF/MF sob o nº 641.221.159-49<br><br>Por este instrumento particular e na melhor forma de direito, as partes acima qualificadas resolvem celebrar o presente CONTRATO DE FORNECIMENTO DE MATERIAIS E DE PRESTAÇÃO DE SERVIÇOS, que se regerá pelas cláusulas e condições abaixo estipuladas que, mútua e consensualmente, aceitam entre elas:<br><br>CLÁUSULA PRIMEIRA – PREÇOS E CONDIÇÕES DE PAGAMENTO<br>1.1. Pelo objeto contratado, a CONTRATANTE pagará a CONTRATADA a quantia líquida, certa e exigível descrita à fl. 1 do presente Instrumento.<br>1.2. O preço descrito à fl. 1 do presente Instrumento engloba os produtos/materiais, os serviços de instalação, insumos, transporte vertical e horizontal necessários ao local de instalação os quais não poderão ser vendidos separadamente, diante da alta qualidade dos produtos/materiais, e especializada mão de obra. A CONTRATADA teve conhecimento antecipadamente do local da obra, suas peculiaridades de horário escasso, bem como dos projetos arquitetônicos, técnicos e complementares necessários à compatibilização do seu escopo de trabalho com a tipologia construtiva de projeto.<br>1.3. Faz parte deste escopo de trabalho, a CONTRATADA fornecer os acabamentos dos materiais/serviços aqui descritos com os demais materiais que faceiam a atividade do escopo, conforme FOTOS e PADRÕES fornecidos pela CONTRATADA ao CONTRANTE (que fazem parte do contrato).<br>1.4. Em caso de inadimplemento por parte da CONTRATANTE quanto ao pagamento do objeto deste contrato, deverá incidir sobre o valor inadimplido juros de 1% ao mês e correção monetária conforme a variação positiva do IGP-M/FGV, ou eventual índice que venha a substituí-lo, ambos até a data do efetivo pagamento, além de multa moratória de 10% sobre o valor do débito.<br>1.5. O atraso no pagamento de qualquer valor devido, nos prazos e nas condições avençadas, constituirá a CONTRATANTE Notificação judicial ou extrajudicial prévia e/ou quaisquer outras formalidades.<br>1.6. No caso de não pagamento de qualquer dos valores devidos, a CONTRATADA poderá suspender a entrega dos produtos e execução dos serviços até o adimplemento da obrigação pendente, independentemente do percentual do preço de venda já quitado pela CONTRANTANTE, e sem prejuízo de qualquer das demais penalidades previstas neste Contrato. Clausula não aceita na íntegra.<br>1.7. Qualquer atividade adicional não prevista nestes termos, deverão ser aprovados pelo CONTRATANTE com 10 dias de antecedência à execução. Não serão aceitos pleitos adicionais sem a prévia anuência formalizada do CONTRATANTE.<br>1.8. A limpeza constante dos locais em trabalho e a retirada de entulhos provenientes deste escopo e trabalho é de responsabilidade única e exclusiva da CONTRATADA.<br>1.9. É de responsabilidade da CONTRATADA a entrega e disponibilização de EPIs à seus funcionários e terceiros, bem como responsabilizar-se sobre a saúde e segurança das equipes, conforme Normas Brasileiras de Saúde e Segurança do Trabalhador. A CONTRATADA se responsabiliza pelo pagamento de todo e qualquer imposto, taxa, INSS, FGTS, encargos trabalhistas da equipe associada à este contrato.<br><br>CLÁUSULA SEGUNDA – PRAZO DE ENTREGA<br>2.1. O prazo para a entrega dos materiais e execução da instalação está previsto na fl. 1 deste Contrato.<br>2.2. Qualquer alteração das datas de entrega e/ou instalações pela CONTRATANTE deverá ser informada com no mínimo 20 dias úteis de antecedência, ao e-mail técnico@parket.com.br. Na hipótese de tal aviso ocorrer em prazo menor ou igual a 7 dias úteis de antecedência, será cobrado da CONTRATANTE uma multa contratual de 2% (um por cento) do valor total do presente contrato. Caso, entretanto, a entrega seja cancelada no dia previsto ou não tenha nenhum responsável para receber os produtos e/ou possibilitar a instalação, acarretará multa correspondente a 10% (dez por cento) do valor total deste Contrato. Serão realizadas 2 vistorias técnicas de avaliação do estágio de obra e definição de prazo entrega acordada entre as partes.<br>2.3. O agendamento da entrega poderá ser realizado pela CONTRATANTE, desde que comunicado com no mínimo 30 dias úteis de antecedência, ao e-mail técnico@parket.com.br.<br>2.4. Desde logo, caso a CONTRATADA tenha qualquer problema para entrega dos materiais e/ou início/conclusão da instalação, mas desde que previamente informado, a CONTRATANTE confere à CONTRATADA a possibilidade de atraso em relação as datas previstas na fl. 1 deste Contrato, sem a imposição de qualquer penalidade e/ou possibilidade de rescisão do contrato.<br>2.5. Em caso de atraso na entrega do material ou execução do serviço superior a 30 (trinta) dias uteis por parte da CONTRATADA, deverá pagar à CONTRATANTE multa de 1% (um por cento) calculada sobre o valor total do contrato.<br>2.6. A data prevista para entrega dos materiais, quando não disponível em estoque, poderá sofrer alterações, em especial, para os produtos importados durante o processo de liberação, motivo pelo qual, desde logo, em tais situações, mas desde que previamente informado, a CONTRATANTE confere à CONTRATADA a possibilidade de um atraso em relação às datas previstas na fl. 1, sem a imposição de qualquer penalidade e/ou possibilidade de rescisão do contrato.<br>2.7 O pedido relacionado a este instrumento é baseado no último projeto apresentado pela CONTRATANTE e/ou arquitetura responsável, até a data da assinatura do presente instrumento. Após o fechamento, o projeto não poderá sofrer qualquer alteração sem consulta prévia e aprovação de ambas as partes. Em caso de custos e/ou prazos adicionais, será elaborado um aditivo contratual.<br><br>CLÁUSULA TERCEIRA – CONDIÇÕES DO PEDIDO EM RELAÇÃO AO MATERIAL<br>3.1. A CONTRATANTE ou o responsável indicado deverá conferir o estado, quantidades e especificações dos materiais durante a entrega, de acordo com o pedido. Aceito o pedido sem qualquer ressalva, não poderá a CONTRATANTE contestar o material entregue, bem como arcará com os todos os custos necessários para eventual troca do material.<br>3.2. Após entrega do material A CONTRATANTE ou o responsável indicado deverá alocar todo material em local seguro, limpo, protegido e abrigado do sol e umidade.<br>3.3. A CONTRATANTE tem ciência que a madeira é um produto natural, de características únicas e uniformes em suas tonalidades. Em exposição à luz solar, a madeira poderá sofrer uma pequena alteração em sua coloração, decorrente de suas características. Por tal motivo, não existem duas peças perfeitamente idênticas entre si ou em relação às amostras apresentadas. Em condições orgânicas, também estará sujeita a expansão e contração, decorrentes do ambiente externo (umidade, pressão e temperatura), essas dimensões podem chegar naturalmente em até 2% (dois por cento). Considerando essas variações, é de responsabilidade da CONTRADADA o ônus e responsabilizar-se pela adaptação, qualidade e acabamento dos serviços prestados à edificação existente, assim como acabamentos complementares necessários à qualificação arquitetônica pretendida.<br>3.4. Ciente das características descritas na Cláusula 3.3 a CONTRATANTE não poderá opor qualquer objeção ao produto e, em caso de objeção e/ou requerimento de troca a CONTRATANTE arcará com os todos os custos necessários para tanto, bem como com todos os prejuízos em decorrência de atrasos para cumprimento do cronograma.<br><br>CLÁUSULA QUARTA – INSTRUÇÕES TÉCNICAS E RESPONSABILIDADES<br>4.1. Para garantia da adequação da instalação, a equipe técnica da CONTRATADA fará visita in loco, antes do envio do material para instalação, com a intenção de vistoria dos itens abaixo descritos:<br>4.1.1 ANTES E DURANTE A INSTALAÇÃO:<br>A) CONTRAPISO:<br>- O contrapiso deverá estar devidamente seco, nivelado, liso, resistente e limpo, com argamassa de cimento, areia média lavada e peneirado no traço de 3:1, seco por pelo menos 21 dias (vinte uns dias). O nivelamento deverá estar plano, sem ondulações ou buracos;<br>- O espaço deixado entre o contrapiso e batentes, deve ser exatamente a espessura da madeira + insumos;<br>- A CONTRATADA irá conferir a umidade do mesmo, para evitar qualquer risco, podendo recusar a instalação e requerer a realização de providências pela CONTRATANTE;<br>- Para áreas térreas o contrapiso deverá ser impermeabilizado, antes da instalação;<br>- Em caso de reformas, o contrapiso deverá ser refeito;<br>- Em casos de áreas externas, para instalação de decks, por exemplo, atentar-se para o escoamento da água;<br>- A limpeza é essencial, devendo remover qualquer vestígio de massas, gessos e quaisquer sujeiras;<br>- O serviço de instalação não inclui alvenaria ou quaisquer adaptações necessárias.<br>B) LIBERAÇÕES:<br>- O local que receberá o revestimento, deverá estar completamente nivelado, plano e executado para receber a espessura indicada no material + insumos;<br>- Os locais devem estar livres de umidade;<br>- Itens como elétrica e hidráulica, devem estar concluídos. A CONTRATADA não se responsabilizará por danos causados em tubulações, durante a fixação dos materiais;<br>- Janelas, portas, soleiras, guarnições e batentes deverá estar devidamente instaladas;<br>- As áreas devem estar limpas e desobstruídas de objetos e pessoas;<br>- A CONTRATANTE deverá disponibilizar caçambas para descarte dos entulhos;<br>- A CONTRATANTE deverá disponibilizar andaimes e plataformas para instalação;<br>- Para recortes simples de tomadas, luminárias entre outros, é cobrado o valor de R$50,00 por unidade. Para recortes específicos, consultar seu vendedor;<br>- Para fabricação de alçapões o valor por unidade deverá ser consultado com seu vendedor;<br>- A entrega dos produtos não abrangerá serviços de içamento e/ou serviços adicionais e ocorrerá em horário comercial. Caso seja necessário, um horário específico, fazer a cotação do custo adicional com seu vendedor;<br>4.2. Enquanto perdurar a obra, o material instalado deverá ser totalmente vedado, a fim de garantir, um bom acabamento final.<br>4.2.1. Instalações internas: Aconselhável a aspiração ou varrição com vassoura de pelo macio. Diluir em água, um pouco de detergente neutro ou produtos de limpeza próprios para madeira, como os da linha Bona. Umedecer levemente um pano limpo e passar nos locais desejáveis.<br>4.2.2. Instalações externas: Aconselhável varrição com vassoura e utilização de água + detergente neutro para limpeza. É indicado fazer a manutenção preventiva 2 vezes ao ano, por estar exposto às ações do tempo.<br>4.2.3 Caso caia sob a madeira, substâncias como vinho, molhos, óleos e água, que podem vir a manchar, indica-se que seja seco e limpo, o mais breve possível;<br>4.2.4 Conferir o Manual de Conservação e Limpeza disponibilizado pela CONTRATADA.<br><br>CLÁUSULA QUINTA – GARANTIA<br>5.1. A CONTRATADA concede, neste ato, garantia contratual de 05 (cinco) anos para os produtos, a qual abrange o prazo mínimo de garantia legal e será contada a partir da data de instalação.<br>5.2. Fica desde já acordado entre as partes que a CONTRATADA somente se responsabilizará pela manutenção ou troca de qualquer dos produtos, durante o prazo de vigência da garantia, em caso de defeito de fabricação devidamente comprovado, ressalvadas as demais disposições deste contrato.<br>5.3. A garantia concedida pela CONTRATADA estará automaticamente revogada em caso de descumprimento de qualquer das condições estipuladas neste instrumento, por danos causados por contato com produtos químicos, mau uso, infiltrações e contatos com materiais de construção (cimento, areia, solventes, tinta, etc).<br>5.4. As partes acordam que a responsabilidade da CONTRATADA será sempre limitada aos produtos que deixarem de atender à qualidade e às especificações previstas no anverso deste contrato. Portanto, a responsabilidade da CONTRATADA estará limitada ao reparo e/ou substituição dos produtos comprovadamente desconformes, sendo que, na hipótese do reparo e/ou substituição não ser possível por questões técnicas, a responsabilidade da CONTRATADA estará sempre limitada ao valor dos produtos que comprovadamente não atenderem aos requisitos de qualidade e às especificações técnicas, não respondendo a CONTRATADA por qualquer outro dano, prejuízo, indenização, ressarcimento, penalidade, reembolso, custo, despesa e/ ou valor não previsto neste contrato, inclusive a título de dano moral e/ou lucro cessante, incorridos, seja a que título for.<br>5.5. A CONTRADA é responsável pela quantificação do material a ser instalado, sendo que, por sua expertise é de sua responsabilidade a quantificação de perdas de materiais devido à cortes e recortes, inerentes à arquitetura do projeto. Não serão aceitos pleitos de custos adicionais neste sentido de quantificação técnica.<br>5.6. Entende-se que o CONTRATANTE está adquirindo os serviços e materiais em formato empreitada global tipo Turn-key, para uso da edificação, conforme detalhamento e imagens disponibilizadas pela arquitetura.<br><br>CLÁUSULA SEXTA – RESCISÃO<br>6.1. O presente Contrato poderá ser rescindido pela CONTRATADA, mediante simples aviso escrito à CONTRATANTE na ocorrência de descumprimento por parte da CONTRATANTE das boas práticas de mercado, boa-fé e de inadimplemento contratual.<br>6.1.2. No caso de rescisão contratual, eventual desconto concedido na compra do produto/material, instalação e insumos, será automaticamente anulado, sendo devido o preço global do contrato, incluindo-se, portanto, como valor devido o montante a título de desconto.<br>6.2. O presente contrato poderá ser rescindido por qualquer das partes mediante simples aviso escrito à outra parte: i. na ocorrência de caso fortuito ou força maior, conforme definido em lei, que impeça uma das partes de cumprir suas obrigações, se o impedimento perdurar por pelo menos 10 (dez) dias; ii. na hipótese de decretação de falência, insolvência, deferimento do processamento de recuperação judicial ou extrajudicial, liquidação ou dissolução da outra parte; iii. em caso de inadimplemento das disposições contratuais.<br>6.3. Rescindindo-se o Contrato conforme esta cláusula far-se-á um levantamento em conjunto dos serviços executados e dos materiais entregues até o momento da suspensão dos trabalhos ou da rescisão do presente Contrato, para apuração do saldo devido a uma ou a outra parte e acerto financeiro, aplicando-se o disposto no item 6.1.2, quanto a anulação de eventual desconto.<br>6.4. Se a CONTRATANTE der causa à rescisão deste contrato, com exceção da hipótese de caso fortuito ou de força maior, responderá pela multa de 10% (dez por cento) sobre o valor do presente contrato, nele incluindo suas eventuais majorações por aditivos contratuais devidamente atualizados conforme a variação positiva do IGP-M/FGV, ou eventual índice que venha a substituí-lo, calculado desde a data da rescisão até o efetivo pagamento.<br><br>CLÁUSULA SÉTIMA – CONDIÇÕES GERAIS<br>7.1. O presente instrumento obriga as partes e seus eventuais sucessores, devendo suas obrigações serem cumpridas de forma incondicional em todos os seus termos.<br>7.2. Qualquer renúncia, modificação, adição ou transação em relação a este instrumento, ou a qualquer de suas cláusulas, e todas as notificações e avisos, feitos em decorrência dele, somente vinculará as partes se tiverem sido feitos por escrito, e assinados por seus representantes, devidamente qualificados e/ou autorizados pelas partes.<br>7.3. A CONTRATANTE declara, para os devidos fins de direito que está ciente das condições dos produtos, das peculiaridades e características que os revestem, bem como dos cuidados necessários para a sua correta conservação, manutenção e uso.<br>7.4. A CONTRATANTE reconhece ainda, que está adquirindo produtos e serviços de acordo com as condições e especificações descritas no pedido vinculado a este instrumento. Portanto, se houver necessidade de refazer ou alterá-las por razões de medidas, atualizações ou informações errôneas, o custo extra será adicionado em apartado pela CONTRATADA.<br>7.5. Na hipótese de a CONTRATADA ser compelida a ingressar em juízo para demandar o cumprimento de qualquer obrigação assumida pela CONTRATANTE, a execução judicial deste Contrato abrangerá a cobrança de multa, juros, correção monetária, custas judiciais e honorários advocatícios, estes últimos desde já estipulados em 20% (vinte por cento) do valor devido.<br>7.6. A CONTRATANTE, neste ato, confere ao presente Contrato, caráter de título líquido, certo e plenamente exigível, revestindo-o de todos os requisitos de título executivo extrajudicial, para os devidos fins de direito, nos termos do artigo 784, III do Código de Processo Civil.<br>7.7. O presente Contrato é celebrado em caráter irrevogável e irretratável, sem direito a arrependimento por qualquer das partes, obrigando-as ao integral cumprimento, assim como aos seus herdeiros e sucessores, a qualquer título.<br>7.8. Em razão do caráter de irrevogabilidade e irretratabilidade deste instrumento, caso a CONTRATANTE desista de comprar ou recuse-se a receber qualquer lote dos produtos e/ou serviço de instalação, por qualquer motivo, inclusive nas hipóteses de caso fortuito, força maior, falência, recuperação judicial ou extrajudicial ou insolvência civil, conforme o caso, a CONTRATADA reterá a parcela do preço paga pela CONTRATANTE como sinal e princípio de pagamento, a título de indenização pelo desfazimento unilateral do negócio, independentemente de quaisquer formalidades prévias em esfera judicial ou extrajudicial, devendo a CONTRATANTE, ainda, indenizar a CONTRATADA por todas as perdas e danos incorridos, bem como reembolsar todos os custos e as despesas por ela incorridos até o evento de desistência ou recusa.<br>A CONTRATADA se responsabiliza por substituir toda e qualquer parte ou peça que apresente qualquer tipo de dano ou avaria e que não se enquadre dentro do padrão de qualidade.<br>7.9. A CONTRANTE, sob nenhuma hipótese ou pretexto poderá ceder e/ou transferir os direitos e obrigações decorrentes deste Contrato, sem a prévia e expressa anuência da CONTRATADA.<br>7.10. Se qualquer cláusula ou dispositivo deste Contrato for declarado nulo ou sem efeito, no todo ou em parte, por decisão judicial transitada em julgado, as demais deverão permanecer válidas e serão interpretadas de forma a preservar a sua validade.<br>7.11. Este Contrato foi redigido dentro dos princípios de probidade e boa-fé, sem vícios de consentimento. As Partes declaram, para todos os efeitos legais, que: (i) as obrigações ora assumidas são compatíveis com suas condições econômicas e financeiras; (ii) estão habituadas a este tipo de operação; (iii) este Contrato espelha fielmente tudo que foi ajustado; e (iv) tiveram conhecimento prévio do conteúdo deste Contrato e entenderam perfeitamente todas as obrigações nele contidas.<br><br>CLÁUSULA OITAVA – FORO<br>8.1. As Partes elegem o Foro Central da Comarca de Curitiba - Paraná, como o único e competente para apreciar e dirimir as dúvidas e controvérsias decorrentes deste CONTRATO, com renúncia de qualquer outro, por mais privilegiado que seja.<br>Estando as partes envolvidas de pleno acordo das cláusulas que regem este instrumento, firmam o presente em duas sucessores até a rescisão do mesmo.<br><br>O pedido relacionado a este instrumento é baseado no último projeto apresentado pela CONTRATANTE e/ou arquitetura responsável, até a data da assinatura do presente instrumento. Após o fechamento, o projeto não poderá sofrer qualquer alteração sem consulta prévia e aprovação de ambas as partes. Em caso de custos e/ou prazos adicionais, será elaborado um aditivo contratual.<br>Na primeira medição técnica em obra o fiscal da contratada irá medir a área real dos itens contratados in loco, caso haja alguma diferença, derivada de qualquer meio, haverá um acerto comercial entre as partes. O fornecimento de andaime, caçamba para descarte de resíduos e transporte vertical do material (içamento, elevador ou cremalheira) é de total responsabilidade da contratante.</div>
+
+    <!-- Signatures - dentro do fluxo de colunas para casar com o modelo Cantarelli -->
+    <div class="contract-sigs-flow">
+      <div class="sig-block"><span style="color:transparent;font-size:8pt;line-height:1;user-select:none;-webkit-user-select:none">\\sign_contratado\\</span>
+        <div class="sig-label">MUNDIAL EXPORT ASSESSORIA COMERCIO EXTERIOR<br>IMPORTACAO E EXPORTACAO LTDA</div>
+        <div class="sig-field">CNPJ: 29.872.616/0001-34</div>
+      </div>
+      <div class="sig-block"><span style="color:transparent;font-size:8pt;line-height:1;user-select:none;-webkit-user-select:none">\\sign_contratante\\</span>
+        <div class="sig-label">${O}</div>
+        <div class="sig-field">CNPJ/CPF: ${R}</div>
+      </div>
+      <div style="margin-top:14pt;font:6pt 'DM Sans', Arial, Helvetica, sans-serif;">Testemunhas:</div>
+      <div class="sig-block"><span style="color:transparent;font-size:8pt;line-height:1;user-select:none;-webkit-user-select:none">\\sign_witness1\\</span>
+        <div class="sig-field">RG:</div>
+        <div class="sig-field">CPF:</div>
+      </div>
+      <div class="sig-block"><span style="color:transparent;font-size:8pt;line-height:1;user-select:none;-webkit-user-select:none">\\sign_witness2\\</span>
+        <div class="sig-field">RG:</div>
+        <div class="sig-field">CPF:</div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+
+  ${h}
+
+</body>
+</html>`}async function ee(e,S){if(e.id)try{const{supabase:_sb}=await D(async()=>{const{supabase:_x}=await import("./index-DZtetJYP.js").then(_y=>_y.o);return{supabase:_x}},__vite__mapDeps([0,1]));const{data:_fresh}=await _sb.from("simulacao_projetos").select("*").eq("id",e.id).single();if(_fresh)e={...e,..._fresh}}catch(_err){console.warn("Falha ao re-buscar simulação:",_err)}{const _isUUID=v=>typeof v==="string"&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v);let _cardId=e.card_comercial_id||e.card_id||(_isUUID(e.obra_id)?e.obra_id:null)||(_isUUID(e.obra_code)?e.obra_code:null);if(!_cardId&&_isUUID(e.id)){try{const{supabase:_r0}=await D(async()=>{const{supabase:_p}=await import("./index-DZtetJYP.js").then(_c=>_c.o);return{supabase:_p}},__vite__mapDeps([0,1]));const{data:__sp}=await _r0.from("simulacao_projetos").select("card_id").eq("id",e.id).maybeSingle();if(__sp&&__sp.card_id)_cardId=__sp.card_id;}catch(__spErr){console.warn("propostaGen: sp.card_id lookup",__spErr);}}if(_cardId)try{const{supabase:r}=await D(async()=>{const{supabase:p}=await import("./index-DZtetJYP.js").then(c=>c.o);return{supabase:p}},__vite__mapDeps([0,1])),{data:_cards}=await r.from("kanban_cards").select("id,details,updated_at").in("id",[e.card_comercial_id,e.card_id,_cardId].filter(Boolean)),_sortedCards=(_cards||[]).sort((x,y)=>new Date(y.updated_at||0).getTime()-new Date(x.updated_at||0).getTime()),_mergedDetails=_sortedCards.reduce((acc,c)=>Object.assign(c.details||{},acc),{}),a=_mergedDetails??{};if(a&&a.orcamentista_id){try{const{data:__orc}=await r.from("orcamento_equipe").select("nome,email").eq("id",a.orcamentista_id).maybeSingle();if(__orc){a.orcamentista=a.orcamentista||a.orcamentista_nome||__orc.nome||"";a.orcamentista_email=a.orcamentista_email||__orc.email||"";}}catch(__e){console.warn("propostaGen: lookup orcamento_equipe",__e);}}else if(a&&!a.orcamentista&&a.orcamentista_nome){a.orcamentista=a.orcamentista_nome;}e={...e,cliente:e.cliente||a.contato_principal||a.empresa_lead||a.empresa_contato||"",cnpj_cpf:a.cnpj_cpf||e.cnpj_cpf||"",endereco:[a.endereco_obra||a.endereco||"",a.cidade||""].filter(Boolean).join("\n")||a.fax||e.endereco||"",arquiteto:a.arquitetura||a.arquiteto||e.arquiteto||"",vendedor:a.vendedor||e.vendedor||"",orcamentista:a.orcamentista||a.orcamentista_nome||e.orcamentista||"",orcamentista_email:a.orcamentista_email||e.orcamentista_email||"",vendedor_email:a.outro_email||e.vendedor_email||"",vendedor_telefone:a.vendedor_telefone||e.vendedor_telefone||"",contato_nome:a.contato_principal||e.contato_nome||"",contato_telefone:a.celular||a.telefone_comercial||a.tel_direto_comercial||e.contato_telefone||"",contato_email:a.email_comercial||a.email_pessoal||e.contato_email||"",forma_pagamento:a.forma_pagamento||e.forma_pagamento||"A combinar",pag_garantia:a.pag_garantia||e.pag_garantia||"",pag_prazo_entrega:a.pag_prazo_entrega||e.pag_prazo_entrega||"",pag_prazo_execucao:a.pag_prazo_execucao||e.pag_prazo_execucao||"",pag_dados_bancarios:a.pag_dados_bancarios||e.pag_dados_bancarios||"",pag_razao_social:a.pag_razao_social||e.pag_razao_social||""}}catch(r){console.warn("Falha ao puxar dados do card:",r)}}if(!e.numero||!String(e.numero).trim())try{const{supabase:r}=await D(async()=>{const{supabase:s}=await import("./index-DZtetJYP.js").then(f=>f.o);return{supabase:s}},__vite__mapDeps([0,1])),{data:i}=await r.from("simulacao_projetos").select("numero"),a=(i??[]).map(s=>parseInt(String(s.numero??"").replace(/\D/g,""),10)).filter(s=>!isNaN(s)).reduce((s,f)=>Math.max(s,f),1499),p=String(a+1);e={...e,numero:p};const c=e.id;c&&await r.from("simulacao_projetos").update({numero:p}).eq("id",c)}catch(r){console.warn("Falha ao auto-gerar número da proposta:",r),e={...e,numero:String(Date.now()).slice(-4)}}try{const{supabase:r}=await D(async()=>{const{supabase:a}=await import("./index-DZtetJYP.js").then(p=>p.o);return{supabase:a}},__vite__mapDeps([0,1])),{data:i}=await r.from("orcamento_tabela_precos").select("especie_nome, dimensao_obs, tipo_porta, categoria").eq("ativo",!0).not("dimensao_obs","is",null);i&&i.length>0&&(S=S.map(a=>{const _cat=(a.categoria||"").toUpperCase();if(!_cat.includes("PORTA"))return a;const p=(a.descritivo||"").toLowerCase(),c=i.find(s=>s.dimensao_obs&&s.dimensao_obs.trim().length>10&&s.categoria==="porta"&&p.includes((s.especie_nome||"").toLowerCase()));if(false&&c!=null&&c.dimensao_obs){const f=c.dimensao_obs.split(/,\s*/).map(q=>q.trim()).filter(Boolean).map(q=>`• ${q}`).join(`
+`);return{...a,descritivo:`${a.descritivo}
+
+Ferragens e Insumos:
+${f}`}}return a}))}catch(r){console.warn("Falha ao buscar ferragens pra enriquecer PDF:",r)}const T=typeof window<"u"?window.location.origin:"",_=T+"/";let b=Z(e,S).replace("<head>",`<head>
+<base href="${_}">`);b=b.replace(/src="\/proposta-cover\.png"/g,`src="${T}/proposta-cover.png"`);const m=window.open("","_blank","width=900,height=700");if(!m){alert("Permita pop-ups para gerar a proposta.");return}var _ap='<script>(function(){var t=0;function p(){var i=Array.from(document.images);if(++t>50||i.length===0||i.every(function(g){return g.complete&&g.naturalWidth>0})){try{window.focus();window.print();}catch(e){}}else{setTimeout(p,200);}}if(document.readyState===\'complete\'){setTimeout(p,100);}else{window.addEventListener(\'load\',function(){setTimeout(p,100);});}})();<\/script>';b=b.replace("</body>",_ap+"</body>");m.document.write(b);m.document.close();m.focus()}export{ee as a,Z as g};

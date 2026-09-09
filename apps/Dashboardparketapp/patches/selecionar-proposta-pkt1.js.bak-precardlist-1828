@@ -1,0 +1,172 @@
+/**
+ * Selecionar Proposta — chunk hotpatch Parket
+ * Quando o orçamentista (ou aprovador) abre /proposta/{simId}, este chunk
+ * detecta a simulação no DOM via SPA route e mostra um botão FLUTUANTE
+ * "★ Marcar como principal". Clicar marca essa simulação como a que vai
+ * pra Análise Douglas / Comercial. Desmarca automaticamente as outras.
+ *
+ * Aparece pra:
+ *   - Orçamentista dono da simulação (vendedor_email/orcamentista bate com email logado)
+ *   - Aprovadores (admin/superadmin/dept_leader/Douglas)
+ *
+ * Cliente externo (sem login) não vê o botão.
+ */
+(function () {
+  if (typeof window === "undefined") return;
+  if (window.__pktSelecionarPropostaLoaded) return;
+  window.__pktSelecionarPropostaLoaded = true;
+
+  const SB_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+  const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+  const API = "https://core.parket.works";
+
+  function getUserEmail() {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        const raw = k && localStorage.getItem(k);
+        if (!raw || (raw[0] !== "{" && raw[0] !== "[")) continue;
+        let p;
+        try { p = JSON.parse(raw); } catch { continue; }
+        const e =
+          (p && p.user && p.user.email) ||
+          (p && p.currentSession && p.currentSession.user && p.currentSession.user.email) ||
+          null;
+        if (e) return e.toLowerCase();
+      }
+    } catch {}
+    return null;
+  }
+
+  // Extrai simId da URL atual: /proposta/{uuid}
+  function getSimId() {
+    const m = location.pathname.match(/\/proposta\/([0-9a-f-]{36})/i);
+    return m ? m[1] : null;
+  }
+
+  async function fetchInfo(simId) {
+    try {
+      const r = await fetch(`${API}/api/orcamento/simulacao/${simId}/info-selecao`);
+      return r.ok ? await r.json() : null;
+    } catch { return null; }
+  }
+
+  async function isAprovador(email) {
+    if (!email) return false;
+    if (email === "douglas@parket.com.br") return true;
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/user_profiles?select=role&email=eq.${encodeURIComponent(email)}&limit=1`, {
+        headers: { apikey: SB_KEY },
+      });
+      const a = await r.json();
+      const role = a && a[0] && a[0].role;
+      return ["admin", "superadmin", "dept_leader"].indexOf(role) >= 0;
+    } catch { return false; }
+  }
+
+  function canSelect(email, info, isApr) {
+    if (!info || !info.simulacao) return false;
+    if (isApr) return true;
+    const s = info.simulacao;
+    if (s.vendedor_email && s.vendedor_email.toLowerCase() === email) return true;
+    if (s.orcamentista && s.orcamentista.toLowerCase().includes(email.split("@")[0])) return true;
+    return false;
+  }
+
+  function ensureOverlay(info, simId, email) {
+    if (document.getElementById("pkt-sel-overlay")) return;
+    // SÓ aparece quando há 2+ propostas pro mesmo card. Com 1, não faz sentido.
+    if (!info.total || info.total < 2) return;
+    const isSel = !!info.is_selected;
+    const totalOutras = info.total - 1;  // sem contar essa
+    const wrap = document.createElement("div");
+    wrap.id = "pkt-sel-overlay";
+    Object.assign(wrap.style, {
+      position: "fixed",
+      bottom: "20px",
+      left: "20px",
+      zIndex: 9998,
+      background: "#0A0A0A",
+      border: `2px solid ${isSel ? "#10B981" : "#D4A853"}`,
+      borderRadius: "12px",
+      padding: "12px 14px",
+      boxShadow: "0 12px 32px rgba(0,0,0,.6)",
+      fontFamily: "system-ui,sans-serif",
+      color: "#fff",
+      minWidth: "260px",
+      maxWidth: "340px",
+    });
+    if (isSel) {
+      wrap.innerHTML =
+        '<div style="font-size:10px;color:#10B981;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">★ PROPOSTA PRINCIPAL</div>' +
+        '<div style="font-size:11px;color:rgba(255,255,255,.65)">Essa é a versão marcada pra ir pra análise. ' +
+        (totalOutras > 0 ? `Há ${totalOutras} outra${totalOutras > 1 ? "s" : ""} versão${totalOutras > 1 ? "es" : ""} alternativa${totalOutras > 1 ? "s" : ""}.` : "É a única versão.") +
+        '</div>';
+    } else {
+      wrap.innerHTML =
+        '<div style="font-size:10px;color:#D4A853;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">' +
+        (totalOutras > 0 ? `${totalOutras + 1} versões dessa proposta` : "Versão única") + "</div>" +
+        '<div style="font-size:11px;color:rgba(255,255,255,.65);margin-bottom:10px">Marca essa como a que vai pra análise do Douglas. As outras versões ficam como alternativa.</div>' +
+        '<button id="pkt-sel-btn" style="width:100%;padding:10px 12px;border-radius:8px;background:rgba(212,168,83,.18);border:1px solid rgba(212,168,83,.45);color:#D4A853;cursor:pointer;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase">★ Marcar como principal</button>';
+    }
+    document.body.appendChild(wrap);
+    const btn = document.getElementById("pkt-sel-btn");
+    if (btn) {
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = "Marcando…";
+        try {
+          const r = await fetch(`${API}/api/orcamento/simulacao/${simId}/selecionar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert("Erro: " + (j.detail || r.status));
+            btn.disabled = false;
+            btn.innerHTML = "★ Marcar como principal";
+            return;
+          }
+          wrap.remove();
+          // re-mount com estado novo
+          const info2 = await fetchInfo(simId);
+          if (info2) ensureOverlay(info2, simId, email);
+        } catch (e) {
+          alert("Erro: " + e.message);
+          btn.disabled = false;
+          btn.innerHTML = "★ Marcar como principal";
+        }
+      };
+    }
+  }
+
+  async function init() {
+    const simId = getSimId();
+    if (!simId) return;
+    const email = getUserEmail();
+    if (!email) return;  // cliente externo: nada
+    const [info, isApr] = await Promise.all([fetchInfo(simId), isAprovador(email)]);
+    if (!info) return;
+    if (!canSelect(email, info, isApr)) return;
+    ensureOverlay(info, simId, email);
+  }
+
+  // tenta na load + observa SPA navigation
+  let lastPath = "";
+  function tick() {
+    if (location.pathname === lastPath) return;
+    lastPath = location.pathname;
+    // remove overlay antigo
+    const old = document.getElementById("pkt-sel-overlay");
+    if (old) old.remove();
+    setTimeout(init, 800);  // dá tempo da página renderizar
+  }
+  setInterval(tick, 1500);
+
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    setTimeout(tick, 200);
+  } else {
+    document.addEventListener("DOMContentLoaded", tick);
+  }
+})();

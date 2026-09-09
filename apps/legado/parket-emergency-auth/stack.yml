@@ -1,0 +1,33 @@
+version: "3.9"
+networks:
+  network_public:
+    external: true
+
+services:
+  api:
+    image: parket-emergency-auth:latest
+    networks:
+      - network_public
+    environment:
+      PORT: "8989"
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      DATABASE_URL: ${DATABASE_URL}
+      SUPABASE_PROJECT_REF: hbxpilrxmitvzebluoom
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 192M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # Rota PathPrefix em vários hosts — usa subdomínio que já existe
+        - "traefik.http.routers.parket-emerg.rule=(Host(`space.parket.works`) || Host(`erp.parket.works`) || Host(`rh.parket.works`) || Host(`homebroker.parket.works`) || Host(`fiscal.parket.works`) || Host(`comercial.parket.works`) || Host(`draw.parket.works`)) && PathPrefix(`/emerg`)"
+        - "traefik.http.routers.parket-emerg.entrypoints=websecure"
+        - "traefik.http.routers.parket-emerg.tls=true"
+        - "traefik.http.routers.parket-emerg.priority=1000"
+        - "traefik.http.routers.parket-emerg.middlewares=parket-emerg-strip"
+        - "traefik.http.middlewares.parket-emerg-strip.stripprefix.prefixes=/emerg"
+        - "traefik.http.services.parket-emerg.loadbalancer.server.port=8989"

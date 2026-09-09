@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  web:
+    image: parket-guia:latest
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy: { condition: any }
+      update_config: { parallelism: 1, delay: 5s, order: start-first }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        - "traefik.constraint-label=network_public"
+
+        - "traefik.http.routers.guia.rule=Host(`guia.parket.works`)"
+        - "traefik.http.routers.guia.entrypoints=websecure"
+        - "traefik.http.routers.guia.tls=true"
+        - "traefik.http.routers.guia.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.guia.service=guia"
+
+        - "traefik.http.routers.guia-http.rule=Host(`guia.parket.works`)"
+        - "traefik.http.routers.guia-http.entrypoints=web"
+        - "traefik.http.routers.guia-http.middlewares=guia-https-redirect"
+        - "traefik.http.routers.guia-http.service=guia"
+
+        - "traefik.http.services.guia.loadbalancer.server.port=80"
+
+        - "traefik.http.middlewares.guia-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.guia-https-redirect.redirectscheme.permanent=true"
+
+networks:
+  network_public:
+    external: true

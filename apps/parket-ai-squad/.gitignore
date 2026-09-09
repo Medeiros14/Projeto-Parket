@@ -1,0 +1,36 @@
+
+build/
+CREDENTIALS.md
+dist/
+# Docker / runtime
+.DS_Store
+eas/CREDENTIALS.md
+*.egg-info/
+.env
+.env-eas
+*.env.local
+*.env.production
+# IDE
+.idea/
+*.log
+.mypy_cache/
+.next/
+node_modules/
+# Node / Next.js
+npm-debug.log*
+# OS
+out/
+*.pid
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+# Python
+# Secrets & environment
+*.swp
+Thumbs.db
+.venv/
+venv/
+.vscode/
+yarn-debug.log*
+yarn-error.log*

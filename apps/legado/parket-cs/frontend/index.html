@@ -1,0 +1,1252 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>Parket CS</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='20' font-size='20'%3E🎧%3C/text%3E%3C/svg%3E" />
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --bg2: #0e0e0e;
+    --bg3: #131313;
+    --bg4: #1a1a1a;
+    --line: rgba(255,255,255,0.06);
+    --line2: rgba(255,255,255,0.10);
+    --text: #fff;
+    --muted: rgba(255,255,255,0.55);
+    --muted2: rgba(255,255,255,0.40);
+    --gold: #D4A853;
+    --green: #34D399;
+    --orange: #F59E0B;
+    --purple: #A78BFA;
+    --red: #F87171;
+    --whatsapp: rgba(37,211,102,0.18);
+  }
+  *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; touch-action: manipulation; }
+  button, input, textarea, select { font-family: inherit; }
+  input, textarea, select { font-size: 16px; } /* evita zoom no iOS */
+  a { color: var(--green); }
+
+  #app { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Header ── */
+  .hdr { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    background: var(--bg2); border-bottom: 1px solid var(--line);
+    padding-top: calc(12px + env(safe-area-inset-top));
+    flex-shrink: 0; }
+  .hdr .title { flex: 1; min-width: 0; }
+  .hdr .title h1 { margin: 0; font-size: 16px; font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hdr .title .sub { font-size: 11px; color: var(--muted); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hdr .hbtn { background: none; border: none; color: rgba(255,255,255,0.75);
+    font-size: 20px; cursor: pointer; padding: 6px 8px; border-radius: 6px; }
+  .hdr .hbtn:active { background: rgba(255,255,255,0.06); }
+
+  /* ── Login ── */
+  .login { flex: 1; display: flex; align-items: center; justify-content: center; padding: 18px;
+    padding-top: calc(18px + env(safe-area-inset-top));
+    padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+  .login-card { width: 100%; max-width: 360px; background: var(--bg3);
+    border: 1px solid var(--line2); border-radius: 16px; padding: 24px; }
+  .login-card h1 { margin: 0 0 4px; font-size: 22px; color: var(--gold); }
+  .login-card .lbl { font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
+  .login-card input { width: 100%; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--line2); background: var(--bg); color: var(--text);
+    font-size: 16px; outline: none; transition: border-color .15s; }
+  .login-card input:focus { border-color: var(--gold); }
+  .btn-primary { display: block; width: 100%; padding: 13px; border-radius: 10px;
+    border: none; background: var(--gold); color: #0a0a0a; font-weight: 700;
+    font-size: 15px; margin-top: 16px; cursor: pointer; }
+  .btn-primary:disabled { opacity: 0.5; cursor: wait; }
+  .err { background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.35);
+    color: #FCA5A5; padding: 9px 12px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
+
+  /* ── Search + Filters ── */
+  .search { padding: 10px 14px; background: var(--bg2); border-bottom: 1px solid var(--line); }
+  .search input { width: 100%; padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--line2); background: var(--bg);
+    color: var(--text); font-size: 14px; outline: none; }
+  .filters { display: flex; gap: 6px; padding: 8px 14px; overflow-x: auto;
+    border-bottom: 1px solid var(--line); -webkit-overflow-scrolling: touch;
+    background: var(--bg2); flex-shrink: 0; }
+  .filters::-webkit-scrollbar { display: none; }
+  .filter-btn { flex-shrink: 0; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line2); background: transparent;
+    color: var(--muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .filter-btn.active { background: rgba(212,168,83,0.15); border-color: rgba(212,168,83,0.45);
+    color: var(--gold); font-weight: 700; }
+  .op-filter { padding: 8px 14px; background: var(--bg2); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+  .op-filter label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .op-filter select { flex: 1; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--line2); background: var(--bg);
+    color: var(--text); font-size: 13px; outline: none; }
+
+  /* ── Conversation list ── */
+  .conv-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg); }
+  .conv-item { display: flex; gap: 10px; padding: 12px 14px;
+    border-bottom: 1px solid var(--line); cursor: pointer; min-height: 64px;
+    border-left: 3px solid transparent; }
+  .conv-item:active { background: rgba(255,255,255,0.03); }
+  .conv-item.unread { background: rgba(52,211,153,0.07); border-left-color: var(--green); }
+  .conv-item.pendente { border-left-color: var(--orange); }
+  .conv-item.unread.pendente { background: rgba(245,158,11,0.07); }
+  .conv-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .conv-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .conv-title { font-size: 15px; font-weight: 600; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv-item.unread .conv-title { font-weight: 800; }
+  .conv-time { font-size: 11px; color: var(--muted2); flex-shrink: 0; }
+  .conv-item.unread .conv-time { color: var(--green); font-weight: 700; }
+  .conv-preview { font-size: 13px; color: var(--muted); overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .conv-meta { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px; align-items: center; }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700;
+    white-space: nowrap; line-height: 1.3; }
+  .badge-pendente { background: var(--orange); color: #0a0a0a; }
+  .badge-aguard { background: var(--purple); color: #0a0a0a; }
+  .badge-resolv { background: var(--green); color: #0a0a0a; }
+  .badge-fase { background: rgba(167,139,250,0.15); color: var(--purple); border: 1px solid rgba(167,139,250,0.3); }
+  .badge-tag { background: rgba(212,168,83,0.15); color: var(--gold); }
+
+  /* ── Chat view ── */
+  .chat-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .msgs { flex: 1; overflow-y: auto; padding: 10px 12px;
+    -webkit-overflow-scrolling: touch; background: var(--bg); }
+  .day-sep { text-align: center; margin: 10px 0;
+    font-size: 11px; color: var(--muted2); }
+  .day-sep span { background: var(--bg3); padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--line); }
+  .msg { display: flex; margin-bottom: 6px; }
+  .msg.out { justify-content: flex-end; }
+  .msg .bubble { max-width: 80%; padding: 7px 11px; border-radius: 12px;
+    background: var(--bg3); border: 1px solid var(--line);
+    word-wrap: break-word; min-width: 60px; }
+  .msg.out .bubble { background: var(--whatsapp); border-color: rgba(37,211,102,0.32); }
+  .msg .sender { font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 3px; }
+  .msg .text { font-size: 14px; color: var(--text); line-height: 1.38; white-space: pre-wrap; word-break: break-word; }
+  .msg .footer { display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+    font-size: 10px; color: var(--muted2); margin-top: 3px; }
+  .msg .footer .ack { font-weight: 700; letter-spacing: -1px; }
+  .msg .footer .ack.read { color: var(--green); }
+  .msg img, .msg video { max-width: 100%; border-radius: 8px; display: block; margin-top: 4px; cursor: pointer; }
+  .msg audio { width: 100%; max-width: 260px; height: 32px; margin-top: 4px; }
+  .msg .media-ph { padding: 25px 10px; background: rgba(0,0,0,0.3);
+    border-radius: 8px; color: var(--muted); text-align: center;
+    font-size: 13px; cursor: pointer; border: 1px dashed var(--line2); margin-top: 4px; }
+  .msg .doc { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: rgba(0,0,0,0.25); border-radius: 8px; margin-top: 4px; }
+  .msg .doc a { color: var(--gold); text-decoration: none; font-weight: 600; font-size: 13px; }
+
+  /* ── Composer ── */
+  .composer-wrap { background: var(--bg2); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom); }
+  .composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px; }
+  .composer textarea { flex: 1; min-height: 40px; max-height: 120px;
+    padding: 10px 14px; border-radius: 20px;
+    border: 1px solid var(--line2); background: var(--bg4); color: var(--text);
+    font-size: 15px; resize: none; outline: none; line-height: 1.3; }
+  .composer-btn { background: transparent; border: none; color: var(--muted);
+    width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+    font-size: 22px; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center; padding: 0; }
+  .composer-btn:active { background: rgba(255,255,255,0.05); }
+  .composer-btn.primary { background: var(--gold); color: #0a0a0a; font-size: 18px; font-weight: 800; }
+  .composer-btn.primary:disabled { opacity: 0.4; cursor: wait; }
+  .composer-btn.recording { background: var(--red); color: #fff; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .rec-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+    background: rgba(248,113,113,0.10); border-top: 1px solid rgba(248,113,113,0.25); }
+  .rec-bar .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); animation: pulse 1s infinite; }
+  .rec-bar .time { flex: 1; font-size: 14px; color: var(--red); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rec-bar button { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px 8px; }
+  .rec-bar button.ok { color: var(--green); font-weight: 700; }
+
+  /* ── Info drawer (slide-up) ── */
+  .info-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 100; display: none; }
+  .info-overlay.open { display: block; }
+  .info-drawer { position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--bg2); border-top-left-radius: 16px; border-top-right-radius: 16px;
+    border-top: 1px solid var(--line2); padding-bottom: env(safe-area-inset-bottom);
+    max-height: 88vh; overflow-y: auto; transform: translateY(100%);
+    transition: transform .25s ease-out; z-index: 101; }
+  .info-overlay.open .info-drawer { transform: translateY(0); }
+  .drawer-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.2);
+    border-radius: 2px; margin: 8px auto; }
+  .drawer-content { padding: 4px 16px 20px; }
+  .info-section { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .info-section:last-child { border-bottom: none; }
+  .info-section h3 { margin: 0 0 8px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; }
+  .info-section h3.gold { color: var(--gold); }
+  .info-section h3.purple { color: var(--purple); }
+  .info-section h3.green { color: var(--green); }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .info-cell .k { font-size: 10px; color: var(--muted2); text-transform: uppercase;
+    letter-spacing: 0.05em; }
+  .info-cell .v { font-size: 13px; color: var(--text); font-weight: 600; margin-top: 2px; }
+  .phase-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    background: rgba(0,0,0,0.3); border-radius: 8px; margin-top: 6px; }
+  .phase-card .emo { font-size: 22px; }
+  .phase-card .lbl { font-size: 10px; color: var(--muted2); text-transform: uppercase; }
+  .phase-card .nm { font-size: 14px; color: var(--gold); font-weight: 700; }
+  .ai-btns { display: flex; gap: 6px; margin-bottom: 8px; }
+  .ai-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid;
+    font-size: 12px; font-weight: 700; cursor: pointer; background: rgba(167,139,250,0.06); }
+  .ai-btn.resumir { color: var(--purple); border-color: rgba(167,139,250,0.4); }
+  .ai-btn.sugerir { color: #60A5FA; border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.06); }
+  .ai-btn.tom { color: var(--orange); border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.06); }
+  .ai-btn:active { transform: scale(0.97); }
+  .ai-box { padding: 10px 12px; border-radius: 8px; font-size: 13px;
+    color: rgba(255,255,255,0.88); line-height: 1.5; white-space: pre-wrap;
+    background: rgba(167,139,250,0.06); border: 1px solid rgba(167,139,250,0.25); margin-bottom: 8px; }
+  .ai-sug { padding: 8px 10px; border-radius: 8px; background: rgba(96,165,250,0.08);
+    border: 1px solid rgba(96,165,250,0.3); margin-bottom: 6px; cursor: pointer; font-size: 13px;
+    color: rgba(255,255,255,0.9); line-height: 1.4; }
+  .ai-sug:active { background: rgba(96,165,250,0.15); }
+  .status-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .status-btn { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line2);
+    background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .status-btn.active { color: #0a0a0a; font-weight: 700; }
+  .status-btn.aberta.active { background: #3B82F6; border-color: #3B82F6; }
+  .status-btn.pendente.active { background: var(--orange); border-color: var(--orange); }
+  .status-btn.aguardando_cliente.active { background: var(--purple); border-color: var(--purple); }
+  .status-btn.resolvida.active { background: var(--green); border-color: var(--green); }
+  .nota-add { display: flex; gap: 6px; margin-top: 8px; }
+  .nota-add textarea { flex: 1; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--line2); background: var(--bg); color: var(--text);
+    font-size: 13px; resize: vertical; min-height: 60px; outline: none; }
+  .nota-add button { padding: 0 14px; border-radius: 8px; border: none;
+    background: var(--gold); color: #0a0a0a; font-weight: 700; cursor: pointer; }
+  .nota-item { padding: 8px 10px; background: var(--bg3); border-radius: 6px;
+    margin-bottom: 6px; font-size: 13px; color: var(--text); line-height: 1.4; }
+  .nota-item .meta { font-size: 10px; color: var(--muted2); margin-top: 4px; }
+  .tag-input { display: flex; gap: 6px; margin-top: 8px; }
+  .tag-input input { flex: 1; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--line2); background: var(--bg); color: var(--text);
+    font-size: 13px; outline: none; }
+  .tag-input button { padding: 0 14px; border-radius: 8px; border: none;
+    background: var(--gold); color: #0a0a0a; font-weight: 700; cursor: pointer; }
+  .tag-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+    border-radius: 999px; background: rgba(212,168,83,0.15); color: var(--gold);
+    font-size: 11px; font-weight: 600; margin-right: 4px; margin-top: 4px; }
+  .tag-chip button { background: none; border: none; color: var(--gold);
+    cursor: pointer; padding: 0 0 0 4px; font-size: 14px; line-height: 1; }
+  .scripts-list { max-height: 280px; overflow-y: auto; }
+  .script-item { padding: 10px; background: var(--bg3); border-radius: 8px;
+    margin-bottom: 6px; cursor: pointer; }
+  .script-item:active { background: var(--bg4); }
+  .script-item .t { font-size: 13px; font-weight: 600; color: var(--text); }
+  .script-item .c { font-size: 12px; color: var(--muted); margin-top: 3px;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  /* ── Empty / Loading ── */
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1; padding: 40px 20px; color: var(--muted2); font-size: 14px; text-align: center; }
+  .empty .emo { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+  .spinner { display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--green);
+    border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading { display: flex; align-items: center; justify-content: center;
+    padding: 40px; color: var(--muted); font-size: 13px; gap: 10px; }
+
+  /* ── Toast ── */
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    padding: 10px 18px; border-radius: 10px; color: #fff; font-size: 13px;
+    z-index: 1000; max-width: 90vw; animation: fadein 0.2s; }
+  .toast.ok { background: rgba(16,185,129,0.95); }
+  .toast.err { background: rgba(239,68,68,0.95); }
+  @keyframes fadein { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+  /* ── Lightbox ── */
+  .lightbox { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.95);
+    display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .lightbox img { max-width: 100%; max-height: 100%; }
+
+  /* ── Desktop ── */
+  @media (min-width: 769px) {
+    #app { max-width: 480px; margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+    .info-drawer { left: 50%; right: auto; transform: translate(-50%, 100%); width: 100%; max-width: 480px; }
+    .info-overlay.open .info-drawer { transform: translate(-50%, 0); }
+  }
+</style>
+</head>
+<body>
+<div id="app"><div class="loading"><span class="spinner"></span> Carregando…</div></div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+
+const SUPABASE_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+const EVO_API = "https://conect.parket.works";
+const EVO_KEY = "4eab105201410d6865b86dca76ee9fa3";
+const INST = "Secretaria - Obras Parket";
+const INST_ENC = encodeURIComponent(INST);
+const AI_URL = SUPABASE_URL + "/functions/v1/wa-ai-copilot";
+const WA_SECRET = "d0-_Ei-DRKJqQIRfrySmBXvbFCYbh9BcgSFaJ_gYcS4";
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: "sb-hbxpilrxmitvzebluoom-auth-token" }
+});
+
+const state = {
+  user: null,
+  convs: [],
+  sel: null,
+  msgs: [],
+  scripts: [],
+  notas: [],
+  projeto: null,
+  aiResumo: null,
+  aiSug: [],
+  aiSens: null,
+  aiLd: false,
+  loadingList: true,
+  loadingMsgs: false,
+  sending: false,
+  filt: "todas",
+  opFilt: "todas",
+  q: "",
+  mediaCache: {},
+  opPhaseMap: {},
+  readMap: {},
+  tagInput: "",
+  novaNota: "",
+  drawerOpen: false,
+  recording: false,
+  recTime: 0,
+};
+try { state.readMap = JSON.parse(localStorage.getItem("pkt_cs_read") || "{}"); } catch (e) {}
+
+const app = document.getElementById("app");
+
+// ─── Utils ───
+const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const fmtTime = (iso) => {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso); const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const diff = (now - d) / 86400000;
+    if (diff < 7) return d.toLocaleDateString("pt-BR", { weekday: "short" });
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  } catch { return ""; }
+};
+const fmtMsgTime = (ts) => {
+  if (!ts) return "";
+  try { return new Date(ts * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
+  catch { return ""; }
+};
+const fmtDay = (ts) => {
+  if (!ts) return "";
+  try {
+    const d = new Date(ts * 1000);
+    const now = new Date();
+    const dStr = d.toDateString();
+    if (dStr === now.toDateString()) return "Hoje";
+    const yest = new Date(now); yest.setDate(yest.getDate() - 1);
+    if (dStr === yest.toDateString()) return "Ontem";
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
+  } catch { return ""; }
+};
+const normT = (s) => {
+  if (!s) return "";
+  let t = String(s).toLowerCase();
+  try { t = t.normalize("NFD").replace(/[̀-ͯ]/g, ""); } catch {}
+  return t.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+};
+const COL_LABELS = {"pre-cronograma":"Pré-Cronograma","cronograma-final":"Cronograma","obras-liberadas":"Obra Liberada","projeto":"Projeto","entrega-material":"Entrega","primeira-vistoria":"1ª Vistoria","segunda-vistoria":"2ª Vistoria","acompanhamento":"Acompanhamento","travado":"Travado","pendente":"Pendente","reparos":"Reparos","reparos-concluidos":"Reparos OK","obras-finalizadas":"Finalizada"};
+const PHASE_EMOJI = {"pre-cronograma":"📅","cronograma-final":"🗓️","obras-liberadas":"🟢","projeto":"📐","entrega-material":"📦","primeira-vistoria":"🔍","segunda-vistoria":"🔎","acompanhamento":"🔨","travado":"🛑","pendente":"⏳","reparos":"🛠️","reparos-concluidos":"✅","obras-finalizadas":"🎉"};
+
+const toast = (m, ok = true) => {
+  const t = el(`<div class="toast ${ok ? "ok" : "err"}">${esc(m)}</div>`);
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+};
+
+const isUnread = (co) => {
+  if ((co.unread_count || 0) > 0) return true;
+  if (co.last_msg_from_me) return false;
+  if (!co.last_msg_at) return false;
+  const last = state.readMap[co.id] || 0;
+  try { return new Date(co.last_msg_at).getTime() > last; } catch { return false; }
+};
+const markRead = (co) => {
+  state.readMap[co.id] = Date.now();
+  try { localStorage.setItem("pkt_cs_read", JSON.stringify(state.readMap)); } catch {}
+};
+
+const nameOf = (co) => {
+  const kc = co.kanban_cards || {}; const ag = co.atendimento_grupos || {};
+  return kc.title || ag.cliente || ag.subject || "—";
+};
+const opPhaseOf = (co) => {
+  if (!co) return null;
+  const kc = co.kanban_cards || {}; const ag = co.atendimento_grupos || {};
+  const cands = [kc.title, kc.obra && ("__obra__" + kc.obra), ag.cliente, ag.subject];
+  for (const c of cands) {
+    if (!c) continue;
+    const key = c.startsWith && c.startsWith("__obra__") ? c : normT(c);
+    if (state.opPhaseMap[key]) return state.opPhaseMap[key];
+  }
+  return null;
+};
+
+const extractText = (m) => {
+  const mm = m.message || {};
+  if (mm.conversation) return mm.conversation;
+  if (mm.extendedTextMessage) return mm.extendedTextMessage.text || "";
+  if (mm.imageMessage) return mm.imageMessage.caption || "[imagem]";
+  if (mm.videoMessage) return mm.videoMessage.caption || "[vídeo]";
+  if (mm.audioMessage) return "[áudio]";
+  if (mm.documentMessage) return "[doc] " + (mm.documentMessage.fileName || "");
+  return "";
+};
+const mimetypeOf = (m) => {
+  const mm = m.message || {};
+  for (const t of ["imageMessage", "videoMessage", "audioMessage", "documentMessage"]) {
+    if (mm[t] && mm[t].mimetype) return mm[t].mimetype;
+  }
+  return "application/octet-stream";
+};
+const fileToB64 = (f) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res((r.result || "").split(",")[1] || "");
+  r.onerror = rej;
+  r.readAsDataURL(f);
+});
+
+// ─── Data ───
+async function loadConvs() {
+  const { data, error } = await sb.from("atendimento_conversas")
+    .select("id,grupo_jid,status,prioridade,atribuido_a,tags,last_msg_at,last_msg_preview,last_msg_from_me,unread_count,card_id,atendimento_grupos!atend_conv_grupo_fk(subject,cliente),kanban_cards(title,obra,dept_id,details)")
+    .eq("instance_name", INST)
+    .order("last_msg_at", { ascending: false, nullsFirst: false })
+    .limit(500);
+  if (error) { console.error(error); return; }
+  state.convs = data || [];
+  state.loadingList = false;
+  if (state.sel) {
+    const cur = state.convs.find(c => c.id === state.sel.id);
+    if (cur) state.sel = cur;
+  }
+  if (!state.sel) renderList();
+  else renderListIfActive();
+}
+
+function renderListIfActive() {
+  // só re-renderiza lista se ela tá na tela
+  if (document.querySelector(".conv-list")) renderList();
+}
+
+async function loadOpPhaseMap() {
+  const { data } = await sb.from("kanban_cards")
+    .select("title,obra,column_id,updated_at")
+    .eq("dept_id", "operacional")
+    .order("updated_at", { ascending: false })
+    .limit(5000);
+  if (!data) return;
+  const m = {};
+  for (const r of data) {
+    const t = normT(r.title);
+    if (t && !m[t]) m[t] = r.column_id;
+    if (r.obra && !m["__obra__" + r.obra]) m["__obra__" + r.obra] = r.column_id;
+  }
+  state.opPhaseMap = m;
+}
+
+async function loadScripts() {
+  const { data } = await sb.from("atendimento_scripts").select("id,titulo,conteudo,tipo,ativo,uso").eq("ativo", true).order("uso", { ascending: false });
+  state.scripts = data || [];
+}
+
+async function loadNotas(convId) {
+  if (!convId) { state.notas = []; return; }
+  const { data } = await sb.from("atendimento_notas_internas").select("*").eq("conversa_id", convId).order("created_at", { ascending: true });
+  state.notas = data || [];
+}
+
+async function loadProjeto(co) {
+  state.projeto = null;
+  if (!co || !co.card_id) return;
+  const { data: card } = await sb.from("kanban_cards").select("id,title,obra,column_id,dept_id,responsavel,details,priority,tags,updated_at,created_at").eq("id", co.card_id).single();
+  if (!card) return;
+  let _opCard = null;
+  if (card.obra) {
+    const { data: _op } = await sb.from("kanban_cards").select("id,column_id,responsavel,updated_at").eq("dept_id", "operacional").eq("obra", card.obra).order("updated_at", { ascending: false }).limit(1);
+    if (_op && _op.length > 0) _opCard = _op[0];
+  }
+  state.projeto = { ...card, _opCard };
+}
+
+async function loadMsgs(jid) {
+  if (!jid) { state.msgs = []; return; }
+  state.loadingMsgs = true; renderChatMsgs();
+  try {
+    const r = await fetch(EVO_API + "/chat/findMessages/" + INST_ENC, {
+      method: "POST",
+      headers: { apikey: EVO_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ where: { key: { remoteJid: jid } }, limit: 80 })
+    });
+    const d = await r.json();
+    const list = (d.messages && d.messages.records) || [];
+    list.sort((a, b) => (a.messageTimestamp || 0) - (b.messageTimestamp || 0));
+    state.msgs = list;
+  } catch (e) {
+    console.error(e); toast("Erro ao carregar msgs", false);
+    state.msgs = [];
+  }
+  state.loadingMsgs = false; renderChatMsgs();
+  scrollMsgsToBottom();
+  setTimeout(() => fetchAllMedia(), 50);
+}
+
+async function fetchMediaB64(m) {
+  const msgId = m.key && m.key.id;
+  if (!msgId) return;
+  const cur = state.mediaCache[msgId];
+  if (cur && (cur.url || cur.loading || cur.error)) return;
+  state.mediaCache[msgId] = { loading: true };
+  try {
+    const r = await fetch(EVO_API + "/chat/getBase64FromMediaMessage/" + INST_ENC, {
+      method: "POST",
+      headers: { apikey: EVO_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: { key: m.key } })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    const b64 = d.base64 || d.media || "";
+    if (!b64) throw new Error("sem base64");
+    state.mediaCache[msgId] = { url: "data:" + mimetypeOf(m) + ";base64," + b64 };
+    renderChatMsgs(true);
+  } catch (e) {
+    state.mediaCache[msgId] = { error: e.message || "Falha" };
+    renderChatMsgs(true);
+  }
+}
+
+function fetchAllMedia() {
+  for (const m of state.msgs.slice(-50)) {
+    const mm = m.message || {};
+    if (mm.imageMessage || mm.videoMessage || mm.stickerMessage) fetchMediaB64(m);
+  }
+}
+
+async function sendText(jid, text) {
+  state.sending = true; renderComposer();
+  try {
+    const r = await fetch(EVO_API + "/message/sendText/" + INST_ENC, {
+      method: "POST",
+      headers: { apikey: EVO_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ number: jid, text })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    setTimeout(() => loadMsgs(jid), 600);
+  } catch (e) {
+    toast("Falha ao enviar: " + e.message, false);
+  }
+  state.sending = false; renderComposer();
+}
+
+async function sendMedia(jid, file, caption) {
+  state.sending = true; renderComposer();
+  try {
+    const b64 = await fileToB64(file);
+    const mtype = file.type.startsWith("image/") ? "image"
+      : file.type.startsWith("video/") ? "video"
+      : file.type.startsWith("audio/") ? "audio" : "document";
+    const r = await fetch(EVO_API + "/message/sendMedia/" + INST_ENC, {
+      method: "POST",
+      headers: { apikey: EVO_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        number: jid, mediatype: mtype, mimetype: file.type,
+        caption: caption || "", media: b64, fileName: file.name
+      })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    toast("Enviado");
+    setTimeout(() => loadMsgs(jid), 600);
+  } catch (e) {
+    toast("Falha: " + e.message, false);
+  }
+  state.sending = false; renderComposer();
+}
+
+async function sendAudio(jid, blob) {
+  state.sending = true; renderComposer();
+  try {
+    const b64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res((r.result || "").split(",")[1] || "");
+      r.onerror = rej; r.readAsDataURL(blob);
+    });
+    const r = await fetch(EVO_API + "/message/sendWhatsAppAudio/" + INST_ENC, {
+      method: "POST",
+      headers: { apikey: EVO_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ number: jid, audio: b64, encoding: true })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    toast("Áudio enviado");
+    setTimeout(() => loadMsgs(jid), 600);
+  } catch (e) {
+    toast("Falha áudio: " + e.message, false);
+  }
+  state.sending = false; renderComposer();
+}
+
+async function callAI(action) {
+  if (!state.sel) return null;
+  state.aiLd = true; renderInfoDrawer();
+  try {
+    const r = await fetch(AI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-wa-secret": WA_SECRET },
+      body: JSON.stringify({ action, conversa_id: state.sel.id })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "erro IA");
+    return d;
+  } catch (e) {
+    toast("IA: " + e.message, false);
+    return null;
+  } finally {
+    state.aiLd = false; renderInfoDrawer();
+  }
+}
+async function aiResumir() { const d = await callAI("resumir"); if (d) { state.aiResumo = d.resumo || ""; renderInfoDrawer(); } }
+async function aiSugerir() { const d = await callAI("sugerir"); if (d) { state.aiSug = d.sugestoes || []; renderInfoDrawer(); } }
+async function aiTom() { const d = await callAI("sensibilidade"); if (d) { state.aiSens = d; renderInfoDrawer(); } }
+
+async function updateStatus(co, newStatus) {
+  await sb.from("atendimento_conversas").update({ status: newStatus }).eq("id", co.id);
+  state.sel.status = newStatus;
+  for (const c of state.convs) if (c.id === co.id) c.status = newStatus;
+  renderInfoDrawer();
+  renderListIfActive();
+  renderChatHeader();
+}
+async function updateAtribuido(co, val) {
+  await sb.from("atendimento_conversas").update({ atribuido_a: val }).eq("id", co.id);
+  state.sel.atribuido_a = val;
+  renderInfoDrawer();
+}
+async function addTag(co, tag) {
+  const tags = [...(co.tags || [])];
+  if (!tag || tags.includes(tag)) return;
+  tags.push(tag);
+  await sb.from("atendimento_conversas").update({ tags }).eq("id", co.id);
+  state.sel.tags = tags;
+  renderInfoDrawer();
+}
+async function delTag(co, tag) {
+  const tags = (co.tags || []).filter(t => t !== tag);
+  await sb.from("atendimento_conversas").update({ tags }).eq("id", co.id);
+  state.sel.tags = tags;
+  renderInfoDrawer();
+}
+async function addNota(co, txt) {
+  if (!txt.trim()) return;
+  const autor = state.user.email || "atendente";
+  await sb.from("atendimento_notas_internas").insert({ conversa_id: co.id, autor, conteudo: txt.trim() });
+  await loadNotas(co.id);
+  renderInfoDrawer();
+}
+
+// ─── Realtime ───
+let _chConvs = null, _chMsgs = null;
+function subscribeConvs() {
+  if (_chConvs) { try { sb.removeChannel(_chConvs); } catch {} }
+  _chConvs = sb.channel("cs_convs_app")
+    .on("postgres_changes", { event: "*", schema: "public", table: "atendimento_conversas" }, () => loadConvs())
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "whatsapp_messages" }, () => loadConvs())
+    .subscribe();
+}
+function subscribeMsgs(jid) {
+  if (_chMsgs) { try { sb.removeChannel(_chMsgs); } catch {} _chMsgs = null; }
+  if (!jid) return;
+  _chMsgs = sb.channel("cs_msgs_app_" + jid)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: "phone=eq." + jid }, () => loadMsgs(jid))
+    .subscribe();
+}
+
+// ─── Filter ───
+function filterConvs() {
+  const q = state.q.toLowerCase();
+  return state.convs.filter(co => {
+    if (state.filt === "unread") { if (!isUnread(co)) return false; }
+    else if (state.filt !== "todas" && co.status !== state.filt) return false;
+    if (state.opFilt !== "todas") {
+      const ph = opPhaseOf(co);
+      if (state.opFilt === "_sem_op") { if (ph) return false; }
+      else if (ph !== state.opFilt) return false;
+    }
+    if (q) {
+      const subj = (co.atendimento_grupos && co.atendimento_grupos.subject) || "";
+      const cli = (co.kanban_cards && co.kanban_cards.title) || (co.atendimento_grupos && co.atendimento_grupos.cliente) || "";
+      return subj.toLowerCase().includes(q) || cli.toLowerCase().includes(q);
+    }
+    return true;
+  });
+}
+
+// ─── Render ───
+function scrollMsgsToBottom() {
+  setTimeout(() => {
+    const m = document.querySelector(".msgs");
+    if (m) m.scrollTop = m.scrollHeight;
+  }, 50);
+  setTimeout(() => {
+    const m = document.querySelector(".msgs");
+    if (m) m.scrollTop = m.scrollHeight;
+  }, 400);
+}
+
+function renderLogin(msg) {
+  app.innerHTML = "";
+  const card = el(`<div class="login"><div class="login-card">
+    <h1>🎧 Parket CS</h1>
+    <div style="font-size:13px;color:var(--muted);margin-top:4px">Atendimento mobile</div>
+    ${msg ? `<div class="err">${esc(msg)}</div>` : ""}
+    <div class="lbl">Email</div>
+    <input id="_email" type="email" autocomplete="email" placeholder="seu@email.com" />
+    <div class="lbl">Senha</div>
+    <input id="_pw" type="password" autocomplete="current-password" placeholder="••••••••" />
+    <button class="btn-primary" id="_login">Entrar</button>
+    <div id="_msg" style="margin-top:10px;font-size:13px;color:var(--muted);text-align:center"></div>
+    <a href="/app/parket-cs.apk" download="parket-cs.apk"
+       style="display:block;margin-top:14px;text-align:center;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.35);color:#34D399;border-radius:10px;padding:13px;font-size:13px;font-weight:700;text-decoration:none">
+       📥 Baixar APK Android
+    </a>
+  </div></div>`);
+  app.appendChild(card);
+  const doLogin = async () => {
+    const email = document.getElementById("_email").value.trim();
+    const pw = document.getElementById("_pw").value;
+    const msgEl = document.getElementById("_msg");
+    if (!email || !pw) { msgEl.innerHTML = '<span style="color:#FCA5A5">Preencha email e senha</span>'; return; }
+    msgEl.innerHTML = '<span class="spinner"></span> Entrando…';
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if (error) { msgEl.innerHTML = `<span style="color:#FCA5A5">${esc(error.message)}</span>`; return; }
+    boot();
+  };
+  document.getElementById("_login").onclick = doLogin;
+  document.getElementById("_pw").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+}
+
+function renderList() {
+  const list = filterConvs();
+  app.innerHTML = "";
+  const hdr = el(`<div class="hdr">
+    <div class="title"><h1>🎧 Parket CS</h1><div class="sub">${state.convs.length} conversas</div></div>
+    <button class="hbtn" id="_refresh" title="Atualizar">↻</button>
+    <button class="hbtn" id="_logout" title="Sair">⎋</button>
+  </div>`);
+  hdr.querySelector("#_refresh").onclick = () => { loadConvs(); loadOpPhaseMap(); };
+  hdr.querySelector("#_logout").onclick = async () => { await sb.auth.signOut(); state.user = null; renderLogin(); };
+  app.appendChild(hdr);
+
+  const search = el(`<div class="search"><input type="text" id="_q" placeholder="🔍 Buscar conversa…" value="${esc(state.q)}" /></div>`);
+  const inp = search.querySelector("#_q");
+  inp.oninput = (ev) => { state.q = ev.target.value; const list2 = document.querySelector(".conv-list"); if (list2) list2.innerHTML = renderListItemsHtml(); bindListItems(); };
+  app.appendChild(search);
+
+  const filters = el(`<div class="filters">
+    ${[
+      ["unread", "🆕 Não lidas"],
+      ["aberta", "Abertas"],
+      ["pendente", "⏳ Pendentes"],
+      ["aguardando_cliente", "Aguard."],
+      ["resolvida", "Resolvidas"],
+      ["todas", "Todas"]
+    ].map(([k, l]) => `<button class="filter-btn ${state.filt === k ? "active" : ""}" data-f="${k}">${l}</button>`).join("")}
+  </div>`);
+  filters.querySelectorAll(".filter-btn").forEach(b => b.onclick = () => { state.filt = b.dataset.f; renderList(); });
+  app.appendChild(filters);
+
+  // Op filter
+  const phases = ["pre-cronograma","cronograma-final","obras-liberadas","projeto","entrega-material","primeira-vistoria","segunda-vistoria","acompanhamento","travado","pendente","reparos","reparos-concluidos","obras-finalizadas"];
+  const opFilter = el(`<div class="op-filter">
+    <label>🔨 Fase:</label>
+    <select id="_opfilt">
+      <option value="todas">Todas as fases (${state.convs.length})</option>
+      <option value="_sem_op">— Sem vínculo operacional</option>
+      ${phases.map(p => {
+        const qtd = state.convs.filter(c => opPhaseOf(c) === p).length;
+        return `<option value="${p}" ${state.opFilt === p ? "selected" : ""}>${PHASE_EMOJI[p]} ${COL_LABELS[p]} (${qtd})</option>`;
+      }).join("")}
+    </select>
+  </div>`);
+  opFilter.querySelector("#_opfilt").value = state.opFilt;
+  opFilter.querySelector("#_opfilt").onchange = (ev) => { state.opFilt = ev.target.value; renderList(); };
+  app.appendChild(opFilter);
+
+  const lc = el(`<div class="conv-list">${renderListItemsHtml()}</div>`);
+  app.appendChild(lc);
+  bindListItems();
+}
+
+function renderListItemsHtml() {
+  if (state.loadingList) return `<div class="loading"><span class="spinner"></span> Carregando…</div>`;
+  const list = filterConvs();
+  if (list.length === 0) return `<div class="empty"><div class="emo">💬</div><div>Nenhuma conversa</div></div>`;
+  return list.map(co => {
+    const unread = isUnread(co); const ph = opPhaseOf(co);
+    return `<div class="conv-item ${unread ? "unread" : ""} ${co.status === "pendente" ? "pendente" : ""}" data-id="${co.id}">
+      <div class="conv-body">
+        <div class="conv-top">
+          <div class="conv-title">${esc(nameOf(co))}</div>
+          <div class="conv-time">${esc(fmtTime(co.last_msg_at))}</div>
+        </div>
+        <div class="conv-preview">${co.last_msg_from_me ? "↗ " : ""}${esc((co.last_msg_preview || "").slice(0, 80))}</div>
+        <div class="conv-meta">
+          ${co.status === "pendente" ? `<span class="badge badge-pendente">⏳ Pendente</span>` : ""}
+          ${co.status === "aguardando_cliente" ? `<span class="badge badge-aguard">Aguard.</span>` : ""}
+          ${co.status === "resolvida" ? `<span class="badge badge-resolv">✓ Resolv.</span>` : ""}
+          ${ph ? `<span class="badge badge-fase">${PHASE_EMOJI[ph]} ${esc(COL_LABELS[ph])}</span>` : ""}
+          ${co.atribuido_a ? `<span class="badge badge-tag">👤 ${esc(co.atribuido_a)}</span>` : ""}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function bindListItems() {
+  document.querySelectorAll(".conv-item[data-id]").forEach(item => {
+    item.onclick = () => {
+      const id = item.dataset.id;
+      const co = state.convs.find(c => c.id === id);
+      if (!co) return;
+      markRead(co);
+      state.sel = co;
+      state.msgs = [];
+      state.aiResumo = null; state.aiSug = []; state.aiSens = null;
+      state.projeto = null; state.notas = [];
+      subscribeMsgs(co.grupo_jid);
+      loadMsgs(co.grupo_jid);
+      loadProjeto(co);
+      loadNotas(co.id);
+      // Auto-trigger AI summary
+      setTimeout(() => { aiResumir(); aiSugerir(); }, 600);
+      renderChat();
+    };
+  });
+}
+
+function renderChat() {
+  if (!state.sel) return renderList();
+  app.innerHTML = "";
+  const co = state.sel; const ph = opPhaseOf(co);
+  const hdrHtml = `<div class="hdr">
+    <button class="hbtn" id="_back" title="Voltar">←</button>
+    <div class="title">
+      <h1>${esc(nameOf(co))}</h1>
+      <div class="sub">${ph ? PHASE_EMOJI[ph] + " " + esc(COL_LABELS[ph]) : esc(co.status || "")}${co.atribuido_a ? " · 👤 " + esc(co.atribuido_a) : ""}</div>
+    </div>
+    <button class="hbtn" id="_info" title="Info">ⓘ</button>
+  </div>`;
+  const hdr = el(hdrHtml);
+  hdr.querySelector("#_back").onclick = () => {
+    state.sel = null;
+    if (_chMsgs) { try { sb.removeChannel(_chMsgs); } catch {} _chMsgs = null; }
+    renderList();
+  };
+  hdr.querySelector("#_info").onclick = () => { state.drawerOpen = true; renderInfoDrawer(); };
+  app.appendChild(hdr);
+
+  const wrap = el(`<div class="chat-wrap">
+    <div class="msgs">${renderMsgsHtml()}</div>
+    ${renderComposerHtml()}
+  </div>`);
+  app.appendChild(wrap);
+  bindComposer(); bindMediaClicks();
+  scrollMsgsToBottom();
+}
+
+function renderChatHeader() {
+  if (!state.sel) return;
+  const old = document.querySelector(".hdr");
+  if (!old) return;
+  const co = state.sel; const ph = opPhaseOf(co);
+  const subEl = old.querySelector(".sub");
+  if (subEl) subEl.innerHTML = (ph ? PHASE_EMOJI[ph] + " " + esc(COL_LABELS[ph]) : esc(co.status || "")) + (co.atribuido_a ? " · 👤 " + esc(co.atribuido_a) : "");
+}
+
+function renderChatMsgs(preserveScroll) {
+  const m = document.querySelector(".msgs");
+  if (!m) return;
+  const wasAtBottom = (m.scrollHeight - m.scrollTop - m.clientHeight) < 80;
+  const prevTop = m.scrollTop;
+  m.innerHTML = renderMsgsHtml();
+  bindMediaClicks();
+  if (preserveScroll && !wasAtBottom) m.scrollTop = prevTop;
+  else m.scrollTop = m.scrollHeight;
+}
+
+function renderMsgsHtml() {
+  if (state.loadingMsgs) return `<div class="loading"><span class="spinner"></span> Carregando mensagens…</div>`;
+  if (!state.msgs.length) return `<div class="empty"><div class="emo">💭</div><div>Sem mensagens</div></div>`;
+  let html = "";
+  let lastDay = "";
+  for (const m of state.msgs) {
+    const day = fmtDay(m.messageTimestamp);
+    if (day !== lastDay) {
+      html += `<div class="day-sep"><span>${esc(day)}</span></div>`;
+      lastDay = day;
+    }
+    html += renderMsgBubble(m);
+  }
+  return html;
+}
+
+function renderMsgBubble(m) {
+  const out = m.fromMe || (m.key && m.key.fromMe);
+  const mm = m.message || {};
+  const msgId = m.key && m.key.id;
+  const sender = (!out) ? (m.pushName || "") : "";
+  let body = "";
+  if (mm.conversation) body = `<div class="text">${esc(mm.conversation)}</div>`;
+  else if (mm.extendedTextMessage) body = `<div class="text">${esc(mm.extendedTextMessage.text || "")}</div>`;
+  else if (mm.imageMessage) {
+    const c = state.mediaCache[msgId];
+    body = c && c.url ? `<img src="${c.url}" data-zoom="${c.url}" alt="" />`
+      : c && c.error ? `<div class="media-ph">⚠ ${esc(c.error)}</div>`
+      : c && c.loading ? `<div class="media-ph">⏳ Carregando…</div>`
+      : `<div class="media-ph" data-load="${msgId}">📷 Tocar pra carregar</div>`;
+    if (mm.imageMessage.caption) body += `<div class="text" style="margin-top:5px">${esc(mm.imageMessage.caption)}</div>`;
+  } else if (mm.videoMessage) {
+    const c = state.mediaCache[msgId];
+    body = c && c.url ? `<video src="${c.url}" controls></video>`
+      : c && c.error ? `<div class="media-ph">⚠ ${esc(c.error)}</div>`
+      : c && c.loading ? `<div class="media-ph">⏳ Carregando…</div>`
+      : `<div class="media-ph" data-load="${msgId}">🎥 Tocar pra carregar</div>`;
+    if (mm.videoMessage.caption) body += `<div class="text" style="margin-top:5px">${esc(mm.videoMessage.caption)}</div>`;
+  } else if (mm.audioMessage) {
+    const c = state.mediaCache[msgId];
+    body = c && c.url ? `<audio src="${c.url}" controls></audio>`
+      : c && c.error ? `<div class="text">⚠ ${esc(c.error)}</div>`
+      : c && c.loading ? `<div class="text">⏳ Carregando…</div>`
+      : `<div class="media-ph" data-load="${msgId}">🎤 Tocar pra carregar áudio</div>`;
+  } else if (mm.documentMessage) {
+    const c = state.mediaCache[msgId];
+    const fn = mm.documentMessage.fileName || "documento";
+    body = c && c.url
+      ? `<div class="doc">📎 <a href="${c.url}" download="${esc(fn)}">${esc(fn)}</a></div>`
+      : `<div class="media-ph" data-load="${msgId}">📎 ${esc(fn)}</div>`;
+  } else if (mm.stickerMessage) {
+    const c = state.mediaCache[msgId];
+    body = c && c.url ? `<img src="${c.url}" style="max-width:120px" />` : `<div class="media-ph" data-load="${msgId}">😀 Sticker</div>`;
+  } else {
+    body = `<div class="text" style="color:var(--muted2);font-style:italic">[tipo não suportado]</div>`;
+  }
+  const ts = fmtMsgTime(m.messageTimestamp);
+  const ack = out
+    ? (m.status === "READ" ? `<span class="ack read">✓✓</span>` : m.status === "DELIVERY_ACK" ? `<span class="ack">✓✓</span>` : m.status === "SERVER_ACK" ? `<span class="ack">✓</span>` : `<span class="ack">⏱</span>`)
+    : "";
+  return `<div class="msg ${out ? "out" : "in"}">
+    <div class="bubble">
+      ${sender ? `<div class="sender">${esc(sender)}</div>` : ""}
+      ${body}
+      <div class="footer">${ts} ${ack}</div>
+    </div>
+  </div>`;
+}
+
+function bindMediaClicks() {
+  document.querySelectorAll(".media-ph[data-load]").forEach(d => {
+    d.onclick = () => {
+      const m = state.msgs.find(x => x.key && x.key.id === d.dataset.load);
+      if (m) fetchMediaB64(m);
+    };
+  });
+  document.querySelectorAll("img[data-zoom]").forEach(img => {
+    img.onclick = () => {
+      const overlay = el(`<div class="lightbox"><img src="${img.dataset.zoom}" alt="" /></div>`);
+      overlay.onclick = () => overlay.remove();
+      document.body.appendChild(overlay);
+    };
+  });
+}
+
+function renderComposerHtml() {
+  return `<div class="composer-wrap">
+    ${state.recording ? `
+      <div class="rec-bar">
+        <div class="dot"></div>
+        <div class="time" id="_rec_time">0:00</div>
+        <button id="_rec_cancel" title="Cancelar">✕</button>
+        <button id="_rec_ok" class="ok" title="Enviar">↑</button>
+      </div>
+    ` : ""}
+    <div class="composer">
+      <button class="composer-btn" id="_attach" title="Anexar">📎</button>
+      <textarea id="_draft" placeholder="Mensagem…" rows="1"></textarea>
+      <input type="file" id="_file" accept="image/*,video/*,application/*" style="display:none" />
+      ${state.recording
+        ? `<button class="composer-btn primary recording" id="_send" disabled>●</button>`
+        : `<button class="composer-btn primary" id="_send" ${state.sending ? "disabled" : ""}>${state.sending ? "…" : "➤"}</button>`}
+      <button class="composer-btn" id="_mic" title="Gravar áudio">🎤</button>
+    </div>
+  </div>`;
+}
+
+function renderComposer() {
+  const old = document.querySelector(".composer-wrap");
+  if (!old) return;
+  old.outerHTML = renderComposerHtml();
+  bindComposer();
+}
+
+let _mediaRecorder = null, _recTimer = null, _recChunks = [];
+function bindComposer() {
+  const ta = document.getElementById("_draft");
+  if (ta) {
+    ta.oninput = () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; };
+    ta.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); doSend(); } };
+  }
+  const sendBtn = document.getElementById("_send");
+  if (sendBtn) sendBtn.onclick = doSend;
+  const attachBtn = document.getElementById("_attach");
+  if (attachBtn) attachBtn.onclick = () => document.getElementById("_file").click();
+  const fileIn = document.getElementById("_file");
+  if (fileIn) fileIn.onchange = (ev) => {
+    const f = ev.target.files[0]; if (!f) return;
+    sendMedia(state.sel.grupo_jid, f, "");
+    fileIn.value = "";
+  };
+  const micBtn = document.getElementById("_mic");
+  if (micBtn) micBtn.onclick = toggleRec;
+  const cancelBtn = document.getElementById("_rec_cancel");
+  if (cancelBtn) cancelBtn.onclick = cancelRec;
+  const okBtn = document.getElementById("_rec_ok");
+  if (okBtn) okBtn.onclick = stopRec;
+
+  function doSend() {
+    if (!ta) return;
+    const txt = ta.value.trim();
+    if (!txt || state.sending) return;
+    ta.value = ""; ta.style.height = "auto";
+    sendText(state.sel.grupo_jid, txt);
+  }
+}
+
+async function toggleRec() {
+  if (state.recording) { stopRec(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _mediaRecorder = new MediaRecorder(stream);
+    _recChunks = [];
+    _mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) _recChunks.push(e.data); };
+    _mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      if (_recChunks.length > 0) {
+        const blob = new Blob(_recChunks, { type: _mediaRecorder.mimeType || "audio/webm" });
+        sendAudio(state.sel.grupo_jid, blob);
+      }
+    };
+    _mediaRecorder.start();
+    state.recording = true; state.recTime = 0; renderComposer();
+    _recTimer = setInterval(() => {
+      state.recTime++;
+      const m = Math.floor(state.recTime / 60), s = state.recTime % 60;
+      const e = document.getElementById("_rec_time");
+      if (e) e.textContent = m + ":" + String(s).padStart(2, "0");
+    }, 1000);
+  } catch (e) {
+    toast("Mic: " + e.message, false);
+  }
+}
+function stopRec() {
+  if (_mediaRecorder && _mediaRecorder.state !== "inactive") _mediaRecorder.stop();
+  if (_recTimer) { clearInterval(_recTimer); _recTimer = null; }
+  state.recording = false; renderComposer();
+}
+function cancelRec() {
+  if (_mediaRecorder) {
+    _mediaRecorder.ondataavailable = null;
+    _mediaRecorder.onstop = () => { try { _mediaRecorder.stream && _mediaRecorder.stream.getTracks().forEach(t => t.stop()); } catch {} };
+    try { _mediaRecorder.stop(); } catch {}
+  }
+  if (_recTimer) { clearInterval(_recTimer); _recTimer = null; }
+  _recChunks = [];
+  state.recording = false; renderComposer();
+}
+
+function renderInfoDrawer() {
+  let overlay = document.querySelector(".info-overlay");
+  if (!state.drawerOpen) {
+    if (overlay) overlay.remove();
+    return;
+  }
+  if (!overlay) {
+    overlay = el(`<div class="info-overlay" id="_info_overlay"><div class="info-drawer"><div class="drawer-handle"></div><div class="drawer-content" id="_drawer_content"></div></div></div>`);
+    document.body.appendChild(overlay);
+    overlay.onclick = (ev) => { if (ev.target === overlay) { state.drawerOpen = false; renderInfoDrawer(); } };
+    setTimeout(() => overlay.classList.add("open"), 10);
+  }
+  const dc = overlay.querySelector("#_drawer_content");
+  const co = state.sel; const p = state.projeto;
+  const ph = co ? opPhaseOf(co) : null;
+  dc.innerHTML = `
+    ${p ? `
+      <div class="info-section">
+        <h3 class="gold">📋 Projeto</h3>
+        <div style="font-size:14px;font-weight:700">${esc(p.title || "—")}</div>
+        ${p.obra ? `<div style="font-size:12px;color:var(--muted);margin-top:2px">🏗️ ${esc(p.obra)}</div>` : ""}
+        ${ph ? `
+          <div class="phase-card">
+            <div class="emo">${PHASE_EMOJI[ph] || "📍"}</div>
+            <div>
+              <div class="lbl">${p._opCard ? "Fase atual (Operacional)" : "Fase atual"}</div>
+              <div class="nm">${esc(COL_LABELS[ph] || ph)}</div>
+            </div>
+          </div>
+        ` : ""}
+        <div class="info-grid">
+          ${p.dept_id ? `<div class="info-cell"><div class="k">Setor</div><div class="v">${esc(p.dept_id)}</div></div>` : ""}
+          ${p.responsavel ? `<div class="info-cell"><div class="k">Responsável</div><div class="v">${esc(p.responsavel)}</div></div>` : ""}
+          ${p.details && (p.details.metragem_estimada || p.details.area_m2) ? `<div class="info-cell"><div class="k">Área</div><div class="v">${esc(p.details.metragem_estimada || p.details.area_m2)} m²</div></div>` : ""}
+          ${p.details && p.details.fiscal_responsavel && p.details.fiscal_responsavel !== "NÃO" ? `<div class="info-cell"><div class="k">Fiscal</div><div class="v">${esc(p.details.fiscal_responsavel)}</div></div>` : ""}
+        </div>
+        ${p.details && p.details.cronograma_pmo && Array.isArray(p.details.cronograma_pmo.itens) ? `
+          <div style="margin-top:10px;padding:8px 10px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:6px">
+            <div style="font-size:11px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:6px">🔨 Acompanhamento ${p.details.cronograma_pmo.total_dias_uteis > 0 ? `· ${p.details.cronograma_pmo.total_dias_uteis} dias` : ""}</div>
+            ${p.details.cronograma_pmo.previsao_inicio ? `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">📅 Início: ${esc(p.details.cronograma_pmo.previsao_inicio)}</div>` : ""}
+            ${p.details.cronograma_pmo.itens.slice(0, 5).map(it => `<div style="font-size:12px;display:flex;justify-content:space-between;gap:6px;margin-top:3px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">• ${esc(it.servico || it.categoria)}</span><span style="color:#86efac;font-family:monospace">${Number(it.quantidade || 0).toLocaleString("pt-BR")} ${esc(it.unidade || "")}</span></div>`).join("")}
+          </div>
+        ` : ""}
+      </div>
+    ` : ""}
+
+    <div class="info-section">
+      <h3 class="purple">✨ IA Copiloto</h3>
+      <div class="ai-btns">
+        <button class="ai-btn resumir" id="_ai_resumir" ${state.aiLd ? "disabled" : ""}>${state.aiLd ? "…" : "📝 Resumir"}</button>
+        <button class="ai-btn sugerir" id="_ai_sugerir" ${state.aiLd ? "disabled" : ""}>${state.aiLd ? "…" : "💡 Sugerir"}</button>
+        <button class="ai-btn tom" id="_ai_tom" ${state.aiLd ? "disabled" : ""}>${state.aiLd ? "…" : "🔍 Tom"}</button>
+      </div>
+      ${state.aiResumo ? `<div class="ai-box">${esc(state.aiResumo)}</div>` : ""}
+      ${state.aiSug.length > 0 ? `
+        <div style="font-size:11px;color:var(--muted2);text-transform:uppercase;margin-bottom:4px">💡 Sugestões (toque pra usar):</div>
+        ${state.aiSug.map((s, i) => {
+          const txt = typeof s === "string" ? s : (s.texto || s.text || "");
+          return `<div class="ai-sug" data-sug="${i}">${esc(txt)}</div>`;
+        }).join("")}
+      ` : ""}
+      ${state.aiSens ? `
+        <div style="font-size:11px;color:var(--muted2);text-transform:uppercase;margin:8px 0 4px">🔍 Tom:</div>
+        <div class="ai-box" style="background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.3)">${esc(typeof state.aiSens === "string" ? state.aiSens : JSON.stringify(state.aiSens, null, 2))}</div>
+      ` : ""}
+    </div>
+
+    ${co ? `
+      <div class="info-section">
+        <h3 class="gold">📌 Status</h3>
+        <div class="status-row">
+          ${["aberta","pendente","aguardando_cliente","resolvida"].map(s => `<button class="status-btn ${s} ${co.status === s ? "active" : ""}" data-status="${s}">${s === "aberta" ? "Aberta" : s === "pendente" ? "⏳ Pendente" : s === "aguardando_cliente" ? "Aguardando" : "✓ Resolvida"}</button>`).join("")}
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3 class="gold">👤 Atribuído a</h3>
+        <input type="text" id="_atrib" value="${esc(co.atribuido_a || "")}" placeholder="Nome do atendente…" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line2);background:var(--bg);color:var(--text);font-size:13px;outline:none" />
+      </div>
+
+      <div class="info-section">
+        <h3 class="gold">🏷️ Tags</h3>
+        <div>${(co.tags || []).map(t => `<span class="tag-chip">${esc(t)}<button data-tagdel="${esc(t)}">×</button></span>`).join("")}</div>
+        <div class="tag-input">
+          <input type="text" id="_tag" placeholder="Nova tag…" />
+          <button id="_tag_add">+</button>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3 class="green">📝 Notas Internas (${state.notas.length})</h3>
+        ${state.notas.map(n => `
+          <div class="nota-item">
+            ${esc(n.conteudo || "")}
+            <div class="meta">${esc(n.autor || "")} · ${esc(fmtTime(n.created_at))}</div>
+          </div>
+        `).join("")}
+        <div class="nota-add">
+          <textarea id="_nota" placeholder="Nova nota interna…"></textarea>
+          <button id="_nota_add">+</button>
+        </div>
+      </div>
+
+      ${state.scripts.length > 0 ? `
+        <div class="info-section">
+          <h3 class="gold">📋 Scripts (${state.scripts.length})</h3>
+          <div class="scripts-list">
+            ${state.scripts.slice(0, 20).map((s, i) => `
+              <div class="script-item" data-script="${i}">
+                <div class="t">${esc(s.titulo || "")}</div>
+                <div class="c">${esc((s.conteudo || "").slice(0, 100))}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+    ` : ""}
+  `;
+
+  // Bind events
+  const $ = (id) => dc.querySelector("#" + id);
+  if ($("_ai_resumir")) $("_ai_resumir").onclick = aiResumir;
+  if ($("_ai_sugerir")) $("_ai_sugerir").onclick = aiSugerir;
+  if ($("_ai_tom")) $("_ai_tom").onclick = aiTom;
+  dc.querySelectorAll(".ai-sug[data-sug]").forEach(s => s.onclick = () => {
+    const sug = state.aiSug[parseInt(s.dataset.sug)];
+    const txt = typeof sug === "string" ? sug : (sug.texto || sug.text || "");
+    state.drawerOpen = false; renderInfoDrawer();
+    const ta = document.getElementById("_draft");
+    if (ta) { ta.value = txt; ta.focus(); ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; }
+  });
+  dc.querySelectorAll(".status-btn[data-status]").forEach(b => b.onclick = () => updateStatus(co, b.dataset.status));
+  if ($("_atrib")) $("_atrib").onblur = (ev) => updateAtribuido(co, ev.target.value.trim());
+  if ($("_tag_add")) $("_tag_add").onclick = () => {
+    const v = $("_tag").value.trim(); if (v) { addTag(co, v); $("_tag").value = ""; }
+  };
+  dc.querySelectorAll("[data-tagdel]").forEach(b => b.onclick = () => delTag(co, b.dataset.tagdel));
+  if ($("_nota_add")) $("_nota_add").onclick = () => {
+    const v = $("_nota").value.trim(); if (v) { addNota(co, v); $("_nota").value = ""; }
+  };
+  dc.querySelectorAll(".script-item[data-script]").forEach(s => s.onclick = () => {
+    const sc = state.scripts[parseInt(s.dataset.script)];
+    const txt = (sc.conteudo || sc.titulo || "").replace(/\{nome_cliente\}/g, nameOf(co));
+    state.drawerOpen = false; renderInfoDrawer();
+    const ta = document.getElementById("_draft");
+    if (ta) { ta.value = txt; ta.focus(); ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; }
+  });
+}
+
+// ─── Boot ───
+async function boot() {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) { renderLogin(); return; }
+  state.user = data.session.user;
+  state.loadingList = true;
+  renderList();
+  await Promise.all([loadConvs(), loadOpPhaseMap(), loadScripts()]);
+  subscribeConvs();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") loadConvs();
+  });
+}
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  chat:
+    image: parket-chat:insta-notify-20260814
+    networks:
+      - network_public
+      - parket-api_internal
+    environment:
+      PORT: "3000"
+      JWT_SECRET: "${JWT_SECRET}"
+      PARKET_DATABASE_URL: "${PARKET_DATABASE_URL}"
+      SUPABASE_URL: "${SUPABASE_URL:-https://api.parket.works}"
+      SUPABASE_SERVICE_KEY: "${SUPABASE_SERVICE_KEY}"
+      VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
+      VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY}"
+      # Shared com parket-gestao (endpoint /api/internal/obra/:card/tarefa)
+      CHAT_INTERNAL_SECRET_FILE: /run/secrets/chat_internal_secret
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        [ -f "$$CHAT_INTERNAL_SECRET_FILE" ] && export CHAT_INTERNAL_SECRET=$$(cat $$CHAT_INTERNAL_SECRET_FILE)
+        exec node server/index.js
+    secrets:
+      - chat_internal_secret
+    volumes:
+      - chat_data:/app/data
+      - chat_uploads:/app/uploads
+    deploy:
+      replicas: 1
+      labels:
+        traefik.enable: "true"
+        traefik.docker.network: "network_public"
+        traefik.http.routers.parket-chat-http.entrypoints: "web"
+        traefik.http.routers.parket-chat-http.middlewares: "https-redirect"
+        traefik.http.routers.parket-chat-http.rule: "Host(`server.parket.works`) || Host(`chat.parket.works`)"
+        traefik.http.routers.parket-chat.entrypoints: "websecure"
+        traefik.http.routers.parket-chat.rule: "Host(`server.parket.works`) || Host(`chat.parket.works`)"
+        traefik.http.routers.parket-chat.tls: "true"
+        traefik.http.routers.parket-chat.tls.certresolver: "letsencryptresolver"
+        traefik.http.services.parket-chat.loadbalancer.server.port: "3000"
+
+networks:
+  network_public:
+    external: true
+  parket-api_internal:
+    external: true
+
+secrets:
+  chat_internal_secret:
+    external: true
+
+volumes:
+  chat_data:
+  chat_uploads:

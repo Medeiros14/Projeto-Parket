@@ -1,0 +1,30 @@
+DirectoryIndex index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # 1. Skip rewrite if the file or directory actually exists
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 2. WordPress virtual paths (like /wp-json) - send to index.php
+  # This restores your data sections in the new site!
+  RewriteRule ^wp-json index.php [L]
+
+  # 3. React Router (redirect everything else to index.html)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Cache: index.html sempre revalidado, assets com hash cacheados
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+  <FilesMatch "\.(js|css|woff2?|ttf|eot|svg|jpg|jpeg|png|gif|webp|avif)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>

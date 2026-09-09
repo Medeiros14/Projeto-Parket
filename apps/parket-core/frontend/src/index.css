@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Tokens SO Parket (1:1 com gestao/theme.tsx) ────────────────────
+   Tailwind classes parket-* leem essas vars — trocar --parket-* aqui
+   reflete no app inteiro.
+   DARK: Preto Navona bg · Bege Travertino text.
+   LIGHT: Bege Travertino bg · Preto Navona text (Manual da Marca Navona). */
+:root {
+  --parket-accent:      #968473;                    /* Chai */
+  --parket-accentDark:  #60544D;                    /* Walnut */
+  --parket-bg:          #050505;                    /* Preto Navona */
+  --parket-sidebar:     #040404;
+  --parket-panel:       rgba(216,211,199,0.025);    /* cardBg */
+  --parket-panelLight:  rgba(216,211,199,0.048);    /* cardHover / inputBg */
+  --parket-border:      rgba(216,211,199,0.08);
+  --parket-borderHover: rgba(216,211,199,0.18);
+  --parket-text:        #D8D3C7;                    /* Bege Travertino */
+  --parket-textDim:     #77736A;                    /* Cinza Pedra */
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  --parket-bg:          #D8D3C7;                    /* Bege Travertino */
+  --parket-sidebar:     #CBC6BA;
+  --parket-panel:       rgba(243,240,232,0.55);     /* Off White Mineral @ 55% */
+  --parket-panelLight:  rgba(243,240,232,0.85);     /* Off White Mineral @ 85% */
+  --parket-border:      rgba(5,5,5,0.10);           /* Preto Navona diluído */
+  --parket-borderHover: rgba(5,5,5,0.24);
+  --parket-text:        #050505;                    /* Preto Navona */
+  --parket-textDim:     #77736A;                    /* Cinza Pedra */
+  color-scheme: light;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────── */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: var(--parket-bg);
+  color: var(--parket-text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.25s, color 0.25s;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--parket-bg); }
+::-webkit-scrollbar-thumb { background: var(--parket-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--parket-borderHover); }
+
+input, button, textarea, select { font-family: inherit; }
+
+/* ─── Padrão visual = gestao.parket.works (SO Parket) ────────────────
+   Cinzel uppercase tracked em títulos/labels/botões/theads, Inter no corpo,
+   cantos retos. Accent Chai #968473, cards translúcidos Travertino/OWM. */
+h1 {
+  font-family: "Cinzel", Georgia, serif !important;
+  font-weight: 400 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.14em !important;
+}
+h2 {
+  font-family: "Cinzel", Georgia, serif !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.22em !important;
+}
+.rounded, .rounded-sm, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl {
+  border-radius: 0 !important;
+}
+.tracking-wider, .tracking-wide { letter-spacing: 0.2em !important; }
+button { font-family: "Cinzel", Georgia, serif !important; text-transform: uppercase; letter-spacing: 0.18em; }
+label { font-family: "Cinzel", Georgia, serif !important; text-transform: uppercase; letter-spacing: 0.2em; }
+th { font-family: "Cinzel", Georgia, serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.2em !important; }

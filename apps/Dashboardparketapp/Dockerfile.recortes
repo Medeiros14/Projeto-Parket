@@ -1,0 +1,15 @@
+# Dockerfile minimo: overlay do hotpatch de recortes sobre a golden
+# NAO faz npm build — preserva todos os outros hotpatches da golden.
+#
+# Uso:
+#   cd /root/Dashboardparketapp
+#   docker build -f Dockerfile.recortes -t parket-dashboard:staging-recortes .
+#   /root/deploy-dashboard.sh parket-dashboard:staging-recortes
+
+ARG GOLDEN=parket-dashboard:golden-complete
+FROM ${GOLDEN}
+
+# Copia APENAS os arquivos hotpatched — mantém o resto da golden intacto
+COPY patches/orcamento-simulador-tab-BBO23cjn.js /usr/share/nginx/html/assets/orcamento-simulador-tab-BBO23cjn.js
+COPY patches/propostaGenerator-RP6vD_Gq.js /usr/share/nginx/html/assets/propostaGenerator-RP6vD_Gq.js
+COPY patches/dept-layout-BtZpIBbo.js /usr/share/nginx/html/assets/dept-layout-BtZpIBbo.js

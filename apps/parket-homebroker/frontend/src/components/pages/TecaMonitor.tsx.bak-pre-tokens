@@ -1,0 +1,387 @@
+import { useEffect, useMemo, useState } from "react";
+import { Activity, Pause, Play, RefreshCw, Users, Calendar, AlertTriangle, MessageSquare } from "lucide-react";
+import type { AppUser } from "../../lib/auth";
+
+const AGENTE_URL = "https://agente.parket.works";
+
+const ALLOWED_EMAILS = new Set([
+  "will.tape@gmail.com",
+  "will@parket.com.br",
+  "william@parket.com.br",
+  "douglas@parket.com.br",
+  "raphael@parket.com.br",
+  "raphael.camargo@parket.com.br",
+]);
+
+const ALLOWED_NAME_TOKENS = ["will", "william", "douglas", "raphael", "rafael"];
+
+function isAllowed(appUser: AppUser): boolean {
+  // Qualquer admin pode acessar (role contém "admin" — admin, superadmin, super-admin etc.)
+  const role = ((appUser as any)?.role || "").toString().toLowerCase();
+  if (role.includes("admin")) return true;
+  // Whitelist explícita de emails
+  const email = (appUser?.email || "").toLowerCase().trim();
+  if (ALLOWED_EMAILS.has(email)) return true;
+  // Fallback por nome (Will/Douglas/Raphael mesmo sem role admin)
+  const nome = (appUser as any)?.nome?.toLowerCase?.() || "";
+  if (ALLOWED_NAME_TOKENS.some((t) => nome.includes(t))) return true;
+  return false;
+}
+
+type QueueItem = {
+  phone: string;
+  last_msg_ts: number;
+  last_msg_role: "user" | "assistant" | string;
+  last_msg_preview: string;
+  messages_count: number;
+  etapa: string;
+  intent_atual: string;
+  paused: boolean;
+};
+
+type Metrics = {
+  window_hours: number;
+  total_leads: number;
+  paused: number;
+  agendados: number;
+  escalados: number;
+  taxa_agendamento_pct: number;
+  taxa_escalacao_pct: number;
+  messages_total: number;
+  messages_avg_per_lead: number;
+  intents_distribuicao: Record<string, number>;
+  etapas_distribuicao: Record<string, number>;
+};
+
+type Status = {
+  phone: string;
+  paused: boolean;
+  v2_enabled: boolean;
+  state: Record<string, any>;
+  history: Array<{ role: string; content: string; ts: number; meta?: any }>;
+  messages_count: number;
+};
+
+function fmtTime(ts: number): string {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
+  if (diffMin < 1) return "agora";
+  if (diffMin < 60) return `${diffMin}min atrás`;
+  if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h atrás`;
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+export function TecaMonitorPage({ appUser }: { appUser: AppUser }) {
+  const allowed = isAllowed(appUser);
+  const [windowH, setWindowH] = useState(24);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<Status | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  async function load() {
+    if (!allowed) return;
+    setLoading(true);
+    try {
+      const [qRes, mRes] = await Promise.all([
+        fetch(`${AGENTE_URL}/api/teca/queue?window_hours=${windowH}`),
+        fetch(`${AGENTE_URL}/api/teca/metrics?window_hours=${windowH}`),
+      ]);
+      const qJson = await qRes.json();
+      const mJson = await mRes.json();
+      setQueue(qJson.items || []);
+      setMetrics(mJson);
+    } catch (e) {
+      console.warn("teca monitor load failed", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadStatus(phone: string) {
+    try {
+      const r = await fetch(`${AGENTE_URL}/api/teca/status/${phone}`);
+      const j = await r.json();
+      setSelectedStatus(j);
+      setSelectedPhone(phone);
+    } catch (e) {
+      console.warn("teca status load failed", e);
+    }
+  }
+
+  async function togglePause(phone: string, paused: boolean) {
+    try {
+      await fetch(`${AGENTE_URL}/api/teca/${paused ? "resume" : "pause"}/${phone}`, { method: "POST" });
+      await load();
+      if (phone === selectedPhone) await loadStatus(phone);
+    } catch (e) {
+      alert("Falhou: " + (e as Error).message);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, [windowH]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const t = setInterval(() => {
+      load();
+      if (selectedPhone) loadStatus(selectedPhone);
+    }, 15000);
+    return () => clearInterval(t);
+  }, [autoRefresh, selectedPhone, windowH]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!allowed) {
+    return (
+      <div className="p-8 text-center text-hb-textDim">
+        <AlertTriangle className="mx-auto mb-3 text-amber-500" size={32} />
+        <p className="text-sm">Acesso restrito (Will, Douglas, Raphael).</p>
+        <p className="text-[10px] mt-2 opacity-60">Logado como: {appUser?.email || "(sem email)"} · {(appUser as any)?.nome || ""}</p>
+      </div>
+    );
+  }
+
+  const intentEntries = useMemo(() => {
+    if (!metrics) return [];
+    return Object.entries(metrics.intents_distribuicao).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [metrics]);
+
+  const etapaEntries = useMemo(() => {
+    if (!metrics) return [];
+    return Object.entries(metrics.etapas_distribuicao).sort((a, b) => b[1] - a[1]);
+  }, [metrics]);
+
+  async function testarSomEPopup() {
+    // Cria um agendamento fake (apenas pra disparar realtime → popup + som)
+    // Usa o supabase já importado pela página, mesma sessão authenticated.
+    try {
+      const { supabase } = await import("../../lib/supabase");
+      const { error } = await supabase.from("agendamentos").insert({
+        vendedor: "Teste Teca",
+        cliente_nome: "Cliente Teste",
+        data: new Date().toISOString().slice(0, 10),
+        hora_inicio: "10:00",
+        hora_fim: "11:00",
+        modalidade: "meet",
+        status: "agendado",
+        observacoes: "Teste de notificação · ignorar",
+        created_by: "teca-v2-test",
+      });
+      if (error) {
+        alert("Erro: " + error.message);
+        return;
+      }
+      // Pra garantir som mesmo sem interação prévia, força AudioContext aqui (já temos click do botão)
+      try {
+        const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const ctx = new Ctx();
+        if (ctx.state === "suspended") await ctx.resume();
+        ctx.close().catch(() => {});
+      } catch {}
+    } catch (e) {
+      alert("Falhou: " + (e as Error).message);
+    }
+  }
+
+  return (
+    <div className="p-4 lg:p-6 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <h1 className="text-base font-semibold text-hb-text flex items-center gap-2">
+            <Activity size={16} className="text-hb-accent" /> Teca Monitor
+          </h1>
+          <p className="text-xs text-hb-textDim">Performance e fila da Teca IA · janela: últimas {windowH}h</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={testarSomEPopup}
+            className="px-2 py-1 text-xs rounded border bg-hb-accent/20 border-hb-accent text-hb-accent hover:bg-hb-accent/30"
+            title="Cria um agendamento de teste pra validar som + popup"
+          >
+            🔔 Testar som
+          </button>
+          <select
+            value={windowH}
+            onChange={(e) => setWindowH(Number(e.target.value))}
+            className="bg-hb-panel border border-hb-border rounded text-xs px-2 py-1 text-hb-text"
+          >
+            <option value={1}>1h</option>
+            <option value={6}>6h</option>
+            <option value={24}>24h</option>
+            <option value={72}>3 dias</option>
+            <option value={168}>7 dias</option>
+          </select>
+          <button
+            onClick={() => setAutoRefresh((v) => !v)}
+            className={`px-2 py-1 text-xs rounded border ${autoRefresh ? "bg-emerald-900/30 border-emerald-700 text-emerald-300" : "bg-hb-panel border-hb-border text-hb-textDim"}`}
+            title="Auto-refresh a cada 15s"
+          >
+            {autoRefresh ? "🟢 Auto-refresh" : "⏸ Pausado"}
+          </button>
+          <button
+            onClick={load}
+            className="px-2 py-1 text-xs rounded border bg-hb-panel border-hb-border text-hb-text hover:border-hb-accent"
+            title="Recarregar"
+          >
+            <RefreshCw size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* Métricas resumo */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-4">
+        <MetricCard label="Leads ativos" value={metrics?.total_leads ?? "—"} icon={<Users size={14} />} />
+        <MetricCard label="Pausados" value={metrics?.paused ?? "—"} icon={<Pause size={14} />} tone="amber" />
+        <MetricCard label="Agendados" value={metrics?.agendados ?? "—"} icon={<Calendar size={14} />} tone="emerald" />
+        <MetricCard label="Escalados" value={metrics?.escalados ?? "—"} icon={<AlertTriangle size={14} />} tone="red" />
+        <MetricCard label="Taxa agend." value={`${metrics?.taxa_agendamento_pct ?? 0}%`} tone="emerald" />
+        <MetricCard label="Msgs/lead" value={metrics?.messages_avg_per_lead ?? "—"} icon={<MessageSquare size={14} />} />
+      </div>
+
+      {/* Distribuições (mini gráficos) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+        <DistroCard title="Por etapa" entries={etapaEntries} total={metrics?.total_leads ?? 0} colorFor={etapaColor} />
+        <DistroCard title="Por intent (última resposta)" entries={intentEntries} total={metrics?.total_leads ?? 0} />
+      </div>
+
+      {/* Fila + detalhe */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-3">
+        {/* Fila */}
+        <div className="bg-hb-panel border border-hb-border rounded p-0 overflow-hidden">
+          <div className="px-3 py-2 border-b border-hb-border text-[11px] text-hb-textDim uppercase tracking-wide flex items-center justify-between">
+            <span>Conversas ativas ({queue.length})</span>
+            {loading && <span className="text-amber-400 text-[10px]">carregando…</span>}
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {queue.length === 0 ? (
+              <div className="p-8 text-center text-hb-textDim text-xs">Nenhuma conversa na janela.</div>
+            ) : (
+              queue.map((it) => (
+                <div
+                  key={it.phone}
+                  onClick={() => loadStatus(it.phone)}
+                  className={`px-3 py-2 border-b border-hb-border cursor-pointer hover:bg-white/[0.02] ${selectedPhone === it.phone ? "bg-hb-accent/10 border-l-2 border-l-hb-accent" : ""}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-mono text-xs text-hb-text">+{it.phone}</div>
+                    <div className="flex items-center gap-2">
+                      {it.paused && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-900/30 text-amber-400">⏸ pausada</span>}
+                      {it.etapa && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-300">{it.etapa}</span>}
+                      <span className="text-[10px] text-hb-textDim">{fmtTime(it.last_msg_ts)}</span>
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-hb-textDim mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap">
+                    {it.last_msg_role === "user" ? "👤 " : "🤖 "}{it.last_msg_preview}
+                  </div>
+                  <div className="text-[9px] text-hb-textDim mt-0.5">{it.messages_count} msgs</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Detalhe */}
+        <div className="bg-hb-panel border border-hb-border rounded p-0 overflow-hidden">
+          <div className="px-3 py-2 border-b border-hb-border text-[11px] text-hb-textDim uppercase tracking-wide flex items-center justify-between">
+            <span>{selectedPhone ? `+${selectedPhone}` : "Selecione uma conversa"}</span>
+            {selectedStatus && (
+              <button
+                onClick={() => togglePause(selectedStatus.phone, selectedStatus.paused)}
+                className={`text-[10px] px-2 py-1 rounded font-semibold ${selectedStatus.paused ? "bg-emerald-700 text-white" : "bg-amber-700 text-white"}`}
+              >
+                {selectedStatus.paused ? <><Play size={10} className="inline mr-1" />Reativar</> : <><Pause size={10} className="inline mr-1" />Pausar</>}
+              </button>
+            )}
+          </div>
+          {!selectedStatus ? (
+            <div className="p-6 text-center text-hb-textDim text-xs">Clique numa conversa pra ver o detalhe.</div>
+          ) : (
+            <div className="p-3 max-h-[60vh] overflow-y-auto space-y-2">
+              {selectedStatus.state && Object.keys(selectedStatus.state).length > 0 && (
+                <div className="text-[10px] text-hb-textDim p-2 bg-black/30 rounded border border-hb-border">
+                  <div className="font-semibold mb-1">Estado</div>
+                  {Object.entries(selectedStatus.state).filter(([k]) => !k.startsWith("_")).map(([k, v]) => (
+                    <div key={k}>{k}: <span className="text-hb-text">{String(v)}</span></div>
+                  ))}
+                </div>
+              )}
+              <div>
+                <div className="text-[10px] text-hb-textDim mb-1">Histórico ({selectedStatus.messages_count} msgs)</div>
+                {selectedStatus.history.length === 0 ? (
+                  <div className="text-xs text-hb-textDim">(sem mensagens)</div>
+                ) : (
+                  selectedStatus.history.map((m, i) => (
+                    <div key={i} className={`mb-2 text-xs ${m.role === "user" ? "text-hb-text" : "text-hb-accent"}`}>
+                      <div className="flex items-center gap-1 text-[9px] text-hb-textDim mb-0.5">
+                        <span>{m.role === "user" ? "👤 Lead" : "🤖 Teca"}</span>
+                        <span>·</span>
+                        <span>{new Date(m.ts * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                        {m.meta?.intent && <span className="ml-1 px-1 rounded bg-white/10">{m.meta.intent}</span>}
+                      </div>
+                      <div className="whitespace-pre-wrap leading-snug">{m.content}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, icon, tone }: { label: string; value: any; icon?: React.ReactNode; tone?: "amber" | "emerald" | "red" }) {
+  const toneClass =
+    tone === "amber" ? "text-amber-400" :
+    tone === "emerald" ? "text-emerald-400" :
+    tone === "red" ? "text-red-400" :
+    "text-hb-accent";
+  return (
+    <div className="bg-hb-panel border border-hb-border rounded p-2.5">
+      <div className="text-[9px] text-hb-textDim uppercase tracking-wider flex items-center gap-1">{icon}{label}</div>
+      <div className={`text-lg font-bold mt-1 ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function etapaColor(etapa: string): string {
+  if (etapa === "agendado") return "bg-emerald-500";
+  if (etapa === "escalado_humano") return "bg-red-500";
+  if (etapa.startsWith("oferecendo")) return "bg-amber-500";
+  if (etapa.startsWith("escolhendo")) return "bg-blue-500";
+  return "bg-slate-500";
+}
+
+function DistroCard({ title, entries, total, colorFor }: { title: string; entries: [string, number][]; total: number; colorFor?: (k: string) => string }) {
+  return (
+    <div className="bg-hb-panel border border-hb-border rounded p-3">
+      <div className="text-[11px] text-hb-textDim uppercase tracking-wide mb-2">{title}</div>
+      {entries.length === 0 ? (
+        <div className="text-xs text-hb-textDim">Sem dados</div>
+      ) : (
+        <div className="space-y-1.5">
+          {entries.map(([k, v]) => {
+            const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+            return (
+              <div key={k}>
+                <div className="flex justify-between text-[10px] mb-0.5">
+                  <span className="text-hb-text">{k}</span>
+                  <span className="text-hb-textDim">{v} · {pct}%</span>
+                </div>
+                <div className="h-1.5 bg-black/40 rounded overflow-hidden">
+                  <div className={`h-full ${colorFor ? colorFor(k) : "bg-hb-accent"}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

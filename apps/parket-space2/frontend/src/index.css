@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Sistema Operacional Parket — identidade visual global ──────────
+   Paleta Manual de Marca em RGB triplet pra Tailwind compor alpha. */
+
+:root {
+  /* DARK (default) — Preto Navona como fundo.
+     Painel/borda são MISTURAS pré-calculadas de bege sobre preto
+     (mesma fórmula do SO Parket: rgba(D8D3C7, X) sobre #050505): */
+  --pk-bg:         5 5 5;
+  --pk-panel:      10 10 9;              /* bege 2.5% sobre preto */
+  --pk-panelLight: 15 14 13;             /* bege 4.8% */
+  --pk-border:     22 21 20;             /* bege 8% — quase invisível */
+  --pk-borderHover: 43 41 38;            /* bege 18% */
+  --pk-headerBg:   10 10 9;
+  --pk-text:       216 211 199;          /* Bege Travertino */
+  --pk-textDim:    119 115 106;          /* Cinza Pedra */
+  --pk-accent:     150 132 115;          /* Chai */
+  --pk-cream:      200 189 177;
+  --pk-walnut:     96 84 77;
+  /* Status em paleta SO (monocromático earthy) */
+  --pk-green:      100 93 59;     /* Olive */
+  --pk-red:        134 105 95;    /* Walnut clareado */
+  --pk-amber:      134 131 101;   /* Shadow */
+  --pk-blue:       145 156 157;   /* Morning Blue */
+  /* Acentos brand (absolutos) */
+  --pk-moss:           49 51 31;
+  --pk-oat:            213 205 188;
+  --pk-olive:          100 93 59;
+  --pk-sand:           232 226 218;
+  --pk-wood:           214 201 180;
+  --pk-navy:           69 87 99;
+  --pk-whiteChocolate: 235 229 220;
+  --pk-morningBlue:    145 156 157;
+  --pk-shadow:         134 131 101;
+  --pk-raisinBlack:    36 34 30;
+
+  --pk-scroll-track: #050505;
+  --pk-scroll-thumb: rgba(216,211,199,0.10);
+  --pk-scroll-thumb-hover: rgba(216,211,199,0.22);
+}
+
+:root.light {
+  /* LIGHT — Bege Travertino como fundo, preto sobre bege blended. */
+  --pk-bg:         216 211 199;          /* Bege Travertino */
+  --pk-panel:      211 206 195;          /* preto 2.5% sobre bege */
+  --pk-panelLight: 205 200 189;          /* preto 5% sobre bege */
+  --pk-border:     199 195 184;          /* preto 8% — quase invisível */
+  --pk-borderHover: 178 174 164;         /* preto 18% */
+  --pk-headerBg:   213 208 196;          /* bege ligeiramente mais escuro */
+  --pk-text:       5 5 5;                /* Preto Navona */
+  --pk-textDim:    92 89 80;
+  --pk-accent:     96 84 77;             /* Walnut — mais contraste */
+  --pk-cream:      150 132 115;
+  --pk-walnut:     64 54 47;
+  --pk-green:      100 93 59;
+  --pk-red:        96 84 77;
+  --pk-amber:      134 131 101;
+  --pk-blue:       69 87 99;
+  --pk-moss:           49 51 31;
+  --pk-oat:            213 205 188;
+  --pk-olive:          100 93 59;
+  --pk-sand:           232 226 218;
+  --pk-wood:           214 201 180;
+  --pk-navy:           69 87 99;
+  --pk-whiteChocolate: 235 229 220;
+  --pk-morningBlue:    145 156 157;
+  --pk-shadow:         134 131 101;
+  --pk-raisinBlack:    36 34 30;
+
+  --pk-scroll-track: #D8D3C7;
+  --pk-scroll-thumb: rgba(5,5,5,0.18);
+  --pk-scroll-thumb-hover: rgba(5,5,5,0.36);
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: rgb(var(--pk-bg));
+  color: rgb(var(--pk-text));
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s, color 0.3s;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--pk-scroll-track); }
+::-webkit-scrollbar-thumb { background: var(--pk-scroll-thumb); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--pk-scroll-thumb-hover); }
+
+/* ─── Tipografia SO Parket ──────────────────────────────────────────── */
+h1, h2, h3, h4, .so-title, .font-display, [data-display] {
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+h1 { letter-spacing: 0.18em; }
+
+.uppercase.tracking-wider,
+.uppercase.tracking-widest,
+.uppercase[class*="tracking-["] {
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: 0.20em;
+  font-weight: 500;
+}
+
+button.uppercase {
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: 0.16em;
+}
+
+input, select, textarea, button {
+  border-radius: 0;
+}
+
+/* Números em Cinzel pra KPIs */
+.tabular {
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: 0.04em;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 500;
+}
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  letter-spacing: 0.02em;
+}
+
+::selection { background: rgb(var(--pk-accent) / 0.4); color: rgb(var(--pk-text)); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 1s linear infinite; }

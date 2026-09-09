@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Parket Base">
+<title>Parket Base — Rastreio</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; background:#0a0a0a; color:#fff; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; min-height:100vh; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 16px; }
+  .logo { font-size: 14px; font-weight: 700; color: #D4A853; letter-spacing: 0.1em; text-transform: uppercase; }
+  .sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .card { background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; margin-top:14px; }
+  .label { font-size: 10px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.06em; }
+  .value { font-size: 14px; color:#fff; font-weight:500; margin-top:2px; }
+  .h1 { font-size: 17px; font-weight:700; color:#fff; margin: 6px 0 4px; line-height:1.3; }
+  .pill { display:inline-block; padding: 3px 10px; border-radius:14px; font-size:11px; font-weight:600; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  button, .btn { background:#222; border:1px solid rgba(255,255,255,0.08); color:#fff; border-radius:10px; padding:14px 16px; font-size:14px; font-weight:600; cursor:pointer; width:100%; text-align:center; transition: background 120ms; }
+  button:active { transform: scale(0.98); }
+  button.primary { background: rgba(20,184,166,0.18); border-color:#14B8A6; color:#5EEAD4; }
+  button.danger { background: rgba(239,68,68,0.18); border-color:#EF4444; color:#F87171; }
+  button.ghost { background: transparent; border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
+  input, select, textarea { width:100%; background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); color:#fff; border-radius:8px; padding:11px 12px; font-size:14px; font-family:inherit; }
+  input:focus, select:focus, textarea:focus { outline: 1px solid #14B8A6; }
+  .err { color:#F87171; font-size:12px; margin-top:8px; }
+  .ok  { color:#34D399; font-size:12px; margin-top:8px; }
+  .small { font-size: 11px; color: rgba(255,255,255,0.5); }
+  .timeline { margin-top: 12px; }
+  .tlitem { padding: 8px 10px; background: rgba(255,255,255,0.03); border-left: 3px solid #14B8A6; border-radius: 4px; margin-top: 6px; font-size: 12px; }
+  .tlitem .meta { color: rgba(255,255,255,0.55); font-size: 10px; margin-top: 2px; }
+  .tlitem img { width:48px; height:48px; border-radius:6px; object-fit:cover; margin-top:6px; cursor:pointer; }
+  .center { text-align:center; }
+  .spinner { display:inline-block; width:18px; height:18px; border:2px solid rgba(255,255,255,0.2); border-top-color:#14B8A6; border-radius:50%; animation:spin 700ms linear infinite; }
+  @keyframes spin { to{ transform: rotate(360deg); } }
+  .preview { width:100%; max-height:240px; object-fit:contain; border-radius:8px; margin-top:8px; }
+  hr { border:none; border-top: 1px solid rgba(255,255,255,0.05); margin: 14px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">PARKET • BASE</div>
+  <div class="sub" id="sub">Rastreio ponta-a-ponta</div>
+  <div id="root"></div>
+</div>
+
+<script type="module">
+const SUPABASE_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+const STATUS_LABEL = {
+  "pendente":         { color:"#9CA3AF", bg:"rgba(107,114,128,0.18)", label:"Pendente" },
+  "em-producao":      { color:"#FBBF24", bg:"rgba(245,158,11,0.18)",  label:"Em produção" },
+  "aprovado":         { color:"#34D399", bg:"rgba(16,185,129,0.18)",  label:"Aprovado" },
+  "nao-conforme":     { color:"#F87171", bg:"rgba(239,68,68,0.18)",   label:"Não-conforme" },
+  "enviado":          { color:"#60A5FA", bg:"rgba(59,130,246,0.18)",  label:"Enviado" },
+  "em-transito":      { color:"#5EEAD4", bg:"rgba(20,184,166,0.18)",  label:"Em trânsito" },
+  "recebido-na-obra": { color:"#C084FC", bg:"rgba(168,85,247,0.18)",  label:"Recebido na obra" },
+  "instalado":        { color:"#4ADE80", bg:"rgba(34,197,94,0.20)",   label:"Instalado ✓" },
+};
+
+const SETOR_ACOES = {
+  producao:  [{a:"verificacao",   l:"Verificação", next_ok:"aprovado",         next_nok:"nao-conforme"}],
+  logistica: [{a:"envio",         l:"Envio",       next_ok:"enviado",          next_nok:"nao-conforme"},
+              {a:"recebimento",   l:"Recebimento na obra", next_ok:"recebido-na-obra", next_nok:"nao-conforme"}],
+  obra:      [{a:"recebimento",   l:"Recebimento", next_ok:"recebido-na-obra", next_nok:"nao-conforme"},
+              {a:"instalacao",    l:"Instalação",  next_ok:"instalado",        next_nok:"nao-conforme"}],
+};
+
+const SETOR_LABEL = { producao: "Produção", logistica: "Logística", obra: "Obra" };
+
+async function api(path, opts={}){
+  const res = await fetch(SUPABASE_URL + path, {
+    ...opts,
+    headers: {
+      "apikey": SUPABASE_ANON,
+      "Authorization": "Bearer " + SUPABASE_ANON,
+      "Content-Type": "application/json",
+      ...(opts.headers||{}),
+    }
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (res.status === 204) return null;
+  const txt = await res.text();
+  if (!txt) return null;
+  try { return JSON.parse(txt); } catch { return null; }
+}
+
+// Comprime foto via canvas (lado maior ~1280, JPEG 0.7) e devolve data URL.
+// Salvamos como base64 na coluna foto_url — evita RLS do Storage e não precisa login.
+async function uploadPhoto(itemId, file){
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Falha ao ler arquivo"));
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("Imagem inválida"));
+    im.src = dataUrl;
+  });
+  const MAX = 1280;
+  let w = img.naturalWidth, h = img.naturalHeight;
+  if (w > MAX || h > MAX) {
+    if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+    else        { w = Math.round(w * MAX / h); h = MAX; }
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+  // Tenta qualidades decrescentes até ficar abaixo de ~700KB
+  let q = 0.72;
+  let out = canvas.toDataURL("image/jpeg", q);
+  while (out.length > 700_000 && q > 0.35) {
+    q -= 0.1;
+    out = canvas.toDataURL("image/jpeg", q);
+  }
+  return out;
+}
+
+const root = document.getElementById("root");
+
+function el(html){ const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstElementChild; }
+function esc(s){ return String(s||"").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c])); }
+function fmtDate(iso){ if (!iso) return ""; return new Date(iso).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}); }
+
+function getNome(){
+  let n = localStorage.getItem("base_verificador_nome");
+  return n;
+}
+function setNome(n){ localStorage.setItem("base_verificador_nome", n); }
+
+function renderNomePrompt(after){
+  root.innerHTML = "";
+  const card = el(`<div class="card">
+    <div class="label">Quem é você?</div>
+    <div class="small" style="margin:6px 0 10px">Identifique-se pra registrarmos seus checkpoints. Esse nome fica salvo neste celular.</div>
+    <input id="_nm" placeholder="Ex: Germano" />
+    <div style="height:10px"></div>
+    <button class="primary" id="_ok">Continuar</button>
+  </div>`);
+  root.appendChild(card);
+  document.getElementById("_ok").onclick = () => {
+    const v = document.getElementById("_nm").value.trim();
+    if (!v) return;
+    setNome(v);
+    after();
+  };
+}
+
+function renderNoItem(reason){
+  root.innerHTML = "";
+  root.appendChild(el(`<div class="card">
+    <div class="h1">Item não encontrado</div>
+    <div class="small">${esc(reason||"O ID do QR Code é inválido ou o item foi removido.")}</div>
+    <div style="height:10px"></div>
+    <button class="ghost" onclick="location.reload()">↻ Tentar de novo</button>
+  </div>`));
+}
+
+let _scanner = null;
+function _stopScanner(){
+  if (_scanner) {
+    try { _scanner.stop().then(()=>_scanner.clear()).catch(()=>{}); } catch{}
+    _scanner = null;
+  }
+}
+
+function _extractIdFromQR(text){
+  // Aceita formatos: UUID direto, ou URL contendo ?id=<uuid>, ou path /base/?id=
+  const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  try {
+    const u = new URL(text);
+    const q = u.searchParams.get("id");
+    if (q && uuidRe.test(q)) return q.match(uuidRe)[0];
+  } catch {}
+  const m = text.match(uuidRe);
+  return m ? m[0] : null;
+}
+
+async function _startScanner(targetDivId, statusEl){
+  if (!window.Html5Qrcode){
+    statusEl.innerHTML = `<div class="err">Biblioteca de scanner não carregou. Verifique sua conexão.</div>`;
+    return;
+  }
+  _stopScanner();
+  _scanner = new Html5Qrcode(targetDivId);
+  try {
+    await _scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      (decodedText) => {
+        const id = _extractIdFromQR(decodedText);
+        if (id) {
+          _stopScanner();
+          location.search = "?id=" + encodeURIComponent(id);
+        }
+      },
+      () => {} // ignora não-encontrado
+    );
+    statusEl.innerHTML = `<div class="small">Aponte pra etiqueta · A leitura é automática</div>`;
+  } catch(err){
+    statusEl.innerHTML = `<div class="err">Não foi possível abrir a câmera: ${esc(err.message||err)}</div>`;
+  }
+}
+
+async function renderProjetos(){
+  _stopScanner();
+  root.innerHTML = `<div class="card center"><span class="spinner"></span><div class="small" style="margin-top:8px">Carregando projetos…</div></div>`;
+  const nome = getNome() || "—";
+
+  let cards = [];
+  try {
+    cards = await api(`/rest/v1/kanban_cards?dept_id=eq.producao&column_id=eq.liberacao&select=id,title,obra,updated_at&order=updated_at.desc`);
+  } catch(err){
+    root.innerHTML = `<div class="card"><div class="err">Erro ao carregar projetos: ${esc(err.message)}</div></div>`;
+    return;
+  }
+
+  // Conta itens por card
+  const counts = {};
+  if (cards && cards.length) {
+    const ids = cards.map(c=>c.id);
+    const filter = ids.map(i=>`"${i}"`).join(",");
+    const items = await api(`/rest/v1/itens_rastreio?card_id=in.(${filter})&select=card_id,status_atual`);
+    for (const it of items||[]) {
+      if (!counts[it.card_id]) counts[it.card_id] = { total:0, ok:0, nok:0, pend:0 };
+      counts[it.card_id].total++;
+      if (it.status_atual === "aprovado" || it.status_atual === "instalado" || it.status_atual === "recebido-na-obra" || it.status_atual === "enviado") counts[it.card_id].ok++;
+      else if (it.status_atual === "nao-conforme") counts[it.card_id].nok++;
+      else counts[it.card_id].pend++;
+    }
+  }
+
+  root.innerHTML = "";
+  root.appendChild(el(`<div class="card">
+    <div class="label">Verificador</div>
+    <div class="value">${esc(nome)} <button class="ghost" style="display:inline;width:auto;padding:4px 10px;font-size:11px;margin-left:8px" onclick="localStorage.removeItem('base_verificador_nome');location.reload()">Trocar</button></div>
+    <button id="_install_btn" onclick="_tryInstall()" style="display:none;margin-top:10px;background:rgba(212,168,83,0.15);border:1px solid rgba(212,168,83,0.4);color:#D4A853;border-radius:8px;padding:10px;font-size:12px;font-weight:600;cursor:pointer;width:100%">📲 Instalar app no celular</button>
+    <a href="parket-base.apk" download="parket-base.apk" style="display:block;margin-top:8px;text-align:center;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:#4ADE80;border-radius:8px;padding:10px;font-size:12px;font-weight:600;text-decoration:none">📥 Baixar APK Android</a>
+  </div>`));
+
+  // Mostra o botão se a oportunidade já passou
+  if (window.matchMedia && window.matchMedia("(display-mode: browser)").matches) {
+    const ib = document.getElementById("_install_btn");
+    if (ib) ib.style.display = "block";
+  }
+
+  root.appendChild(el(`<div class="card">
+    <div class="h1">📋 Projetos em Liberação</div>
+    <div class="small">${cards.length} ${cards.length===1?"projeto":"projetos"} prontos pra verificação</div>
+  </div>`));
+
+  if (!cards.length){
+    root.appendChild(el(`<div class="card center">
+      <div style="font-size:32px;margin:8px 0">📦</div>
+      <div class="small">Nenhum projeto na coluna "Liberação" ainda.</div>
+      <div class="small" style="margin-top:6px;color:rgba(255,255,255,0.4)">Move o card pra coluna "Liberação" no kanban de Produção pra ele aparecer aqui.</div>
+    </div>`));
+    return;
+  }
+
+  for (const c of cards){
+    const ct = counts[c.id] || {total:0, ok:0, nok:0, pend:0};
+    const card = el(`<div class="card" style="cursor:pointer" data-id="${c.id}">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div class="label">${esc(c.obra||"—")}</div>
+          <div class="h1" style="font-size:15px;margin:2px 0 4px">${esc(c.title||"—")}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="background:rgba(107,114,128,0.18);color:#9CA3AF;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">${ct.pend} pendente${ct.pend===1?"":"s"}</span>
+            ${ct.ok>0 ? `<span style="background:rgba(16,185,129,0.18);color:#34D399;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">${ct.ok} ok</span>` : ""}
+            ${ct.nok>0 ? `<span style="background:rgba(239,68,68,0.18);color:#F87171;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">${ct.nok} nok</span>` : ""}
+          </div>
+        </div>
+        <div style="color:rgba(255,255,255,0.3);font-size:20px">›</div>
+      </div>
+    </div>`);
+    card.onclick = () => { location.search = "?p=" + encodeURIComponent(c.id); };
+    root.appendChild(card);
+  }
+}
+
+async function renderProjeto(cardId){
+  _stopScanner();
+  root.innerHTML = `<div class="card center"><span class="spinner"></span><div class="small" style="margin-top:8px">Carregando…</div></div>`;
+  let card = null, itens = [];
+  try {
+    const cc = await api(`/rest/v1/kanban_cards?id=eq.${cardId}&select=id,title,obra,column_id,dept_id`);
+    card = cc && cc[0];
+    if (!card) { renderNoItem("Projeto não encontrado."); return; }
+    itens = await api(`/rest/v1/itens_rastreio?card_id=eq.${cardId}&select=*&order=servico,ambiente`) || [];
+  } catch(err){
+    root.innerHTML = `<div class="card"><div class="err">Erro: ${esc(err.message)}</div></div>`;
+    return;
+  }
+
+  // Agrupa por status
+  const pend = itens.filter(i => i.status_atual === "pendente" || i.status_atual === "em-producao");
+  const ok = itens.filter(i => !pend.includes(i) && i.status_atual !== "nao-conforme");
+  const nok = itens.filter(i => i.status_atual === "nao-conforme");
+
+  root.innerHTML = "";
+
+  // Botão voltar
+  root.appendChild(el(`<div style="margin-bottom:10px">
+    <button class="ghost" id="_back" style="width:auto;padding:6px 12px;font-size:12px">← Projetos</button>
+  </div>`));
+  document.getElementById("_back").onclick = () => { location.search = ""; };
+
+  // Header projeto
+  root.appendChild(el(`<div class="card" style="background:linear-gradient(135deg,rgba(212,168,83,0.12),rgba(212,168,83,0.04));border-color:rgba(212,168,83,0.3)">
+    <div class="label" style="color:#D4A853">Projeto · Cliente</div>
+    <div style="font-size:17px;font-weight:700;color:#fff;margin:4px 0 2px;line-height:1.2">${esc(card.title||"—")}</div>
+    ${card.obra ? `<div style="font-size:12px;color:rgba(255,255,255,0.65);font-family:ui-monospace,monospace">OBRA: ${esc(card.obra)}</div>` : ""}
+    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+      <span style="background:rgba(107,114,128,0.18);color:#9CA3AF;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">${pend.length} pendente${pend.length===1?"":"s"}</span>
+      <span style="background:rgba(16,185,129,0.18);color:#34D399;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">${ok.length} aprovado${ok.length===1?"":"s"}</span>
+      ${nok.length>0 ? `<span style="background:rgba(239,68,68,0.18);color:#F87171;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">${nok.length} nok</span>` : ""}
+    </div>
+  </div>`));
+
+  // Scanner
+  root.appendChild(el(`<div class="card">
+    <div class="h1">📷 Escanear próximo item</div>
+    <div class="small" id="_scan_status">Toque em "Abrir câmera" pra começar.</div>
+    <div id="_reader" style="margin-top:10px;border-radius:10px;overflow:hidden;background:#000;min-height:0"></div>
+    <div style="height:8px"></div>
+    <div class="grid2">
+      <button class="primary" id="_scan_btn">📷 Abrir câmera</button>
+      <button class="ghost" id="_stop_btn" style="display:none">⏹ Parar</button>
+    </div>
+  </div>`));
+  const statusEl = document.getElementById("_scan_status");
+  const startBtn = document.getElementById("_scan_btn");
+  const stopBtn = document.getElementById("_stop_btn");
+  startBtn.onclick = async () => {
+    startBtn.style.display = "none";
+    stopBtn.style.display = "block";
+    statusEl.innerHTML = `<div class="small"><span class="spinner"></span> Abrindo câmera…</div>`;
+    await _startScanner("_reader", statusEl);
+  };
+  stopBtn.onclick = () => {
+    _stopScanner();
+    startBtn.style.display = "block";
+    stopBtn.style.display = "none";
+    statusEl.innerHTML = `<div class="small">Câmera parada.</div>`;
+    document.getElementById("_reader").innerHTML = "";
+  };
+
+  // Lista de itens pra acesso direto
+  function listSection(title, arr, color){
+    if (!arr.length) return;
+    const sec = el(`<div class="card">
+      <div class="label" style="color:${color}">${title} (${arr.length})</div>
+    </div>`);
+    for (const it of arr){
+      const st = STATUS_LABEL[it.status_atual] || STATUS_LABEL["pendente"];
+      const row = el(`<div style="padding:8px 0;border-top:1px solid rgba(255,255,255,0.05);cursor:pointer" data-id="${it.id}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;color:#fff;font-weight:600">${esc(it.servico)} · ${esc(it.ambiente||"—")}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.55)">${esc(it.descricao||"—")}${it.qtd?` · ${esc(it.qtd+(it.unidade||""))}`:""}</div>
+          </div>
+          <span class="pill" style="background:${st.bg};color:${st.color};flex-shrink:0;font-size:10px">${st.label}</span>
+        </div>
+      </div>`);
+      row.onclick = () => { location.search = "?id=" + encodeURIComponent(it.id) + "&p=" + encodeURIComponent(cardId); };
+      sec.appendChild(row);
+    }
+    root.appendChild(sec);
+  }
+  listSection("⏳ Pendentes", pend, "#9CA3AF");
+  listSection("✅ Aprovados", ok, "#34D399");
+  listSection("❌ Não-conforme", nok, "#F87171");
+
+  // Histórico de leituras de QR (checkpoints) desse projeto
+  let chks = [];
+  if (itens.length) {
+    const ids = itens.map(i=>i.id);
+    const filter = ids.map(i=>`"${i}"`).join(",");
+    chks = await api(`/rest/v1/itens_checkpoints?item_id=in.(${filter})&select=*&order=created_at.desc&limit=80`) || [];
+  }
+  if (chks.length) {
+    const itemMap = {};
+    for (const it of itens) itemMap[it.id] = it;
+    const SETOR_LABEL = { producao: "Produção", logistica: "Logística", obra: "Obra" };
+    const SETOR_COLOR = { producao: "#FBBF24", logistica: "#60A5FA", obra: "#C084FC" };
+    const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+
+    const sec = el(`<div class="card">
+      <div class="label" style="color:#D4A853">📜 Histórico de leituras (${chks.length})</div>
+      <div class="small" style="margin:4px 0 10px">QRs já escaneados neste projeto</div>
+    </div>`);
+    for (const c of chks) {
+      const it = itemMap[c.item_id];
+      const stColor = c.status === "aprovado" ? "#34D399" : c.status === "nao-conforme" ? "#F87171" : "#9CA3AF";
+      const setorCor = SETOR_COLOR[c.setor] || "#888";
+      const row = el(`<div class="tlitem" style="border-left-color:${setorCor};cursor:pointer">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;color:#fff;font-weight:600">${esc(it ? (it.servico + " · " + (it.ambiente||"—")) : c.item_id.slice(0,8))}</div>
+            <div class="meta">
+              <b style="color:${setorCor}">${esc(SETOR_LABEL[c.setor]||c.setor)}</b> · ${esc(c.acao)} ·
+              <span style="color:${stColor}">${esc(c.status)}</span> · ${esc(c.verificado_por||"—")} · ${fmtDate(c.created_at)}
+              ${c.obs ? ` · <i style="color:rgba(255,255,255,0.5)">${esc(c.obs)}</i>` : ""}
+            </div>
+          </div>
+          ${c.foto_url ? `<img class="_chk_foto" data-src="${esc(c.foto_url)}" src="${esc(c.foto_url)}" style="width:36px;height:36px;border-radius:4px;object-fit:cover;flex-shrink:0"/>` : ""}
+        </div>
+      </div>`);
+      if (it) {
+        row.onclick = (ev) => {
+          if (ev.target.classList && ev.target.classList.contains("_chk_foto")) return;
+          location.search = "?id=" + encodeURIComponent(it.id) + "&p=" + encodeURIComponent(cardId);
+        };
+      }
+      const img = row.querySelector("._chk_foto");
+      if (img) {
+        img.onclick = (ev) => {
+          ev.stopPropagation();
+          const lb = document.createElement("div");
+          lb.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px";
+          lb.onclick = () => lb.remove();
+          const im = document.createElement("img");
+          im.src = img.dataset.src;
+          im.style.cssText = "max-width:92vw;max-height:88vh;border-radius:8px;object-fit:contain";
+          lb.appendChild(im);
+          document.body.appendChild(lb);
+        };
+      }
+      sec.appendChild(row);
+    }
+    root.appendChild(sec);
+  }
+}
+
+async function renderItem(id){
+  _stopScanner();
+  root.innerHTML = `<div class="card center"><span class="spinner"></span><div class="small" style="margin-top:8px">Carregando…</div></div>`;
+  let item;
+  try {
+    const arr = await api(`/rest/v1/itens_rastreio?id=eq.${id}&select=*`);
+    if (!arr || arr.length === 0) { renderNoItem("Item não existe."); return; }
+    item = arr[0];
+  } catch(err){ renderNoItem("Erro ao carregar: "+err.message); return; }
+
+  // Botão voltar pro projeto (ou pra home se não houver projeto na URL)
+  const projetoIdParam = new URLSearchParams(location.search).get("p") || item.card_id;
+  const backHtml = `<div style="margin-bottom:10px"><button class="ghost" id="_back_top" style="width:auto;padding:6px 12px;font-size:12px">← Projeto</button></div>`;
+
+  const chks = await api(`/rest/v1/itens_checkpoints?item_id=eq.${id}&select=*&order=created_at.desc`);
+
+  // Card cliente/obra
+  let card = null;
+  try {
+    const c = await api(`/rest/v1/kanban_cards?id=eq.${item.card_id}&select=id,title,obra`);
+    if (c && c[0]) card = c[0];
+  } catch{}
+
+  const st = STATUS_LABEL[item.status_atual] || STATUS_LABEL["pendente"];
+
+  root.innerHTML = "";
+  const verif = getNome() || "—";
+  root.insertAdjacentHTML("afterbegin", backHtml);
+  document.getElementById("_back_top").onclick = () => { location.search = "?p=" + encodeURIComponent(projetoIdParam); };
+
+  // Header com PROJETO/CLIENTE em destaque (o que o verificador precisa identificar primeiro)
+  root.appendChild(el(`<div class="card" style="background:linear-gradient(135deg,rgba(212,168,83,0.12),rgba(212,168,83,0.04));border-color:rgba(212,168,83,0.3)">
+    <div class="label" style="color:#D4A853">Projeto · Cliente</div>
+    <div style="font-size:18px;font-weight:700;color:#fff;margin:4px 0 2px;line-height:1.2">${esc((card&&card.title)||"—")}</div>
+    ${card&&card.obra ? `<div style="font-size:12px;color:rgba(255,255,255,0.65);font-family:ui-monospace,monospace">OBRA: ${esc(card.obra)}</div>` : ""}
+  </div>`));
+
+  // Card do ITEM
+  root.appendChild(el(`<div class="card">
+    <div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div class="label">Item · <span style="font-family:ui-monospace,monospace">${esc(item.id.slice(0,8))}</span></div>
+        <div class="h1" style="margin-top:4px">${esc(item.descricao || "—")}</div>
+      </div>
+      <span class="pill" style="background:${st.bg};color:${st.color};flex-shrink:0">${st.label}</span>
+    </div>
+    <div class="grid2" style="margin-top:12px">
+      <div><div class="label">Serviço</div><div class="value">${esc(item.servico||"—")}</div></div>
+      <div><div class="label">Ambiente</div><div class="value">${esc(item.ambiente||"—")}</div></div>
+      <div><div class="label">Quantidade</div><div class="value">${esc(item.qtd ? item.qtd + (item.unidade||"") : "—")}</div></div>
+      <div><div class="label">Unidade</div><div class="value">${esc(item.unidade||"—")}</div></div>
+    </div>
+  </div>`));
+
+  // Form de registro
+  const form = el(`<div class="card">
+    <div class="label">Registrar checkpoint</div>
+    <div style="height:8px"></div>
+    <div class="grid2">
+      <select id="_setor">
+        <option value="producao">Produção</option>
+        <option value="logistica">Logística</option>
+        <option value="obra">Obra</option>
+      </select>
+      <select id="_acao"></select>
+    </div>
+    <div style="height:8px"></div>
+    <div class="grid2">
+      <button class="primary" id="_ok">✅ Aprovado</button>
+      <button class="danger"  id="_nok">❌ Não-conforme</button>
+    </div>
+    <div style="height:10px"></div>
+    <div class="label">Foto (opcional, recomendado)</div>
+    <input type="file" id="_foto" accept="image/*" capture="environment" />
+    <img id="_preview" class="preview" style="display:none"/>
+    <div style="height:10px"></div>
+    <div class="label">Observação</div>
+    <textarea id="_obs" rows="2" placeholder="Ex: ok com manchas leves no acabamento"></textarea>
+    <div id="_msg"></div>
+  </div>`);
+  root.appendChild(form);
+
+  function refreshAcoes(){
+    const setor = document.getElementById("_setor").value;
+    const ac = document.getElementById("_acao");
+    ac.innerHTML = "";
+    for (const a of SETOR_ACOES[setor]){
+      const op = document.createElement("option");
+      op.value = a.a; op.textContent = a.l;
+      ac.appendChild(op);
+    }
+  }
+  refreshAcoes();
+  document.getElementById("_setor").onchange = refreshAcoes;
+
+  let fotoFile = null;
+  document.getElementById("_foto").onchange = (ev) => {
+    fotoFile = ev.target.files[0];
+    const img = document.getElementById("_preview");
+    if (fotoFile){ img.src = URL.createObjectURL(fotoFile); img.style.display = "block"; }
+    else img.style.display = "none";
+  };
+
+  async function submit(ok){
+    const setor = document.getElementById("_setor").value;
+    const acao  = document.getElementById("_acao").value;
+    const obs   = document.getElementById("_obs").value.trim();
+    const msg   = document.getElementById("_msg");
+    msg.innerHTML = "";
+
+    if (!getNome()){ msg.innerHTML = `<div class="err">Identifique-se primeiro.</div>`; return; }
+
+    const acaoDef = SETOR_ACOES[setor].find(x => x.a === acao);
+    const nextStatus = ok ? acaoDef.next_ok : acaoDef.next_nok;
+    const status = ok ? "aprovado" : "nao-conforme";
+
+    msg.innerHTML = `<div class="small"><span class="spinner"></span> Salvando…</div>`;
+
+    let foto_url = null;
+    if (fotoFile){
+      try { foto_url = await uploadPhoto(id, fotoFile); }
+      catch(err){ msg.innerHTML = `<div class="err">Falha no upload: ${esc(err.message)}</div>`; return; }
+    }
+
+    try {
+      await api(`/rest/v1/itens_checkpoints`, {
+        method:"POST",
+        headers:{ "Prefer":"return=minimal" },
+        body: JSON.stringify({
+          item_id: id, setor, acao, status, foto_url,
+          verificado_por: getNome(), obs: obs || null,
+        }),
+      });
+      await api(`/rest/v1/itens_rastreio?id=eq.${id}`, {
+        method:"PATCH",
+        headers:{ "Prefer":"return=minimal" },
+        body: JSON.stringify({ status_atual: nextStatus, updated_at: new Date().toISOString() }),
+      });
+      msg.innerHTML = `<div class="ok">✅ Checkpoint salvo. Voltando ao projeto…</div>`;
+      setTimeout(() => { location.search = "?p=" + encodeURIComponent(projetoIdParam); }, 800);
+    } catch(err){
+      msg.innerHTML = `<div class="err">Erro: ${esc(err.message)}</div>`;
+    }
+  }
+  document.getElementById("_ok").onclick = () => submit(true);
+  document.getElementById("_nok").onclick = () => submit(false);
+
+  // Timeline
+  const tl = el(`<div class="card"><div class="label">Histórico (${(chks||[]).length})</div><div class="timeline" id="_tl"></div></div>`);
+  root.appendChild(tl);
+  const tlBox = document.getElementById("_tl");
+  if (!chks || chks.length === 0){
+    tlBox.appendChild(el(`<div class="small" style="padding:8px 0">Nenhum checkpoint ainda. Você pode ser o primeiro.</div>`));
+  } else {
+    for (const c of chks){
+      const stColor = c.status === "aprovado" ? "#34D399" : c.status === "nao-conforme" ? "#F87171" : "#9CA3AF";
+      const setorCor = c.setor === "producao" ? "#FBBF24" : c.setor === "logistica" ? "#60A5FA" : "#C084FC";
+      const item = el(`<div class="tlitem" style="border-left-color:${setorCor}">
+        <div><b>${esc(SETOR_LABEL[c.setor]||c.setor)}</b> · ${esc(c.acao)} · <span style="color:${stColor}">${esc(c.status)}</span></div>
+        <div class="meta">${esc(c.verificado_por||"—")} · ${fmtDate(c.created_at)}${c.obs?` · ${esc(c.obs)}`:""}</div>
+        ${c.foto_url?`<img src="${esc(c.foto_url)}" onclick="window.open('${esc(c.foto_url)}','_blank')"/>`:""}
+      </div>`);
+      tlBox.appendChild(item);
+    }
+  }
+
+  document.getElementById("sub").textContent = `${SETOR_LABEL[Object.keys(SETOR_LABEL)[0]]} · Verificador: ${verif}`;
+}
+
+// PWA: registra service worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/base/sw.js").catch(err => console.warn("[SW] falhou:", err));
+  });
+}
+
+// PWA: captura evento de install e expõe botão
+let _pwaInstallEvent = null;
+window.addEventListener("beforeinstallprompt", (ev) => {
+  ev.preventDefault();
+  _pwaInstallEvent = ev;
+  const btn = document.getElementById("_install_btn");
+  if (btn) btn.style.display = "block";
+});
+window.addEventListener("appinstalled", () => {
+  _pwaInstallEvent = null;
+  const btn = document.getElementById("_install_btn");
+  if (btn) btn.style.display = "none";
+});
+async function _tryInstall(){
+  if (!_pwaInstallEvent) {
+    alert("No Android Chrome: toque no menu (⋮) → 'Instalar app' ou 'Adicionar à tela inicial'.\nNo iPhone Safari: botão compartilhar → 'Adicionar à Tela de Início'.");
+    return;
+  }
+  _pwaInstallEvent.prompt();
+  const { outcome } = await _pwaInstallEvent.userChoice;
+  if (outcome === "accepted") _pwaInstallEvent = null;
+}
+window._tryInstall = _tryInstall;
+
+// Boot
+function boot(){
+  const params = new URLSearchParams(location.search);
+  const id = params.get("id");
+  const projetoId = params.get("p");
+  if (!getNome()){
+    renderNomePrompt(boot);
+    return;
+  }
+  if (id) renderItem(id);
+  else if (projetoId) renderProjeto(projetoId);
+  else renderProjetos();
+}
+boot();
+</script>
+</body>
+</html>

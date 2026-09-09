@@ -1,0 +1,7 @@
+FROM parket-dashboard:golden-squashed-1514
+COPY orcamento-simulador-tab-MARCFIX54.js /usr/share/nginx/html/assets/orcamento-simulador-tab-MARCFIX54.js
+COPY orcamento-simulador-tab-MARCFIX40.js /usr/share/nginx/html/assets/orcamento-simulador-tab-MARCFIX40.js
+COPY propostaGenerator-PGSTRUCT30.js /usr/share/nginx/html/assets/propostaGenerator-PGSTRUCT30.js
+COPY propostaGenerator-PGSTRUCT35.js /usr/share/nginx/html/assets/propostaGenerator-PGSTRUCT35.js
+COPY orcamento-recalc-aux-pkt2.js /usr/share/nginx/html/assets/orcamento-recalc-aux-pkt2.js
+CMD ["nginx","-g","daemon off;"]

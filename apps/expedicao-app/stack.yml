@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  web:
+    image: parket-expedicao:latest
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy: { condition: any }
+      update_config: { parallelism: 1, delay: 5s, order: start-first }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        - "traefik.constraint-label=network_public"
+
+        - "traefik.http.routers.expedicao.rule=Host(`expedicao.parket.works`)"
+        - "traefik.http.routers.expedicao.entrypoints=websecure"
+        - "traefik.http.routers.expedicao.tls=true"
+        - "traefik.http.routers.expedicao.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.expedicao.service=expedicao"
+
+        - "traefik.http.routers.expedicao-http.rule=Host(`expedicao.parket.works`)"
+        - "traefik.http.routers.expedicao-http.entrypoints=web"
+        - "traefik.http.routers.expedicao-http.middlewares=expedicao-https-redirect"
+        - "traefik.http.routers.expedicao-http.service=expedicao"
+
+        - "traefik.http.services.expedicao.loadbalancer.server.port=80"
+
+        - "traefik.http.middlewares.expedicao-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.expedicao-https-redirect.redirectscheme.permanent=true"
+
+networks:
+  network_public:
+    external: true

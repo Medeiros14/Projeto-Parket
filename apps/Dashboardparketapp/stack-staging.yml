@@ -1,0 +1,57 @@
+version: "3.9"
+
+networks:
+  network_public:
+    external: true
+
+services:
+  portal:
+    image: parket-devportal:latest
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # Portal principal
+        - "traefik.http.routers.dev-portal.rule=Host(`dev.parket.works`) && !PathPrefix(`/preview`)"
+        - "traefik.http.routers.dev-portal.entrypoints=websecure"
+        - "traefik.http.routers.dev-portal.tls=true"
+        - "traefik.http.routers.dev-portal.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.dev-portal.priority=50"
+        - "traefik.http.services.dev-portal.loadbalancer.server.port=8080"
+        # HTTP redirect
+        - "traefik.http.routers.dev-portal-http.rule=Host(`dev.parket.works`)"
+        - "traefik.http.routers.dev-portal-http.entrypoints=web"
+        - "traefik.http.routers.dev-portal-http.middlewares=https-redirect"
+
+  preview:
+    image: parket-dashboard:staging
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # Preview em /preview/*
+        - "traefik.http.routers.dev-preview.rule=Host(`dev.parket.works`) && PathPrefix(`/preview`)"
+        - "traefik.http.routers.dev-preview.entrypoints=websecure"
+        - "traefik.http.routers.dev-preview.tls=true"
+        - "traefik.http.routers.dev-preview.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.dev-preview.priority=100"
+        - "traefik.http.routers.dev-preview.middlewares=dev-strip-preview"
+        - "traefik.http.middlewares.dev-strip-preview.stripprefix.prefixes=/preview"
+        - "traefik.http.middlewares.dev-strip-preview.stripprefix.forceSlash=false"
+        - "traefik.http.services.dev-preview.loadbalancer.server.port=80"

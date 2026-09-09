@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Central do Cliente · Parket</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html, body, #root { margin: 0; padding: 0; min-height: 100vh; background: #050505; }
+      * { box-sizing: border-box; }
+      button { font-family: 'Inter', sans-serif; }
+      /* padding lateral padrão das páginas — encolhe no celular */
+      :root { --pkt-pad-x: 48px; }
+      .pkt-scroll-x { min-width: 0; }
+      @media (max-width: 768px) {
+        :root { --pkt-pad-x: 16px; }
+        /* grids de células com borda: colapsam pra 1 coluna, borda vira horizontal */
+        .pkt-grid3, .pkt-grid4 { grid-template-columns: 1fr !important; }
+        .pkt-grid3 > div, .pkt-grid4 > div { border-right: none !important; border-bottom: 1px solid var(--pkt-border, #DDD7CC); }
+        .pkt-grid3 > div:last-child, .pkt-grid4 > div:last-child { border-bottom: none; }
+        .pkt-cards3 { grid-template-columns: 1fr !important; }
+        .pkt-cards3 > div { border-right: none !important; border-bottom: 1px solid var(--pkt-border, #DDD7CC) !important; }
+        .pkt-cards3 > div:last-child { border-bottom: none !important; }
+        /* jornada: vira trilho horizontal rolável */
+        .pkt-journey-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .pkt-journey-wrap::-webkit-scrollbar { display: none; }
+        .pkt-journey { display: inline-flex !important; min-width: 100%; }
+        .pkt-journey > div { min-width: 92px; }
+        .pkt-ass-grid { grid-template-columns: 1fr !important; }
+        /* blocos largos (calendário, tabela de itens): rolam na horizontal */
+        .pkt-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .pkt-scroll-x > * { min-width: 640px; }
+      }
+      .stage-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+      @media (max-width: 768px) {
+        .stage-tabs {
+          flex-wrap: nowrap; overflow-x: auto;
+          -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .stage-tabs::-webkit-scrollbar { display: none; }
+      }
+      .pkt-evo-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+      @media (max-width: 960px) { .pkt-evo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 600px) { .pkt-evo-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

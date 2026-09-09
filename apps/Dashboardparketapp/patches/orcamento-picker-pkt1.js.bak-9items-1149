@@ -1,0 +1,495 @@
+/**
+ * Orçamentista Picker — patch chunk Parket
+ *
+ * 1. moveToCriacao(card): abre modal quando user move pra "criacao-orcamento"
+ * 2. OrcamentistaSelectInline({card}): select dropdown pra usar inline no
+ *    "Funil de Vendas" do card comercial (junto com Etapa/Vendedor).
+ *
+ * Em ambos os casos:
+ *  - PATCH no card: details.orcamentista_id + details.orcamentista_nome
+ *  - Quando muda + card está em "criacao-orcamento", INSERT em orcamento_demandas
+ */
+import { R as h } from "./index-DZtetJYP.js";
+const SB_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+const AI_API = "https://agente.parket.works";
+
+// Lê access_token do usuário logado (Supabase JS salva no localStorage).
+// Procura em QUALQUER chave (sem assumir formato exato), pra cobrir variantes.
+let _cachedToken = null;
+let _cachedTokenAt = 0;
+function _userToken() {
+  // Cache 30s pra não varrer localStorage toda call
+  const now = Date.now();
+  if (_cachedToken && now - _cachedTokenAt < 30000) return _cachedToken;
+  try {
+    // 1. Tenta janela do supabase JS exposto (alguns apps fazem)
+    if (window.supabase && window.supabase.auth) {
+      const s = (typeof window.supabase.auth.session === "function") ? window.supabase.auth.session() : null;
+      if (s && s.access_token) { _cachedToken = s.access_token; _cachedTokenAt = now; return s.access_token; }
+    }
+    // 2. Varre TODAS as keys do localStorage e tenta achar access_token
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const raw = k && localStorage.getItem(k);
+      if (!raw || raw[0] !== "{" && raw[0] !== "[") continue;
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch { continue; }
+      // Variantes:
+      //   { access_token: "..." }
+      //   { currentSession: { access_token: "..." } }
+      //   { session: { access_token: "..." } }
+      //   [{ access_token: "..." }]
+      const tok = (parsed && parsed.access_token)
+        || (parsed && parsed.currentSession && parsed.currentSession.access_token)
+        || (parsed && parsed.session && parsed.session.access_token)
+        || (Array.isArray(parsed) && parsed[0] && parsed[0].access_token)
+        || null;
+      if (tok && typeof tok === "string" && tok.length > 40) {
+        console.log("[orc-sync] _userToken achado em localStorage:", k, "(len=" + tok.length + ")");
+        _cachedToken = tok; _cachedTokenAt = now;
+        return tok;
+      }
+    }
+    console.warn("[orc-sync] _userToken NÃO achado — usando anon (RLS pode bloquear)");
+  } catch (e) {
+    console.warn("[orc-sync] _userToken erro:", e);
+  }
+  return SB_KEY;
+}
+
+function _authHeaders(extra) {
+  return Object.assign({
+    apikey: SB_KEY,
+    Authorization: `Bearer ${_userToken()}`,
+    "Content-Type": "application/json",
+  }, extra || {});
+}
+
+const COLOR_OK = "#10B981", COLOR_NEUTRAL = "#3B82F6", COLOR_RED = "#EF4444", COLOR_TEXT = "#fafafa", COLOR_DIM = "rgba(255,255,255,0.55)";
+
+async function _fetchEquipe() {
+  const r = await fetch(`${SB_URL}/rest/v1/orcamento_equipe?select=id,nome,email,especialidade,is_gestor,avatar_color&ativo=eq.true&order=ordem.asc`, {
+    headers: _authHeaders(),
+  });
+  if (!r.ok) throw new Error(`fetch equipe: ${r.status}`);
+  return r.json();
+}
+
+// Distribuição vendedor → orçamentistas permitidos.
+//   - chaves: primeiro nome do vendedor em lowercase (extraído do email do JWT)
+//   - valor "*": pode escolher TODOS (sem filtro)
+//   - valor array: só pode escolher orçamentistas cujo primeiro nome bate
+const VENDOR_TO_ORC = {
+  fabio: ["joyce"],
+  guilherme: ["joyce"],
+  felipe: ["thayna"],
+  murilo: ["thayna"],
+  suely: ["bruno"],
+  sueli: ["bruno"],   // email real é sueli@ (sem y)
+  gustavo: ["bruno"],
+  douglas: "*",
+  mary: "*",
+  marina: "*",        // "Mary" é a Marina (marina@parket.com.br)
+};
+
+function _firstName(s) {
+  if (!s) return "";
+  return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().split(/[\s._-]+/)[0] || "";
+}
+
+// Decodifica email do JWT do user logado.
+function _currentUserEmail() {
+  try {
+    const tok = _userToken();
+    if (!tok || tok === SB_KEY) return "";
+    const parts = tok.split(".");
+    if (parts.length < 2) return "";
+    const pad = parts[1] + "===".slice((parts[1].length + 3) % 4);
+    const payload = JSON.parse(atob(pad.replace(/-/g, "+").replace(/_/g, "/")));
+    return String(payload.email || "").toLowerCase();
+  } catch (_) { return ""; }
+}
+
+// Filtra equipe baseado no vendedor (user logado).
+//   - Se vendedor é "*" ou não está no mapping → retorna tudo (sem filtro).
+//   - Senão → só retorna orcamentistas cujo primeiro nome bate.
+// Também aceita card.responsavel como fallback (caso JWT não tenha email).
+function _filterEquipeForVendor(equipe, card) {
+  // Filtro é pelo VENDEDOR do card (campo "Vendedor" do Funil de Vendas),
+  // não pelo usuário logado — qualquer um que edite o card de Fabio só pode
+  // designar pra Joyce, etc.
+  const det = (card && card.details) || {};
+  let vendorRaw = det.vendedor || (card && card.responsavel) || "";
+  let src = "card.details.vendedor";
+  if (!vendorRaw) {
+    const email = _currentUserEmail();
+    vendorRaw = email.split("@")[0] || "";
+    src = "email_jwt(fallback)";
+  }
+  const vendorKey = _firstName(vendorRaw);
+  const rule = VENDOR_TO_ORC[vendorKey];
+  console.log("[orc-filter] vendorRaw=", vendorRaw, "vendorKey=", vendorKey, "(", src, ") rule=", rule);
+  if (!vendorKey) return equipe;
+  if (!rule || rule === "*") return equipe;
+  const allowedNames = new Set(rule.map(_firstName));
+  return equipe.filter((o) => allowedNames.has(_firstName(o.nome)));
+}
+
+async function _patchCard(cardId, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/kanban_cards?id=eq.${cardId}`, {
+    method: "PATCH",
+    headers: _authHeaders({ Prefer: "return=representation" }),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`patch card: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+async function _insertDemanda(body) {
+  const r = await fetch(`${SB_URL}/rest/v1/orcamento_demandas`, {
+    method: "POST",
+    headers: _authHeaders({ Prefer: "return=representation" }),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    // Idempotência: se já existe demanda pra esse card+orcamentista, ignora
+    if (r.status === 409 || /duplicate/i.test(t)) return null;
+    throw new Error(`insert demanda: ${r.status} ${t}`);
+  }
+  return r.json();
+}
+
+// Cria card NOVO no kanban geral do orcamento (clone do comercial).
+// Vincula details.parent_card_id pro card original do comercial.
+async function _createCardOrcamento(comercialCard, demandaId, orcamentistaId, orcamentistaNome) {
+  const det = comercialCard.details || {};
+  const payload = {
+    dept_id: "orcamento",
+    column_id: "solicitacao",
+    title: comercialCard.title || "(sem título)",
+    subtitle: comercialCard.subtitle || null,
+    obra: comercialCard.obra || null,
+    responsavel: orcamentistaNome || "A definir",
+    priority: comercialCard.priority || "normal",
+    tags: comercialCard.tags || [],
+    description: comercialCard.description || null,
+    details: {
+      ...det,
+      parent_card_id: comercialCard.id,
+      parent_dept: "comercial",
+      orcamentista_id: orcamentistaId,
+      orcamentista_nome: orcamentistaNome,
+      demanda_id: demandaId,
+      criado_via: "orcamento-picker",
+    },
+  };
+  const r = await fetch(`${SB_URL}/rest/v1/kanban_cards`, {
+    method: "POST",
+    headers: _authHeaders({ Prefer: "return=representation" }),
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`create card orc: ${r.status} ${t}`);
+  }
+  const arr = await r.json();
+  return arr && arr[0] ? arr[0] : null;
+}
+
+/**
+ * Abre modal nativo (DOM puro) pra escolher orçamentista.
+ * Retorna Promise<orcamentista_id | null>. null = cancelado.
+ */
+function openPickerModal(card) {
+  return new Promise(async (resolve) => {
+    let equipe;
+    try {
+      const allEquipe = await _fetchEquipe();
+      equipe = _filterEquipeForVendor(allEquipe, card);
+    } catch (e) {
+      alert("Erro ao carregar equipe de orçamentistas: " + e.message);
+      resolve(null);
+      return;
+    }
+
+    const det = card.details || {};
+    const preselect = det.orcamentista_id || "";
+
+    // Backdrop
+    const back = document.createElement("div");
+    back.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit";
+    back.onclick = (e) => { if (e.target === back) finish(null); };
+
+    // Modal
+    const mod = document.createElement("div");
+    mod.style.cssText = "background:#161616;border:1px solid rgba(255,255,255,0.1);border-radius:12px;max-width:520px;width:100%;padding:20px;color:" + COLOR_TEXT;
+
+    const title = document.createElement("h3");
+    title.textContent = "Escolha o orçamentista";
+    title.style.cssText = "margin:0 0 6px;font-size:1rem;font-weight:600";
+
+    const subtitle = document.createElement("p");
+    subtitle.style.cssText = "margin:0 0 14px;font-size:0.7rem;color:" + COLOR_DIM;
+    subtitle.textContent = `Card: ${card.title || "(sem título)"} — obrigatório pra mover pra Criação de Orçamento.`;
+
+    const list = document.createElement("div");
+    list.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:340px;overflow:auto";
+
+    let chosen = preselect;
+    const refresh = () => {
+      list.innerHTML = "";
+      equipe.forEach((o) => {
+        const item = document.createElement("button");
+        item.onclick = () => { chosen = o.id; refresh(); };
+        const isActive = chosen === o.id;
+        item.style.cssText = `display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;text-align:left;width:100%;background:${isActive ? o.avatar_color + "20" : "rgba(255,255,255,0.03)"};border:1px solid ${isActive ? o.avatar_color : "rgba(255,255,255,0.08)"};color:${COLOR_TEXT};font-family:inherit;font-size:0.78rem`;
+        const av = document.createElement("div");
+        const inicial = (o.nome || "?").trim().slice(0, 1).toUpperCase();
+        av.textContent = inicial;
+        av.style.cssText = `width:34px;height:34px;border-radius:17px;background:${o.avatar_color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:0.85rem;flex-shrink:0`;
+        const nameWrap = document.createElement("div");
+        nameWrap.style.cssText = "flex:1;min-width:0";
+        const name = document.createElement("div");
+        name.style.cssText = "font-weight:600;color:" + COLOR_TEXT;
+        name.textContent = o.nome + (o.is_gestor ? "  ★ gestor" : "");
+        const esp = document.createElement("div");
+        esp.style.cssText = "font-size:0.62rem;color:" + COLOR_DIM + ";margin-top:2px";
+        esp.textContent = o.especialidade || "(sem especialidade)";
+        nameWrap.appendChild(name);
+        nameWrap.appendChild(esp);
+        item.appendChild(av);
+        item.appendChild(nameWrap);
+        list.appendChild(item);
+      });
+    };
+    refresh();
+
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display:flex;gap:8px;justify-content:flex-end";
+
+    const btnCancel = document.createElement("button");
+    btnCancel.textContent = "Cancelar";
+    btnCancel.style.cssText = "padding:8px 14px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:" + COLOR_DIM + ";border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.7rem;font-weight:600";
+    btnCancel.onclick = () => finish(null);
+
+    const btnOk = document.createElement("button");
+    btnOk.textContent = "Atribuir e mover";
+    btnOk.style.cssText = "padding:8px 14px;border:none;background:" + COLOR_OK + ";color:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-size:0.7rem;font-weight:600";
+    btnOk.onclick = () => {
+      if (!chosen) { alert("Selecione um orçamentista"); return; }
+      finish(chosen);
+    };
+
+    btnRow.appendChild(btnCancel);
+    btnRow.appendChild(btnOk);
+
+    mod.appendChild(title);
+    mod.appendChild(subtitle);
+    mod.appendChild(list);
+    mod.appendChild(btnRow);
+    back.appendChild(mod);
+    document.body.appendChild(back);
+
+    function finish(id) {
+      try { document.body.removeChild(back); } catch (e) {}
+      resolve(id);
+    }
+  });
+}
+
+/**
+ * Hook usado pelo dept-layout antes de mover card pra "criacao-orcamento".
+ * Retorna true se OK pra prosseguir o move, false se cancelado/erro.
+ */
+async function handleMoveToCriacaoOrcamento(card) {
+  if (!card || !card.id) return true;
+  const det = card.details || {};
+
+  // Se já tem orçamentista, usa direto (não pede de novo).
+  // Senão, força o picker.
+  let orcId = det.orcamentista_id;
+  let orcNome = det.orcamentista_nome;
+  let orcEmail = det.orcamentista_email || "";
+  if (!orcId) {
+    orcId = await openPickerModal(card);
+    if (!orcId) return false;  // user cancelou
+    try {
+      const eq = await _fetchEquipe();
+      const orc = eq.find((e) => e.id === orcId);
+      orcNome = orc ? orc.nome : "Orçamentista";
+      orcEmail = orc ? (orc.email || "") : "";
+    } catch (e) { orcNome = "Orçamentista"; }
+  }
+
+  try {
+    // Endpoint backend faz tudo: PATCH card + INSERT demanda + INSERT card orcamento
+    const r = await fetch(`${AI_API}/api/orcamento-equipe/atribuir`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ card_id: card.id, orcamentista_id: orcId, orcamentista_nome: orcNome, criar_demanda: true }),
+    });
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(`atribuir: ${r.status} ${txt.slice(0, 200)}`);
+    }
+    const data = await r.json();
+    console.log("[orc] moveToCriacao OK:", data);
+    // Persiste o email do orçamentista (backend só grava _id e _nome).
+    try {
+      await _patchCard(card.id, { details: { ...(card.details || {}), orcamentista_id: orcId, orcamentista_nome: orcNome, orcamentista_email: orcEmail } });
+    } catch (e3) { console.warn("[orc] patch email falhou:", e3); }
+    return true;
+  } catch (e) {
+    alert("Erro ao atribuir orçamentista: " + (e.message || e));
+    return false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Componente inline pro modal do card comercial — select estilo igual aos
+// outros campos do "Funil de Vendas" (Etapa, Vendedor).
+// ════════════════════════════════════════════════════════════════════
+const c = h.createElement;
+const STYLE_LABEL = {
+  display: "block", fontSize: "0.42rem", fontWeight: 700,
+  letterSpacing: "0.08em", color: "rgba(255,255,255,0.3)",
+  textTransform: "uppercase", marginBottom: 3,
+};
+const STYLE_SELECT = {
+  width: "100%", background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6,
+  color: "white", fontSize: "0.58rem", padding: "5px 6px", outline: "none",
+};
+
+function OrcamentistaSelectInline({ card }) {
+  // Carrega equipe COMPLETA (sem filtro) e armazena. Filtro acontece a cada render
+  // via useMemo, baseado no vendedor atual do card — assim trocar Vendedor no
+  // formulário atualiza o select de Orçamentista imediatamente.
+  const [equipeAll, setEquipeAll] = h.useState([]);
+  const [pendingVal, setPendingVal] = h.useState(null);
+  const [saving, setSaving] = h.useState(false);
+  const [err, setErr] = h.useState("");
+
+  const cardOrcId = ((card && card.details) || {}).orcamentista_id || "";
+  const val = pendingVal !== null ? pendingVal : cardOrcId;
+  const vendorRaw = ((card && card.details) || {}).vendedor || (card && card.responsavel) || "";
+
+  // DEBUG: imprime estado relevante a cada render
+  console.log("[OrcSel] render card_id=", card && card.id, "vendedor=", vendorRaw, "orcId=", cardOrcId);
+
+  h.useEffect(() => {
+    let alive = true;
+    _fetchEquipe()
+      .then((eq) => {
+        console.log("[OrcSel] equipe carregada", eq.length);
+        if (alive) setEquipeAll(eq);
+      })
+      .catch((e) => { console.error("[OrcSel] fetch equipe erro:", e); if (alive) setErr(String(e)); });
+    return () => { alive = false; };
+  }, []);
+
+  // Filtro recalculado a cada render — reage a mudanças do vendedor do card
+  // sem precisar de novo fetch.
+  const equipe = h.useMemo(() => _filterEquipeForVendor(equipeAll, card), [equipeAll, vendorRaw, card && card.id]);
+
+  // Atribuição core — extraída pra ser chamada tanto pelo onChange quanto
+  // pelo auto-reassign quando o vendedor muda.
+  async function _doAssign(newId, opts) {
+    opts = opts || {};
+    setPendingVal(newId);
+    if (!card || !card.id) { setPendingVal(null); return; }
+    setSaving(true); setErr("");
+    try {
+      const orc = equipeAll.find((x) => x.id === newId);
+      const orcNome = orc ? orc.nome : "";
+      const orcEmail = orc ? (orc.email || "") : "";
+
+      if (newId) {
+        const r = await fetch(`${AI_API}/api/orcamento-equipe/atribuir`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ card_id: card.id, orcamentista_id: newId, orcamentista_nome: orcNome, criar_demanda: true }),
+        });
+        if (!r.ok) {
+          const txt = await r.text();
+          throw new Error(`atribuir: ${r.status} ${txt.slice(0, 200)}`);
+        }
+        const data = await r.json();
+        console.log("[OrcSel] atribuir OK:", data, "auto=", !!opts.auto);
+        try {
+          await _patchCard(card.id, { details: { ...(card.details || {}), orcamentista_id: newId, orcamentista_nome: orcNome, orcamentista_email: orcEmail } });
+        } catch (e3) { console.warn("[OrcSel] patch email falhou:", e3); }
+        try {
+          card.details = { ...(card.details || {}), orcamentista_id: newId, orcamentista_nome: orcNome, orcamentista_email: orcEmail };
+        } catch (_) {}
+      } else {
+        await fetch(`${AI_API}/api/orcamento-equipe/desatribuir`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ card_id: card.id }),
+        });
+        try {
+          const det = { ...(card.details || {}) };
+          delete det.orcamentista_id;
+          delete det.orcamentista_nome;
+          delete det.orcamentista_email;
+          card.details = det;
+        } catch (_) {}
+      }
+      setPendingVal(null);
+    } catch (e2) {
+      setErr(String(e2.message || e2));
+      setPendingVal(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleChange(e) {
+    return _doAssign(e.target.value || "");
+  }
+
+  // Auto-reatribuição: quando o VENDEDOR do card muda, re-atribui o
+  // orçamentista pro correspondente (se a regra é única). Em qualquer fase.
+  const prevVendorRef = h.useRef(undefined);
+  const autoLockRef = h.useRef(false);
+  h.useEffect(() => {
+    if (!card || !card.id) return;
+    if (!equipeAll || equipeAll.length === 0) return;
+    const prev = prevVendorRef.current;
+    prevVendorRef.current = vendorRaw;
+    if (prev === undefined) return;   // primeira renderização — não dispara
+    if (prev === vendorRaw) return;
+    if (autoLockRef.current) return;  // evita loop se um reassign disparar outro
+    const vendorKey = _firstName(vendorRaw);
+    const rule = VENDOR_TO_ORC[vendorKey];
+    if (!rule || rule === "*") return;  // sem regra fixa → não mexe
+    const targetName = _firstName(rule[0]);
+    const targetOrc = equipeAll.find((o) => _firstName(o.nome) === targetName);
+    if (!targetOrc) return;
+    if (cardOrcId === targetOrc.id) return;  // já está correto
+    console.log("[OrcSel] auto-reassign:", prev, "→", vendorRaw, "=> orçamentista:", targetOrc.nome);
+    autoLockRef.current = true;
+    _doAssign(targetOrc.id, { auto: true }).finally(() => {
+      autoLockRef.current = false;
+    });
+  }, [vendorRaw, equipeAll.length, card && card.id]);
+
+  const options = [
+    c("option", { value: "", key: "_none" }, "Selecionar..."),
+    ...equipe.map((o) => c("option", { value: o.id, key: o.id }, o.nome + (o.is_gestor ? " ★" : ""))),
+  ];
+
+  return c("div", null,
+    c("label", { style: STYLE_LABEL }, "Orçamentista"),
+    c("select", {
+      value: val, onChange: handleChange, disabled: saving,
+      style: STYLE_SELECT,
+    }, ...options),
+    err && c("div", { style: { fontSize: "0.42rem", color: "#EF4444", marginTop: 3 } }, err),
+  );
+}
+
+export { handleMoveToCriacaoOrcamento as moveToCriacao, OrcamentistaSelectInline as OrcSel };

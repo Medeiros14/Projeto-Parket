@@ -1,0 +1,56 @@
+version: "3.8"
+
+# parket-wavoip — backend FastAPI que recebe webhooks Wavoip e expõe
+# listagem de chamadas. Roteamento Traefik:
+#   POST core.parket.works/api/wavoip/webhook  ← Wavoip dispara aqui
+#   GET  core.parket.works/api/wavoip/calls    ← Dashboard lê
+# Secrets reusam supabase_url + supabase_service_key da stack docusign.
+
+services:
+  api:
+    image: parket-wavoip-backend:latest
+    networks:
+      - network_public
+    secrets:
+      - source: supabase_url
+        target: supabase_url
+      - source: supabase_service_key
+        target: supabase_service_key
+      # APIKEY da Evolution (WhatsApp) — saiu do codigo pra secret antes do repo ir pro GitHub
+      - source: evolution_apikey
+        target: evolution_apikey
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        - traefik.http.routers.parket-wavoip-http.rule=Host(`core.parket.works`) && (PathPrefix(`/api/wavoip`) || PathPrefix(`/api/orcamento`))
+        - traefik.http.routers.parket-wavoip-http.entrypoints=web
+        - traefik.http.routers.parket-wavoip-http.middlewares=https-redirect
+        - traefik.http.routers.parket-wavoip.rule=Host(`core.parket.works`) && (PathPrefix(`/api/wavoip`) || PathPrefix(`/api/orcamento`))
+        - traefik.http.routers.parket-wavoip.entrypoints=websecure
+        - traefik.http.routers.parket-wavoip.tls=true
+        - traefik.http.routers.parket-wavoip.tls.certresolver=letsencryptresolver
+        - traefik.http.services.parket-wavoip.loadbalancer.server.port=8000
+
+networks:
+  network_public:
+    external: true
+
+secrets:
+  supabase_url:
+    external: true
+  supabase_service_key:
+    external: true
+  evolution_apikey:
+    external: true

@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  api:
+    image: parket-rh-api:latest
+    networks:
+      network_public:
+        aliases:
+          - rh-api
+    environment:
+      SUPABASE_URL: https://hbxpilrxmitvzebluoom.supabase.co
+      SUPABASE_SERVICE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk0MjUyNywiZXhwIjoyMDg4NTE4NTI3fQ.fTovVTCBFcMrrhVCR6TsneALfMRLLLHZdMmSJH16L4A"
+      CLICKSIGN_TOKEN: "2f3488f6-3ca9-46bd-88a9-fb9f1ec0dc30"
+      EVOLUTION_URL: "https://conect.parket.works"
+      EVOLUTION_KEY: "4eab105201410d6865b86dca76ee9fa3"
+      EVOLUTION_INSTANCE_RH: "Rh - Parket"
+      EVOLUTION_INSTANCE_DEFAULT: "Parket"
+      RH_WHATSAPP_GROUP_JID: "120363405634674702@g.us"
+      CORS_ORIGINS: "https://rh.parket.works,http://localhost:5173"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+      mode: replicated
+      replicas: 1
+      restart_policy: { condition: on-failure, delay: 5s }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+
+networks:
+  network_public:
+    external: true

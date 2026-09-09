@@ -1,0 +1,353 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SPACE PARKET → TEMA NAVONA (overlay sobre o React/CSS atual)
+   Aplicado quando body.theme-navona está ativo.
+   Ativação: window.location.search inclui ?theme=navona
+   Persistência: salvo em localStorage('space-theme')
+
+   Filosofia: SÓ aparência. Zero mudança de comportamento.
+   Tokens extraídos do Figma "Sistema Operacional - Parket".
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+body.theme-navona {
+  /* ─── Paleta Navona ─── */
+  --navona-black: #050505;
+  --navona-black-soft: #0a0a0a;
+  --navona-bege: #D8D3C7;
+  --navona-offwhite: #F3F0E8;
+  --navona-stone: #77736A;
+  --navona-stone-deep: #5a574f;
+
+  /* ─── Tokens funcionais (dark mode default) ─── */
+  --n-bg: var(--navona-black);
+  --n-bg-elevated: #0d0d0d;
+  --n-bg-card: rgba(216, 211, 199, 0.025);
+  --n-bg-card-hover: rgba(216, 211, 199, 0.048);
+  --n-bg-sidebar: #040404;
+  --n-bg-header: rgba(4, 4, 4, 0.96);
+  --n-bg-input: rgba(216, 211, 199, 0.04);
+  --n-bg-stat: rgba(216, 211, 199, 0.02);
+
+  --n-border: rgba(216, 211, 199, 0.08);
+  --n-border-hover: rgba(216, 211, 199, 0.18);
+  --n-border-strong: rgba(216, 211, 199, 0.3);
+
+  --n-text-primary: var(--navona-bege);
+  --n-text-secondary: var(--navona-stone);
+  --n-text-muted: rgba(119, 115, 106, 0.45);
+  --n-text-bright: var(--navona-offwhite);
+
+  --n-radius: 10px;
+  --n-radius-sm: 6px;
+  --n-radius-lg: 14px;
+
+  --n-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --n-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --n-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --n-shadow-gold: 0 4px 16px rgba(216, 211, 199, 0.15);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TIPOGRAFIA — Inter pro corpo, Cinzel pra branding
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona,
+body.theme-navona input,
+body.theme-navona textarea,
+body.theme-navona select,
+body.theme-navona button,
+body.theme-navona [class*="font"],
+body.theme-navona [class*="text"],
+body.theme-navona [class*="label"] {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.005em !important;
+}
+
+body.theme-navona h1,
+body.theme-navona h2,
+body.theme-navona h3,
+body.theme-navona [class*="title"],
+body.theme-navona [class*="Title"],
+body.theme-navona [class*="heading"],
+body.theme-navona [class*="Heading"],
+body.theme-navona [role="heading"],
+body.theme-navona .brand,
+body.theme-navona [class*="brand"],
+body.theme-navona [class*="Brand"],
+body.theme-navona [class*="logo"]:not(svg):not(img),
+body.theme-navona [class*="Logo"]:not(svg):not(img) {
+  font-family: 'Cinzel', Georgia, serif !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.06em !important;
+}
+
+/* Logo brand spacing */
+body.theme-navona [class*="logo"]:not(svg):not(img),
+body.theme-navona [class*="Logo"]:not(svg):not(img),
+body.theme-navona [class*="brand"]:not(svg):not(img) {
+  letter-spacing: 0.22em !important;
+  text-transform: uppercase !important;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   FUNDO E SUPERFÍCIES
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona,
+body.theme-navona #root,
+body.theme-navona [class*="app"],
+body.theme-navona [class*="App"],
+body.theme-navona [class*="layout"],
+body.theme-navona [class*="Layout"] {
+  background: var(--n-bg) !important;
+  color: var(--n-text-primary) !important;
+}
+
+/* Header / Topbar */
+body.theme-navona [class*="header"]:not(button):not(input):not(svg),
+body.theme-navona [class*="Header"]:not(button):not(input):not(svg),
+body.theme-navona [class*="topbar"],
+body.theme-navona [class*="TopBar"],
+body.theme-navona [class*="Topbar"] {
+  background: var(--n-bg-header) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-color: var(--n-border) !important;
+  color: var(--n-text-primary) !important;
+}
+
+/* Sidebar / Navigation */
+body.theme-navona [class*="sidebar"],
+body.theme-navona [class*="Sidebar"],
+body.theme-navona nav[class*="nav"],
+body.theme-navona [role="navigation"] {
+  background: var(--n-bg-sidebar) !important;
+  border-color: var(--n-border) !important;
+  color: var(--n-text-primary) !important;
+}
+
+body.theme-navona [class*="sidebar"] *:not(button):not(input):not(svg):not(.badge):not([class*="badge"]),
+body.theme-navona [class*="Sidebar"] *:not(button):not(input):not(svg):not(.badge):not([class*="badge"]) {
+  color: inherit !important;
+}
+
+/* Cards / Painéis */
+body.theme-navona [class*="card"]:not(button),
+body.theme-navona [class*="Card"]:not(button),
+body.theme-navona [class*="panel"]:not(button),
+body.theme-navona [class*="Panel"]:not(button) {
+  background: var(--n-bg-card) !important;
+  border: 1px solid var(--n-border) !important;
+  border-radius: var(--n-radius) !important;
+  color: var(--n-text-primary) !important;
+  box-shadow: var(--n-shadow-sm) !important;
+  transition: background 0.2s, border-color 0.2s !important;
+}
+
+body.theme-navona [class*="card"]:not(button):hover,
+body.theme-navona [class*="Card"]:not(button):hover {
+  background: var(--n-bg-card-hover) !important;
+  border-color: var(--n-border-hover) !important;
+}
+
+/* Modais / Dialogs */
+body.theme-navona [class*="modal-content"],
+body.theme-navona [class*="ModalContent"],
+body.theme-navona [class*="dialog"],
+body.theme-navona [class*="Dialog"] {
+  background: var(--n-bg-elevated) !important;
+  border: 1px solid var(--n-border) !important;
+  border-radius: var(--n-radius-lg) !important;
+  box-shadow: var(--n-shadow-lg) !important;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BOTÕES
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona button:not([class*="badge"]):not([class*="Badge"]) {
+  border-radius: var(--n-radius) !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+  transition: all 0.15s !important;
+}
+
+/* Botão primário — Bege Travertino sobre preto */
+body.theme-navona button[class*="primary"],
+body.theme-navona button[class*="Primary"],
+body.theme-navona [class*="btn-primary"],
+body.theme-navona button[type="submit"]:not([class*="ghost"]):not([class*="outline"]) {
+  background: var(--navona-bege) !important;
+  color: var(--navona-black) !important;
+  border: 1px solid var(--navona-bege) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  font-size: 12px !important;
+  padding: 10px 18px !important;
+}
+body.theme-navona button[class*="primary"]:hover,
+body.theme-navona button[class*="Primary"]:hover,
+body.theme-navona [class*="btn-primary"]:hover {
+  background: var(--navona-offwhite) !important;
+  border-color: var(--navona-offwhite) !important;
+  box-shadow: var(--n-shadow-gold) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Botão secundário/ghost */
+body.theme-navona button[class*="ghost"],
+body.theme-navona button[class*="outline"],
+body.theme-navona button[class*="secondary"] {
+  background: transparent !important;
+  color: var(--n-text-primary) !important;
+  border: 1px solid var(--n-border-strong) !important;
+}
+body.theme-navona button[class*="ghost"]:hover,
+body.theme-navona button[class*="outline"]:hover,
+body.theme-navona button[class*="secondary"]:hover {
+  background: var(--n-bg-card) !important;
+  border-color: var(--navona-bege) !important;
+  color: var(--navona-bege) !important;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   INPUTS / SELECTS / TEXTAREA
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona input:not([type="checkbox"]):not([type="radio"]),
+body.theme-navona textarea,
+body.theme-navona select {
+  background: var(--n-bg-input) !important;
+  border: 1px solid var(--n-border) !important;
+  border-radius: var(--n-radius-sm) !important;
+  color: var(--n-text-primary) !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 400 !important;
+  transition: border-color 0.15s, background 0.15s !important;
+}
+body.theme-navona input:focus,
+body.theme-navona textarea:focus,
+body.theme-navona select:focus {
+  outline: none !important;
+  border-color: var(--navona-bege) !important;
+  background: rgba(216, 211, 199, 0.06) !important;
+}
+body.theme-navona input::placeholder,
+body.theme-navona textarea::placeholder {
+  color: var(--n-text-muted) !important;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   LINKS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona a:not([class*="button"]):not([class*="btn"]) {
+  color: var(--navona-bege) !important;
+  text-decoration: none !important;
+  transition: color 0.15s !important;
+}
+body.theme-navona a:not([class*="button"]):not([class*="btn"]):hover {
+  color: var(--navona-offwhite) !important;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BADGES / TAGS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona [class*="badge"],
+body.theme-navona [class*="Badge"],
+body.theme-navona [class*="tag"]:not(svg) {
+  border-radius: 999px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.04em !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TABELAS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+body.theme-navona th {
+  background: var(--n-bg-stat) !important;
+  color: var(--n-text-secondary) !important;
+  text-transform: uppercase !important;
+  font-size: 11px !important;
+  letter-spacing: 0.08em !important;
+  font-weight: 500 !important;
+  border-bottom: 1px solid var(--n-border) !important;
+  padding: 12px 16px !important;
+}
+body.theme-navona td {
+  border-bottom: 1px solid var(--n-border) !important;
+  padding: 14px 16px !important;
+  color: var(--n-text-primary) !important;
+}
+body.theme-navona tr:hover td {
+  background: var(--n-bg-card-hover) !important;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SCROLLBAR
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona *::-webkit-scrollbar { width: 10px; height: 10px; }
+body.theme-navona *::-webkit-scrollbar-track { background: var(--n-bg); }
+body.theme-navona *::-webkit-scrollbar-thumb {
+  background: var(--navona-stone-deep);
+  border-radius: 5px;
+}
+body.theme-navona *::-webkit-scrollbar-thumb:hover { background: var(--navona-stone); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   AVATARES / IMAGENS CIRCULARES
+   (mantém formato circular — UX necessário)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+body.theme-navona img[class*="avatar"],
+body.theme-navona img[class*="Avatar"],
+body.theme-navona [class*="avatar"] img,
+body.theme-navona [class*="Avatar"] img,
+body.theme-navona [class*="rounded-full"],
+body.theme-navona .rounded-full {
+  border-radius: 9999px !important;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TOGGLE BAR (no rodapé pra ativar/desativar tema)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+#navona-theme-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999999;
+  background: rgba(5, 5, 5, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--navona-bege, #D8D3C7);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--navona-bege, #D8D3C7);
+  cursor: pointer;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+#navona-theme-toggle:hover {
+  background: var(--navona-bege, #D8D3C7);
+  color: #050505;
+  transform: translateY(-2px);
+}

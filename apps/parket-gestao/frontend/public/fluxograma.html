@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Fluxograma — Sistema Parket</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background:#0d0f12; color:#e8e6e1; font-family:'Inter',system-ui,sans-serif; overflow:hidden; }
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+    padding: 12px 18px; background: rgba(13,15,18,.88); backdrop-filter: blur(10px);
+    border-bottom: 1px solid #22262e;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  h1 { font-size: 14px; letter-spacing: .08em; font-weight: 600; margin: 0; }
+  p.sub { color:#9a968e; font-size: 9px; letter-spacing: .18em; margin: 2px 0 0; }
+  .tabs { display: flex; gap: 6px; margin-left: auto; }
+  .tabs button {
+    padding: 8px 14px; font-size: 10px; letter-spacing: .16em; font-weight: 600;
+    background: #1a1e26; color: #9a968e; border: 1px solid #2e3440; cursor: pointer;
+  }
+  .tabs button.on { background: #e8e6e1; color: #0d0f12; border-color: #e8e6e1; }
+  #canvas { position: absolute; inset: 0; padding-top: 62px; }
+  #canvas svg { width: 100%; height: 100%; cursor: grab; }
+  #canvas svg:active { cursor: grabbing; }
+  .controls {
+    position: fixed; right: 16px; bottom: 18px; z-index: 20;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .controls button {
+    width: 44px; height: 44px; border-radius: 999px;
+    background: #1a1e26; color: #e8e6e1; border: 1px solid #2e3440;
+    font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .controls button:active { background: #2e3440; }
+  .controls button.small { font-size: 11px; letter-spacing: .05em; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; color: #9a968e; font-size: 11px; letter-spacing: .25em; z-index: 5; }
+  .hint { position: fixed; left: 16px; bottom: 18px; color: #6b675f; font-size: 10px; letter-spacing: .12em; z-index: 20; }
+  @media (max-width: 640px) { .hint { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>SISTEMA PARKET</h1>
+    <p class="sub">DO PRIMEIRO CONTATO À OBRA ENTREGUE · JULHO/2026</p>
+  </div>
+  <div class="tabs">
+    <button id="tab-simples" class="on">VISÃO SIMPLES</button>
+    <button id="tab-completo">VISÃO COMPLETA</button>
+  </div>
+</header>
+
+<div id="loading">RENDERIZANDO…</div>
+<div id="canvas"></div>
+
+<div class="controls">
+  <button id="zin" title="Aproximar">+</button>
+  <button id="zout" title="Afastar">−</button>
+  <button id="fit" class="small" title="Ajustar à tela">FIT</button>
+</div>
+<p class="hint">SCROLL/PINÇA = ZOOM · ARRASTA = NAVEGA · DUPLO CLIQUE = APROXIMA</p>
+
+<script id="src-simples" type="text/plain">
+flowchart TB
+
+  A(["👤 CLIENTE CHEGA<br/>pelo site, anúncio ou WhatsApp"])
+  B["💬 COMERCIAL<br/>vendedor + Teca (nossa IA) atendem no WhatsApp<br/><i>homebroker.parket</i>"]
+  C["📐 ORÇAMENTO<br/>medimos a planta e montamos a proposta<br/><i>valor.parket + draw.parket</i>"]
+  D["✍️ CONTRATO<br/>cliente aprova e assina digital<br/><i>contrato.parket</i>"]
+  E["🏗️ GESTÃO DA OBRA<br/>projeto vira itens, etapas e cronograma<br/><i>gestao.parket</i>"]
+  F["🛒 COMPRAS<br/>material comprado pra obra<br/><i>compras.parket</i>"]
+  G["🔨 INSTALAÇÃO<br/>instalador registra chegada e serviço com foto + GPS<br/><i>instala.parket</i>"]
+  H["🔍 VISTORIA<br/>fiscal confere a obra e o cliente assina o laudo<br/><i>verifica.parket</i>"]
+  I["💰 PAGAMENTO DO INSTALADOR<br/>liberado quando o serviço tá 100%"]
+  J["📱 CENTRAL DO CLIENTE<br/>cliente acompanha tudo online<br/><i>center.parket</i>"]
+  K(["✅ OBRA ENTREGUE"])
+
+  A --> B
+  B -->|quer orçamento| C
+  C -->|proposta aceita| D
+  D -->|assinou| E
+  E --> F
+  E --> G
+  E --> H
+  G -->|serviço 100%| I
+  E --> J
+  J -.cliente vê o andamento.-> A
+  G --> K
+  H --> K
+
+  style A fill:#34D39922,stroke:#34D399,color:#e8e6e1
+  style K fill:#34D39922,stroke:#34D399,color:#e8e6e1
+  style B fill:#11141a,stroke:#60A5FA,color:#e8e6e1
+  style C fill:#11141a,stroke:#60A5FA,color:#e8e6e1
+  style D fill:#11141a,stroke:#FBBF24,color:#e8e6e1
+  style E fill:#11141a,stroke:#8b5cf6,color:#e8e6e1
+  style F fill:#11141a,stroke:#3b4252,color:#e8e6e1
+  style G fill:#11141a,stroke:#3b4252,color:#e8e6e1
+  style H fill:#11141a,stroke:#3b4252,color:#e8e6e1
+  style I fill:#11141a,stroke:#34D399,color:#e8e6e1
+  style J fill:#11141a,stroke:#3b4252,color:#e8e6e1
+</script>
+
+<script id="src-completo" type="text/plain">
+flowchart TB
+
+  CLIENTE([👤 CLIENTE])
+  GOOGLE["Google Workspace<br/>Meet + Calendar (OAuth)"]
+  TRELLO["Trello"]
+  CLICKSIGN["Clicksign<br/>(N contas por empresa)"]
+
+  subgraph COMERCIAL["1 · COMERCIAL / AQUISIÇÃO"]
+    SITE["site.parket.works<br/>Site + formulário (Pixel/lead)"]
+    HB["homebroker.parket.works<br/>Kanban Comercial — cards, anexos, Meet"]
+    TECA["Teca V2 · IA de vendas<br/>painel: teca.parket.works"]
+    EVO["conect.parket.works<br/>Evolution API (WhatsApp)"]
+    WAHA["conect2.parket.works<br/>WAHA (piloto WhatsApp)"]
+  end
+
+  subgraph ORCAMENTO["2 · ORÇAMENTO / PROPOSTA"]
+    VALORIA["valor.parket.works<br/>Valoria — orçamentos, catálogo, proposta"]
+    DRAW["draw.parket.works<br/>Status/Draw — plantas, mapas, quantitativos"]
+    WOOD["Woodplanner Pro<br/>extração de planta + PDF executivo"]
+    PROPOSTA["Proposta pública<br/>link + PDF (preview WhatsApp)"]
+  end
+
+  subgraph CONTRATO["3 · CONTRATO / FINANCEIRO"]
+    CORE["core.parket.works<br/>Core — contrato/:cardId + Wavoip (voz)"]
+    DOCUSIGN["parket-docusign<br/>assinatura digital"]
+    CONTRATOS["contrato.parket.works<br/>Contratos"]
+    ERP["erp.parket.works<br/>ERP / Financeiro"]
+  end
+
+  subgraph EXECUCAO["4 · EXECUÇÃO / OBRA"]
+    GESTAO["gestao.parket.works<br/>Gestão de Projetos — itens, etapas, modelos, relacionamento"]
+    CENTER["center.parket.works<br/>Central do Cliente (portal público por token)"]
+    FISCAL["verifica.parket.works<br/>Fiscal PWA — vistorias, laudos, fotos"]
+    INSTALA["instala.parket.works<br/>Prestadores — check-in GPS, itens, modelos"]
+    COMPRAS["compras.parket.works<br/>Compras"]
+    CRONO["cronograma.parket.works<br/>Cronograma"]
+    CS["cs.parket.works<br/>CS / Atendimento"]
+    PROJ["projetos.parket.works<br/>Projetos (espelho Trello)"]
+    PRODUT["Produtividade (Natália)<br/>libera pagamento de prestador"]
+  end
+
+  subgraph INTERNO["5 · GESTÃO INTERNA / SUPORTE"]
+    RH["rh.parket.works + rh-api<br/>RH — calendário, contratos de colaborador"]
+    DEVP["dev.parket.works<br/>DevPortal (permissões por setor)"]
+    PAINEL["painel.parket.works Portainer<br/>ux.parket.works Penpot"]
+  end
+
+  subgraph IA["6 · IA (setor Will)"]
+    AISQUAD["agente.parket.works<br/>AI-Squad — backend + painel"]
+    EAS["os.parket.works<br/>EAS AgentOS — teca_valoria + agents + knowledge"]
+    COPILOTO["Copilotos embarcados<br/>Teca Gestão (relacionamento) · Lapidar laudo (Fiscal)"]
+  end
+
+  subgraph ROTINAS["7 · ROTINAS (cron)"]
+    CRON1["Relatório orçamento 18h → grupos WhatsApp"]
+    CRON2["Healthcheck diário 07h (orçamento/RH/PDF)"]
+    CRON3["Sync catálogo Local→Cloud (1min, write-back)"]
+    CRON4["Watchdog OAuth EAS (3min)"]
+  end
+
+  subgraph DADOS["8 · DADOS / INFRA"]
+    TRAEFIK["Traefik — entrada de todos os domínios"]
+    SUPA["Supabase Cloud<br/>kanban_cards · fiscal_* · instala_* · prestadores · orcamento_* · rh"]
+    PGLOCAL["PG local (réplica lógica) + schema gestao<br/>PostgREST · Realtime · Storage locais"]
+    GATEWAY["api.parket.works<br/>gateway REST (10x) + GoTrue (auth local)"]
+  end
+
+  %% ── Jornada do cliente ──
+  CLIENTE -->|visita / formulário| SITE
+  SITE -->|lead → Pixel| HB
+  CLIENTE <-->|WhatsApp| EVO
+  EVO <-->|conversas| TECA
+  WAHA -.piloto p/ substituir.- EVO
+  TECA <-->|cards, pause, histórico| HB
+  HB -->|🎥 Gerar Meet| GOOGLE
+
+  HB -->|handoff orçamento + anexos_origem| VALORIA
+  DRAW <-->|draw_mapa_id · Quantificar → itens| VALORIA
+  DRAW -->|croqui mm| WOOD
+  EAS -->|teca_valoria: import PDF, conferência| VALORIA
+  VALORIA -->|gera| PROPOSTA
+  PROPOSTA -->|link WhatsApp / aceite| CLIENTE
+
+  PROPOSTA -->|contrato| CORE
+  CORE --> DOCUSIGN
+  DOCUSIGN -->|assina| CLIENTE
+  CORE --- CONTRATOS
+  DOCUSIGN -->|assinado → RPC projetar_de_proposta| GESTAO
+  GESTAO -.financeiro por item/entrega.- ERP
+
+  %% ── Execução ──
+  GESTAO -->|token público| CENTER
+  CENTER --> CLIENTE
+  GESTAO <-->|modelos · fiscal responsável · laudos| FISCAL
+  GESTAO -->|obras + modelos: o que vai fazer| INSTALA
+  FISCAL -->|laudo lapidado por IA → assinatura| CLIENTE
+  INSTALA -->|PIN por WhatsApp| EVO
+  INSTALA -->|100% dos itens| PRODUT
+  GESTAO --- CRONO
+  GESTAO --- COMPRAS
+  COMPRAS -.mesmas tabelas.- SUPA
+  HB --- CS
+  PROJ <-->|espelho| TRELLO
+
+  %% ── Interno ──
+  RH -->|contratos colaborador| CLICKSIGN
+  RH -->|aviso diário 08h grupo RH| EVO
+
+  %% ── IA ──
+  AISQUAD --- TECA
+  AISQUAD --- EAS
+  COPILOTO --- GESTAO
+  COPILOTO --- FISCAL
+  CRON4 --> EAS
+
+  %% ── Rotinas ──
+  CRON1 --> EVO
+  CRON3 --> SUPA
+
+  %% ── Dados ──
+  SUPA <-->|replicação lógica| PGLOCAL
+  GATEWAY --> PGLOCAL
+  HB & VALORIA & FISCAL & INSTALA & CS & DRAW -.lê/escreve.-> SUPA
+  GESTAO -.schema gestao.-> PGLOCAL
+  RH --- SUPA
+  DEVP --- SUPA
+
+  style CLIENTE fill:#34D39922,stroke:#34D399,color:#e8e6e1
+  style GOOGLE fill:#11141a,stroke:#5f6368,color:#9a968e
+  style TRELLO fill:#11141a,stroke:#5f6368,color:#9a968e
+  style CLICKSIGN fill:#11141a,stroke:#5f6368,color:#9a968e
+  style COMERCIAL fill:#11141a,stroke:#3b4252,color:#e8e6e1
+  style ORCAMENTO fill:#11141a,stroke:#3b4252,color:#e8e6e1
+  style CONTRATO fill:#11141a,stroke:#3b4252,color:#e8e6e1
+  style EXECUCAO fill:#11141a,stroke:#3b4252,color:#e8e6e1
+  style INTERNO fill:#11141a,stroke:#3b4252,color:#e8e6e1
+  style IA fill:#1a1420,stroke:#8b5cf6,color:#e8e6e1
+  style ROTINAS fill:#141410,stroke:#FBBF24,color:#e8e6e1
+  style DADOS fill:#101820,stroke:#60A5FA,color:#e8e6e1
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "dark",
+    securityLevel: "loose",
+    flowchart: { curve: "basis", useMaxWidth: false, nodeSpacing: 46, rankSpacing: 64 },
+  });
+
+  const canvas = document.getElementById("canvas");
+  let pz = null;
+  let n = 0;
+
+  async function show(which) {
+    const src = document.getElementById(`src-${which}`).textContent.trim();
+    if (pz) { pz.destroy(); pz = null; }
+    const { svg } = await mermaid.render(`fluxo${n++}`, src);
+    canvas.innerHTML = svg;
+    const el = canvas.querySelector("svg");
+    el.removeAttribute("width");
+    el.removeAttribute("height");
+    el.style.maxWidth = "none";
+    pz = svgPanZoom(el, {
+      zoomEnabled: true,
+      controlIconsEnabled: false,
+      fit: true,
+      center: true,
+      minZoom: 0.2,
+      maxZoom: 40,
+      zoomScaleSensitivity: 0.35,
+      dblClickZoomEnabled: true,
+    });
+
+    // Pinça no celular
+    let lastDist = null;
+    el.addEventListener("touchmove", (e) => {
+      if (e.touches.length !== 2) { lastDist = null; return; }
+      e.preventDefault();
+      const d = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (lastDist) {
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        pz.zoomAtPointBy(d / lastDist, { x: cx, y: cy });
+      }
+      lastDist = d;
+    }, { passive: false });
+    el.addEventListener("touchend", () => { lastDist = null; });
+
+    document.getElementById("tab-simples").classList.toggle("on", which === "simples");
+    document.getElementById("tab-completo").classList.toggle("on", which === "completo");
+    const loading = document.getElementById("loading");
+    if (loading) loading.remove();
+  }
+
+  document.getElementById("tab-simples").onclick = () => show("simples");
+  document.getElementById("tab-completo").onclick = () => show("completo");
+  document.getElementById("zin").onclick = () => pz && pz.zoomBy(1.35);
+  document.getElementById("zout").onclick = () => pz && pz.zoomBy(1 / 1.35);
+  document.getElementById("fit").onclick = () => { if (pz) { pz.resetZoom(); pz.fit(); pz.center(); } };
+  window.addEventListener("resize", () => { if (pz) { pz.resize(); pz.fit(); pz.center(); } });
+
+  await show("simples");
+</script>
+</body>
+</html>

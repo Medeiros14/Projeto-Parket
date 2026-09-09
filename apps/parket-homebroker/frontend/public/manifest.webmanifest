@@ -1,0 +1,36 @@
+{
+  "name": "Parket · Tracking",
+  "short_name": "Tracking",
+  "description": "App de cadência de vendedores Parket — gerencie sua fila do funil de vendas direto do celular.",
+  "id": "/tracking",
+  "start_url": "/tracking",
+  "scope": "/tracking",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity", "sales"],
+  "icons": [
+    { "src": "/icon-192.png",            "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png",            "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-1024.png",  "sizes": "1024x1024","type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-tracking.svg",       "sizes": "any",     "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Minha Fila",
+      "short_name": "Fila",
+      "description": "Cards do seu funil de vendas",
+      "url": "/tracking",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Agenda",
+      "short_name": "Agenda",
+      "description": "Sua agenda de reuniões",
+      "url": "/tracking/agenda",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

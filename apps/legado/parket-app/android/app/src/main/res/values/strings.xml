@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Parket Base</string>
+    <string name="title_activity_main">Parket Base</string>
+    <string name="package_name">works.parket.base</string>
+    <string name="custom_url_scheme">works.parket.base</string>
+</resources>

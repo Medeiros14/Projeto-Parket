@@ -1,0 +1,185 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Valoria — Sistema Operacional Parket (fonte canônica)
+   Preto Navona #050505 · Bege Travertino #D8D3C7 · Off White Mineral #F3F0E8 · Cinza Pedra #77736A
+   Tokens `--va-*` alimentam classes Tailwind `bg-va-*` / `text-va-*` / `border-va-*`.
+   ───────────────────────────────────────────────────────────────────────── */
+@import "tailwindcss";
+
+/* ─── DARK (default) ────────────────────────────────────────────────────── */
+:root, :root[data-theme="dark"] {
+  --va-bg:            5   5   5;
+  --va-sidebar:       4   4   4;
+  --va-header:        4   4   4;
+  --va-panel:         10  10  10;
+  --va-panelLight:    15  15  14;
+  --va-border:        22  21  21;
+  --va-borderHover:   43  42  40;
+  --va-inputBg:       13  13  13;
+  --va-statBg:        9   9   9;
+  --va-text:          216 211 199;
+  --va-textDim:       119 115 106;
+  --va-textMuted:     56  55  50;
+  /* Accent = Chai (SO Parket "estado ativo, badge"). Mesmo do Homebroker.
+     Cream é destaque SUTIL — mantido como token separado. */
+  --va-accent:        150 132 115;    /* Chai #968473 */
+  --va-cream:         200 189 177;    /* Cream #C8BDB1 — destaque sutil */
+  --va-chai:          150 132 115;
+  --va-walnut:        96  84  77;
+  --va-gold:          199 164 91;
+  --va-green:         122 160 122;
+  --va-red:           178 80  80;
+  --va-amber:         201 148 74;
+  --va-blue:          94  127 158;
+  color-scheme: dark;
+}
+
+/* ─── LIGHT ─────────────────────────────────────────────────────────────── */
+:root[data-theme="light"] {
+  --va-bg:            216 211 199;
+  --va-sidebar:       203 198 186;
+  --va-header:        216 211 199;
+  --va-panel:         231 227 217;
+  --va-panelLight:    239 236 227;
+  --va-border:        195 190 180;
+  --va-borderHover:   165 162 152;
+  --va-inputBg:       232 228 219;
+  --va-statBg:        228 224 214;
+  --va-text:          5   5   5;
+  --va-textDim:       119 115 106;
+  --va-textMuted:     142 139 131;
+  --va-accent:        96  84  77;
+  --va-cream:         150 132 115;
+  --va-chai:          150 132 115;
+  --va-walnut:        64  54  47;
+  --va-gold:          150 132 115;
+  --va-green:         93  138 93;
+  --va-red:           142 61  61;
+  --va-amber:         158 114 56;
+  --va-blue:          69  87  99;
+  color-scheme: light;
+}
+
+/* ─── Tailwind @theme — expõe vars como classes utilitárias ─────────────── */
+@theme {
+  --color-va-bg:          rgb(var(--va-bg));
+  --color-va-sidebar:     rgb(var(--va-sidebar));
+  --color-va-header:      rgb(var(--va-header));
+  --color-va-panel:       rgb(var(--va-panel));
+  --color-va-panelLight:  rgb(var(--va-panelLight));
+  --color-va-border:      rgb(var(--va-border));
+  --color-va-borderHover: rgb(var(--va-borderHover));
+  --color-va-inputBg:     rgb(var(--va-inputBg));
+  --color-va-statBg:      rgb(var(--va-statBg));
+  --color-va-text:        rgb(var(--va-text));
+  --color-va-textDim:     rgb(var(--va-textDim));
+  --color-va-textMuted:   rgb(var(--va-textMuted));
+  --color-va-accent:      rgb(var(--va-accent));
+  --color-va-cream:       rgb(var(--va-cream));
+  --color-va-chai:        rgb(var(--va-chai));
+  --color-va-walnut:      rgb(var(--va-walnut));
+  --color-va-gold:        rgb(var(--va-gold));
+  --color-va-green:       rgb(var(--va-green));
+  --color-va-red:         rgb(var(--va-red));
+  --color-va-amber:       rgb(var(--va-amber));
+  --color-va-blue:        rgb(var(--va-blue));
+  --font-display: "Cinzel", serif;
+  --font-body:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ─── Reset + base ──────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html, body, #root {
+  margin: 0; padding: 0; height: 100%;
+  background: rgb(var(--va-bg));
+  color: rgb(var(--va-text));
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* text-rendering: optimizeLegibility é caro no Windows/Chrome — deixa scroll
+     travado. Aplicado por tipo abaixo apenas onde faz diferença. */
+  text-rendering: geometricPrecision;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-text-size-adjust: 100%;
+}
+html { scroll-behavior: smooth; }
+h1, h2, h3, h4, .font-display { text-rendering: optimizeLegibility; }
+button, input, select, textarea { font-family: inherit; }
+input:focus, select:focus, textarea:focus { border-color: rgb(var(--va-borderHover)) !important; }
+img, svg { vertical-align: middle; }
+a { color: inherit; text-decoration: none; }
+.font-display { font-family: var(--font-display); }
+
+/* Sintetização de bold: proibida — só usa 600/700 se a fonte tiver.
+   Se por acaso Inter falhar no load, fallback nativo já cobre. */
+* { font-synthesis-weight: none; font-synthesis-style: none; }
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(216,211,199,0.12); border-radius: 4px; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(216,211,199,0.22); }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(5,5,5,0.12); border-radius: 4px; }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(5,5,5,0.24); }
+
+/* Firefox — não tem ::-webkit-scrollbar. Sem isto, Windows/Firefox mostra a
+   barra padrão chunky do OS que quebra o visual. */
+:root[data-theme="dark"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(216,211,199,0.16) transparent;
+}
+:root[data-theme="light"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(5,5,5,0.16) transparent;
+}
+
+/* Overscroll bounce/glow — para no container, evita "puxar" a página inteira
+   quando o user rola dentro de um scroll interno (comum no Windows). */
+[data-scroll], .va-scroll, aside, main, section { overscroll-behavior: contain; }
+
+/* ─── Responsivo ────────────────────────────────────────────────────────── */
+@media (max-width: 1280px) { body { font-size: 14px; } }
+@media (max-width: 1024px) { .va-sticky-bottom { padding: 10px 0 !important; } }
+@media (max-width: 768px)  {
+  body { font-size: 13px; }
+  .va-sticky-bottom .va-stat-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 6px !important; }
+}
+.va-stat-grid { margin-left: auto; margin-right: auto; justify-content: center; }
+
+/* ─── Mobile (celular) ──────────────────────────────────────────────────────
+   Páginas usam styles inline (st.*) — overrides via seletor de atributo com
+   !important pra compactar sem tocar em cada página. */
+@media (max-width: 767px) {
+  /* Wrapper das páginas: padding desktop 24/28 → compacto */
+  main > div { padding: 12px 10px !important; }
+  /* Kanban usa height:100vh — no mobile o top bar ocupa 48px, então 100% */
+  main > div[style*="100vh"] { height: 100% !important; }
+
+  /* Headers de página empilham (título / busca / toggles) */
+  main header { flex-wrap: wrap !important; row-gap: 10px !important; }
+  main header [style*="width: 280px"] { width: 100% !important; }
+
+  /* Linhas de filtro/formulário sem wrap declarado passam a quebrar
+     (display: flex não pega inline-flex dos botões) */
+  main [style*="align-items: end"],
+  main [style*="display: flex"][style*="align-items: center"] { flex-wrap: wrap !important; }
+  /* Busca com largura fixa vira flexível */
+  main [style*="flex: 0 0 260px"] { flex: 1 1 200px !important; }
+  /* Texto de resumo (N itens · valor) ganha a linha inteira */
+  main [style*="flex: 1"][style*="font-size: 12px"] { flex: 1 1 100% !important; }
+
+  /* Grids inline de formulário (até 7 colunas fixas) viram 2 colunas */
+  main [style*="grid-template-columns"] { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Tabelas: rolagem horizontal em vez de esmagar colunas */
+  main table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  main th, main td { white-space: nowrap; }
+
+  /* Barras de abas/chips/responsáveis quebram linha em vez de estourar */
+  main [style*="gap: 4px"][style*="display: flex"],
+  main [style*="margin-bottom: 16px"][style*="gap: 8px"] { flex-wrap: wrap !important; }
+
+  /* Cartões/modais com largura fixa cabem na tela */
+  [style*="width: 440px"], [style*="width: 360px"] { max-width: 92vw !important; }
+  [style*="padding: 36px"] { padding: 20px 16px !important; }
+  [style*="padding: 32px"] { padding: 20px 14px !important; }
+}

@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  web:
+    image: parket-compras:latest
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy: { condition: any }
+      update_config: { parallelism: 1, delay: 5s, order: start-first }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        - "traefik.constraint-label=network_public"
+
+        - "traefik.http.routers.compras.rule=Host(`compras.parket.works`)"
+        - "traefik.http.routers.compras.entrypoints=websecure"
+        - "traefik.http.routers.compras.tls=true"
+        - "traefik.http.routers.compras.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.compras.service=compras"
+
+        - "traefik.http.routers.compras-http.rule=Host(`compras.parket.works`)"
+        - "traefik.http.routers.compras-http.entrypoints=web"
+        - "traefik.http.routers.compras-http.middlewares=compras-https-redirect"
+        - "traefik.http.routers.compras-http.service=compras"
+
+        - "traefik.http.services.compras.loadbalancer.server.port=80"
+
+        - "traefik.http.middlewares.compras-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.compras-https-redirect.redirectscheme.permanent=true"
+
+networks:
+  network_public:
+    external: true

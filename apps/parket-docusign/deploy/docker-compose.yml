@@ -1,0 +1,80 @@
+version: "3.8"
+
+# parket-docusign stack — backend FastAPI pra fluxo de contratos DocuSign.
+# Roteamento Traefik: core.parket.works/api/docusign/* → este serviço.
+# Secrets (private key, supabase service_role) via docker secrets externos.
+
+services:
+  api:
+    image: parket-docusign-backend:latest
+    networks:
+      - network_public
+    environment:
+      # Integracao Itau Boleto com Pix (Bolecode). Enquanto o sandbox nao tem
+      # cenario provisionado o backend tenta o Itau real e cai no fallback
+      # simulado automaticamente (25/08). Trocar ITAU_ENV=producao exige mTLS.
+      - ITAU_ENV=sandbox
+      - ITAU_ETAPA=simulacao
+      # ITAU_CLIENT_ID e ITAU_CLIENT_SECRET sao setados fora do git via
+      # `docker service update --env-add` (credencial do devportal Itau).
+    secrets:
+      - source: docusign_integration_key
+        target: docusign_integration_key
+      - source: docusign_user_id_prod
+        target: docusign_user_id
+      - source: docusign_api_account_id_prod
+        target: docusign_api_account_id
+      - source: docusign_environment_prod
+        target: docusign_environment
+      - source: docusign_private_key_prod_v2
+        target: docusign_private_key
+      - source: supabase_url
+        target: supabase_url
+      - source: supabase_service_key
+        target: supabase_service_key
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        # HTTP → redirect HTTPS
+        - traefik.http.routers.parket-docusign-http.rule=Host(`core.parket.works`) && PathPrefix(`/api/docusign`)
+        - traefik.http.routers.parket-docusign-http.entrypoints=web
+        - traefik.http.routers.parket-docusign-http.middlewares=https-redirect
+        # HTTPS
+        - traefik.http.routers.parket-docusign.rule=Host(`core.parket.works`) && PathPrefix(`/api/docusign`)
+        - traefik.http.routers.parket-docusign.entrypoints=websecure
+        - traefik.http.routers.parket-docusign.tls=true
+        - traefik.http.routers.parket-docusign.tls.certresolver=letsencryptresolver
+        - traefik.http.services.parket-docusign.loadbalancer.server.port=8000
+
+networks:
+  network_public:
+    external: true
+
+# Secrets criados via `docker secret create <name> <file>` antes do deploy.
+secrets:
+  docusign_integration_key:
+    external: true
+  docusign_user_id_prod:
+    external: true
+  docusign_api_account_id_prod:
+    external: true
+  docusign_environment_prod:
+    external: true
+  docusign_private_key_prod_v2:
+    external: true
+  supabase_url:
+    external: true
+  supabase_service_key:
+    external: true

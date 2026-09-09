@@ -1,0 +1,659 @@
+  <!DOCTYPE html>
+  <html lang="en">
+    <head><script src="/assets/supabase-redirect-pkt1.js"></script>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+      <meta http-equiv="Pragma" content="no-cache" />
+      <meta http-equiv="Expires" content="0" />
+      <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+      <title>Space Parket</title>
+      <script src="https://accounts.google.com/gsi/client" async></script>
+      <script>
+        (function(){
+          var CODE_VERSION = '20260622-pg30-ripado-dim-universal';
+          var stored = localStorage.getItem('parket-code-version');
+          if (stored !== CODE_VERSION) {
+            var _prev = stored;
+            localStorage.setItem('parket-code-version', CODE_VERSION);
+            if (_prev !== null) {
+              var ASSETS = [
+                '/assets/index-DZtetJYP.js',
+                '/assets/dept-layout-BtZpIBbo.js',
+                '/assets/dept-operacional-XYZ12.js',
+                '/assets/orcamento-simulador-tab-MARCFIX55.js',
+                '/assets/orcamento-simulador-tab-BBO23cjn-P2.js',
+                '/assets/propostaGenerator-PGSTRUCT35.js',
+                '/assets/proposta-publica-page-V12FIX.js',
+                '/assets/custo-orcamento-modal-pkt1.js',
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                '/assets/marcenaria-personalizada-pkt2.js',
+                '/assets/dept-obras-Cis-W8dN.js',
+                '/assets/dept-fiscal-8AzI07pL.js',
+                '/assets/dept-pmo-CGcKSWcu.js',
+                '/assets/dept-atendimento-BCyjzWV1.js',
+                '/assets/dept-comercial-CONVFIX2026.js',
+                '/assets/sistema-ops-data-xhsYTu6a.js',
+                '/assets/sistema-ops-page-Bfj6ZC7o.js',
+                '/assets/central-do-cliente-page-Rz6HSqEn.js',
+                '/assets/solicitar-compras-page-COMPRASFIX1.js',
+                '/assets/laudos-vistorias-tab-v1.js',
+                '/assets/cronograma-pdf-Bt0_UEJO.js',
+                '/assets/cronograma-pdf-NEW2026.js',
+                '/assets/projeto-detalhe-page-DWGFIX1.js'
+              ];
+              var _done = 0;
+              document.write('<div style="position:fixed;inset:0;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;z-index:99999;flex-direction:column;gap:10px"><div>Atualizando...</div><div id="_cb_progress" style="font-size:12px;color:#888">0 de ' + ASSETS.length + '</div></div>');
+              Promise.all(ASSETS.map(function(u){
+                return fetch(u, {cache: 'reload'}).finally(function(){
+                  _done++;
+                  var el = document.getElementById('_cb_progress');
+                  if (el) el.textContent = _done + ' de ' + ASSETS.length;
+                });
+              })).then(function(){ window.location.reload(); });
+              return;
+            }
+          }
+        })();
+        if ('caches' in window) { caches.keys().then(k => k.forEach(n => caches.delete(n))); }
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(r => r.forEach(sw => sw.unregister())); }
+        /* Detecta JS stale: a cada 60s busca o index.html e compara CODE_VERSION.
+           Se mudou, força reload — evita user usar JS velho em sessão longa. */
+        (function(){
+          var _check = function(){
+            try {
+              fetch('/index.html?stale=' + Date.now(), {cache: 'no-store'})
+                .then(function(r){ return r.text(); })
+                .then(function(html){
+                  var m = html.match(/CODE_VERSION\s*=\s*'([^']+)'/);
+                  if (m && m[1] !== CODE_VERSION) {
+                    console.log('[stale-check] versão nova detectada:', m[1], '— recarregando');
+                    location.reload();
+                  }
+                }).catch(function(){});
+            } catch(e){}
+          };
+          setTimeout(function(){ setInterval(_check, 60000); }, 60000);
+        })();
+        window.__whatsapp_patch = true;
+        window.addEventListener('error', function(e) {
+          if (e.message && e.message.includes("reading 'conversation'")) { e.preventDefault(); }
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+          if (e.reason && String(e.reason).includes("reading 'conversation'")) { e.preventDefault(); }
+        });
+      </script>
+      <script>
+      // Sessão por browser session: ao FECHAR o navegador, invalida o auth
+      // do Supabase. Múltiplas abas no mesmo navegador continuam logadas
+      // porque o localStorage é compartilhado e o heartbeat fica fresh.
+      // F5/reload da mesma aba não desloga (sessionStorage persiste em reload).
+      (function(){
+        try {
+          var HB_KEY = 'parket-browser-heartbeat';
+          var TAB_KEY = 'parket-tab-was-alive';
+          var GRACE_MS = 8000; // tempo máximo de "navegador fechado" tolerado
+          var now = Date.now();
+          var last = parseInt(localStorage.getItem(HB_KEY) || '0', 10) || 0;
+          var thisTabReloaded = !!sessionStorage.getItem(TAB_KEY);
+          if (!thisTabReloaded && (now - last) > GRACE_MS) {
+            // Nova aba E heartbeat parado há > GRACE_MS → navegador foi
+            // fechado e reaberto. Invalida sessão pra forçar login.
+            for (var i = localStorage.length - 1; i >= 0; i--) {
+              var k = localStorage.key(i);
+              if (k && (k === 'parket-auth' || k.indexOf('parket-auth') === 0 || k.indexOf('sb-') === 0)) {
+                localStorage.removeItem(k);
+              }
+            }
+          }
+          sessionStorage.setItem(TAB_KEY, '1');
+          localStorage.setItem(HB_KEY, String(now));
+          setInterval(function(){
+            try { localStorage.setItem(HB_KEY, String(Date.now())); } catch(_){}
+          }, 3000);
+        } catch(err) {
+          console.warn('[browser-session]', err);
+        }
+      })();
+      </script>
+      <script type="module" crossorigin src="/assets/index-DZtetJYP.js"></script>
+      <link rel="stylesheet" crossorigin href="/assets/index-DCkZHMWs.css">
+      <style id="pkt-embed-cs-style">
+        /* Modo embed=cs (cs.parket.works iframe) — esconde chrome do dashboard */
+        html.pkt-embed-cs, html.pkt-embed-cs body { overflow: hidden !important; height: 100% !important; }
+        html.pkt-embed-cs #root { height: 100% !important; }
+        /* Estratégia: esconde TUDO no body inicialmente, depois mostra só o painel
+           de spec-atend via JS que detecta e promove esse container. */
+        html.pkt-embed-cs.pkt-embed-cs-ready > body > #root > * > *:not(.pkt-embed-visible) { display: none !important; }
+        html.pkt-embed-cs .pkt-embed-visible { display: block !important; position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; background: #0a0a0a; }
+        /* Esconde nav/header/sidebar globais por tags semânticas como fallback */
+        html.pkt-embed-cs aside, html.pkt-embed-cs > body > header, html.pkt-embed-cs nav[class*="side" i], html.pkt-embed-cs nav[class*="top" i] { display: none !important; }
+      </style>
+      <script>
+        // Detecta ?embed=cs e marca o documento. O CSS acima esconde tudo,
+        // o script abaixo (no body) promove o container do spec-atend.
+        (function(){
+          try {
+            var p = new URLSearchParams(location.search);
+            if (p.get("embed") === "cs") {
+              document.documentElement.classList.add("pkt-embed-cs");
+              document.documentElement.dataset.pktEmbed = "cs";
+            }
+          } catch(_) {}
+        })();
+      </script>
+    <meta property="og:type" content="website"/><meta property="og:site_name" content="Parket"/><meta property="og:title" content="Parket — Pisos, Decks, Forros e Painéis em Madeira Nobre"/><meta property="og:description" content="Soluções em madeira nobre para arquitetura: pisos, decks, forros, painéis e marcenaria personalizada."/><meta property="og:image" content="https://proposta.parket.works/og-parket-v5.jpg"/><meta property="og:image:secure_url" content="https://proposta.parket.works/og-parket-v5.jpg"/><meta property="og:image:type" content="image/jpeg"/><meta property="og:image:width" content="1200"/><meta property="og:image:height" content="630"/><meta property="og:image:alt" content="Sala com pisos e painéis de madeira Parket"/><meta property="og:url" content="https://space.parket.works/"/><meta property="og:locale" content="pt_BR"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="Parket — Pisos, Decks, Forros e Painéis em Madeira Nobre"/><meta name="twitter:description" content="Soluções em madeira nobre para arquitetura: pisos, decks, forros, painéis e marcenaria personalizada."/><meta name="twitter:image" content="https://proposta.parket.works/og-parket-v5.jpg"/><link rel="stylesheet" href="/space-navona-theme.css"></head>
+    <body>
+      <div id="root"></div>
+      <script>
+      (function(){
+        var TRACK_API="https://proposta.parket.works/api/orcamento/tracking";
+        var LINK_API="https://proposta.parket.works/api/orcamento/gerar-link";
+        var LINK_PERSONALIZADO_API="https://proposta.parket.works/api/orcamento/gerar-link-personalizado";
+        var RECIPIENTS_API="https://proposta.parket.works/api/orcamento/recipients";
+        var PROP_BASE="https://proposta.parket.works/proposta/";
+
+        /* ── Visitor identity (persistido no localStorage) ── */
+        function getVisitorId(){
+          var v;try{v=localStorage.getItem("__pp_vid");}catch(_){v=null;}
+          if(!v){
+            v="v_"+(window.crypto&&crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+Math.random().toString(36).slice(2,10)));
+            try{localStorage.setItem("__pp_vid",v);}catch(_){}
+          }
+          return v;
+        }
+        function getFingerprint(){
+          try{
+            var c=document.createElement("canvas");c.width=200;c.height=50;
+            var ctx=c.getContext("2d");ctx.font="14px Arial";
+            ctx.fillStyle="#069";ctx.fillText("parket-fp-2026",2,15);
+            ctx.fillStyle="#069";ctx.fillText("test123",2,35);
+            var dat=c.toDataURL();
+            var s=[dat,navigator.userAgent,Intl.DateTimeFormat().resolvedOptions().timeZone,
+                   screen.width+"x"+screen.height+"x"+screen.colorDepth,navigator.language,
+                   navigator.hardwareConcurrency||0,navigator.platform].join("|");
+            var h=2166136261>>>0;
+            for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;}
+            return h.toString(16).padStart(8,"0");
+          }catch(_){return "";}
+        }
+
+        /* ── Tracking de proposta (quando abre /proposta/:id) ── */
+        function initTracking(){
+          if(!window.location.pathname.startsWith("/proposta/"))return;
+          var sid=window.location.pathname.split("/proposta/")[1];
+          if(!sid||sid.length<10)return;
+          /* Recipient token: ?p=tok_XXX */
+          var qp=new URLSearchParams(window.location.search);
+          var rtok=qp.get("p")||"";
+          var vid=getVisitorId();
+          var fp=getFingerprint();
+          var ST=Date.now();
+          var payload=function(extra){var b={simulacao_id:sid,visitor_id:vid,fingerprint:fp,recipient_token:rtok};Object.assign(b,extra||{});return b;};
+          fetch(TRACK_API+"/abriu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload())}).catch(function(){});
+          setInterval(function(){var s=Math.round((Date.now()-ST)/1000);fetch(TRACK_API+"/heartbeat-sid",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload({tempo_segundos:s}))}).catch(function(){});},30000);
+          window.addEventListener("beforeunload",function(){var s=Math.round((Date.now()-ST)/1000);navigator.sendBeacon(TRACK_API+"/saiu-sid",JSON.stringify(payload({tempo_segundos:s})));});
+          document.addEventListener("visibilitychange",function(){if(document.hidden){var s=Math.round((Date.now()-ST)/1000);navigator.sendBeacon(TRACK_API+"/saiu-sid",JSON.stringify(payload({tempo_segundos:s})));}});
+        }
+
+        /* ── Helper: dropdown de destinatários pra "Gerar Link" ── */
+        function showRecipientDropdown(anchorBtn, sid){
+          /* Fecha dropdown anterior se existir */
+          var prev=document.getElementById("__pp_recipient_dd");if(prev)prev.remove();
+          var dd=document.createElement("div");
+          dd.id="__pp_recipient_dd";
+          dd.style.cssText="position:fixed;background:#1a1a1a;border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:8px;min-width:280px;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.6);font-family:system-ui";
+          var rect=anchorBtn.getBoundingClientRect();
+          dd.style.left=Math.min(rect.left,window.innerWidth-300)+"px";
+          dd.style.top=(rect.bottom+4)+"px";
+          dd.innerHTML='<div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;padding:4px 8px;margin-bottom:4px;">Carregando…</div>';
+          document.body.appendChild(dd);
+          var closeOnOut=function(e){if(!dd.contains(e.target)){dd.remove();document.removeEventListener("mousedown",closeOnOut,true);}};
+          setTimeout(function(){document.addEventListener("mousedown",closeOnOut,true);},50);
+
+          /* Busca cliente/arquiteto da simulação + recipients já gerados */
+          Promise.all([
+            fetch("https://hbxpilrxmitvzebluoom.supabase.co/rest/v1/simulacao_projetos?id=eq."+sid+"&select=cliente,arquiteto",{headers:{apikey:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ya-G4__-X_xlaA-Pw3qP_uWlvz8KqCsZbN3cLNG7Ohk"}}).then(function(r){return r.ok?r.json():[];}).catch(function(){return[];}),
+            fetch(RECIPIENTS_API+"/"+sid).then(function(r){return r.ok?r.json():{items:[]};}).catch(function(){return{items:[]};}),
+          ]).then(function(res){
+            var sim=(res[0]&&res[0][0])||{};
+            var existentes=(res[1]&&res[1].items)||[];
+            var sugestoes=[];
+            if(sim.cliente)sugestoes.push({name:sim.cliente,role:"cliente"});
+            if(sim.arquiteto)sugestoes.push({name:sim.arquiteto,role:"arquiteto"});
+            var html='<div style="color:#34D399;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;padding:4px 8px;margin-bottom:4px;">Pra quem é o link?</div>';
+            sugestoes.forEach(function(s){
+              html+='<button data-name="'+s.name.replace(/"/g,"&quot;")+'" data-role="'+s.role+'" style="display:block;width:100%;text-align:left;padding:8px 10px;background:transparent;border:none;color:#fff;cursor:pointer;border-radius:5px;font-size:12px;">'+
+                    (s.role==="cliente"?"👤 ":"🏛️ ")+'<b>'+s.name+'</b> <span style="color:#888;font-size:10px;">('+s.role+')</span></button>';
+            });
+            if(existentes.length){
+              html+='<div style="height:1px;background:rgba(255,255,255,0.08);margin:6px 0;"></div>';
+              html+='<div style="color:#888;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;padding:4px 8px;">Já gerados</div>';
+              existentes.forEach(function(r){
+                html+='<button data-token="'+r.token+'" data-name="'+(r.name||"").replace(/"/g,"&quot;")+'" data-role="'+(r.role||"")+'" style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;padding:6px 10px;background:transparent;border:none;color:#9CA3AF;cursor:pointer;border-radius:5px;font-size:11px;">'+
+                      '<span>'+(r.role==="cliente"?"👤 ":r.role==="arquiteto"?"🏛️ ":"📋 ")+r.name+'</span>'+
+                      '<span style="color:#666;font-size:9px;">copiar</span></button>';
+              });
+            }
+            html+='<div style="height:1px;background:rgba(255,255,255,0.08);margin:6px 0;"></div>';
+            html+='<div style="padding:6px 8px;display:flex;gap:6px;align-items:center;">'+
+                  '<input id="__pp_outro" type="text" placeholder="Outro: nome…" style="flex:1;padding:6px 8px;background:#0a0a0a;border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:4px;font-size:11px;outline:none;" />'+
+                  '<button id="__pp_outro_go" style="padding:6px 10px;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34D399;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;">Gerar</button>'+
+                  '</div>';
+            dd.innerHTML=html;
+            /* Click handler em qualquer botão suggestion */
+            Array.from(dd.querySelectorAll("button[data-role]")).forEach(function(b){
+              b.addEventListener("mouseenter",function(){b.style.background="rgba(16,185,129,0.1)";});
+              b.addEventListener("mouseleave",function(){b.style.background="transparent";});
+              b.addEventListener("click",function(){
+                var name=b.dataset.name,role=b.dataset.role,token=b.dataset.token;
+                if(token){
+                  /* já existe — só copia */
+                  var link=PROP_BASE+sid+"?p="+token;
+                  navigator.clipboard.writeText(link).then(function(){anchorBtn.textContent="✅ Copiado: "+name;}).catch(function(){prompt("Copie:",link);});
+                  setTimeout(function(){anchorBtn.textContent="🔗 Gerar Link";},2500);
+                  dd.remove();
+                }else{
+                  generateAndCopy(sid,name,role,anchorBtn,dd);
+                }
+              });
+            });
+            var inp=dd.querySelector("#__pp_outro"),btnGo=dd.querySelector("#__pp_outro_go");
+            var goCustom=function(){
+              var n=(inp.value||"").trim();if(!n){inp.focus();return;}
+              generateAndCopy(sid,n,"outro",anchorBtn,dd);
+            };
+            btnGo.addEventListener("click",goCustom);
+            inp.addEventListener("keydown",function(e){if(e.key==="Enter")goCustom();});
+            inp.focus();
+          });
+        }
+
+        function generateAndCopy(sid,name,role,anchorBtn,dd){
+          fetch(LINK_PERSONALIZADO_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({simulacao_id:sid,name:name,role:role})})
+            .then(function(r){return r.ok?r.json():null;})
+            .then(function(j){
+              if(!j||!j.link){alert("Falha ao gerar link.");return;}
+              navigator.clipboard.writeText(j.link).then(function(){
+                anchorBtn.textContent="✅ Link "+name+" copiado!";
+              }).catch(function(){prompt("Copie:",j.link);});
+              setTimeout(function(){anchorBtn.textContent="🔗 Gerar Link";},3000);
+              if(dd)dd.remove();
+            }).catch(function(){alert("Erro ao gerar link.");});
+        }
+
+        /* ── Observer: adiciona botão "Gerar Link" ao lado de cada "Gerar PDF" no card de propostas ── */
+        var obs=new MutationObserver(function(){
+          /* Botão Gerar PDF no card de propostas (projeto-detalhe) */
+          document.querySelectorAll("button").forEach(function(btn){
+            if((btn.textContent||"").includes("Gerar PDF")&&!btn.dataset.lkAdded&&btn.closest("[class*='rounded']")){
+              btn.dataset.lkAdded="1";
+              /* Procura o simulacao_id no contexto */
+              var linkBtn=document.createElement("button");
+              linkBtn.textContent="🔗 Gerar Link";
+              linkBtn.style.cssText="display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);color:#34D399;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;";
+              linkBtn.addEventListener("click",function(e){
+                e.stopPropagation();e.preventDefault();
+                /* Busca UUID na URL da página ou nos elementos próximos */
+                var sid=null;
+                var url=window.location.pathname;
+                var m=url.match(/obra\/([a-f0-9-]{36})/);
+                if(m)sid=m[1];
+                if(!sid){
+                  var parent=btn.closest("div");
+                  if(parent){
+                    var links=parent.querySelectorAll("a[href*='proposta'],button[data-id]");
+                    links.forEach(function(l){var h=l.href||l.dataset.id||"";var mm=h.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);if(mm)sid=mm[1];});
+                  }
+                }
+                if(!sid){
+                  var allText=btn.parentElement?btn.parentElement.parentElement?btn.parentElement.parentElement.textContent:"":"";
+                  var mm2=allText.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);
+                  if(mm2)sid=mm2[1];
+                }
+                if(sid){
+                  /* Abre dropdown de destinatários (cliente, arquiteto, ou Outro) */
+                  showRecipientDropdown(linkBtn,sid);
+                }else{
+                  alert("Não foi possível identificar a proposta. Abra pelo simulador de orçamento.");
+                }
+              });
+              /* Insere ao lado do botão Gerar PDF */
+              if(btn.parentElement){btn.parentElement.insertBefore(linkBtn,btn.nextSibling);}
+            }
+          });
+
+          /* Transforma "Gerar Proposta" em "Gerar Link" no simulador de orçamento */
+          document.querySelectorAll("button,span").forEach(function(el){
+            if((el.textContent||"").trim()==="Gerar Proposta"&&!el.dataset.lk){
+              el.dataset.lk="1";el.textContent="Gerar Link";
+            }
+          });
+
+          /* "Controle de EPIs" agora vive como aba específica do dept-rh
+             (injetada via dept-rh-BxeG220i.js patch — junto com Headcount e
+             Treinamentos). Sem card no topo. */
+
+          /* ── Renomear card no setor Orçamento (v7: debounce, sem mutations recursivas) ── */
+          var oldFab=document.getElementById("lk-rename-fab");if(oldFab)oldFab.remove();
+          var oldDbg=document.getElementById("lk-rename-dbg");if(oldDbg)oldDbg.remove();
+
+          if(window.location.pathname.indexOf("/orcamento")>=0&&!window._lkRenameScheduled){
+            window._lkRenameScheduled=true;
+            setTimeout(function(){
+              window._lkRenameScheduled=false;
+              try{lkRenameScan();}catch(e){console.warn("[lk-rename]",e);}
+            },250);
+          }
+          /* Polling fallback: independente do observer, tenta a cada 1s */
+          if(!window._lkRenamePoll){
+            window._lkRenamePoll=setInterval(function(){
+              if(window.location.pathname.indexOf("/orcamento")>=0){
+                try{lkRenameScan();}catch(e){console.warn("[lk-rename poll]",e);}
+              }
+            },1000);
+          }
+
+          function lkRenameScan(){
+            var SUPA_URL="https://hbxpilrxmitvzebluoom.supabase.co";
+            var SUPA_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+            document.querySelectorAll("span").forEach(function(sp){
+              if(sp.dataset.lkRnDone)return;
+              var t=(sp.textContent||"").trim();
+              var m=t.match(/^Proposta\s*#(\d+)$/);
+              if(!m)return;
+              var numero=m[1];
+
+              /* Sobe pra achar container com pelo menos 2 botões */
+              var node=sp;
+              var allBtns=[];
+              for(var hop=0;hop<8&&node&&node.parentElement;hop++){
+                node=node.parentElement;
+                allBtns=Array.from(node.querySelectorAll("button"));
+                if(allBtns.length>=2)break;
+              }
+              if(allBtns.length<2)return;
+
+              /* Excluir = último button icon-only no container */
+              var delBtn=null;
+              for(var i=allBtns.length-1;i>=0;i--){
+                var b=allBtns[i];
+                if(b.dataset.lkRenameBtn)continue;
+                var bt=(b.textContent||"").trim();
+                if(bt===""||bt.length<=2){delBtn=b;break;}
+              }
+              if(!delBtn)return;
+              if(delBtn.previousElementSibling&&delBtn.previousElementSibling.dataset&&delBtn.previousElementSibling.dataset.lkRenameBtn)return;
+
+              sp.dataset.lkRnDone="1";
+
+              var btn=document.createElement("button");
+              btn.title="Renomear card";
+              btn.dataset.lkRenameBtn="1";
+              btn.dataset.lkProposta=numero;
+              var delStyle=delBtn.getAttribute("style")||"";
+              btn.setAttribute("style",delStyle);
+              btn.innerHTML="✏️";
+              btn.addEventListener("click",function(e){
+                e.stopPropagation();e.preventDefault();
+                /* Acha nome atual: div/span sem children, font-weight 600/700, cor branca, no mesmo card */
+                var card=node;
+                var nodes=card.querySelectorAll("div,span");
+                var clienteEl=null;
+                for(var k=0;k<nodes.length;k++){
+                  var d=nodes[k];
+                  if(d.children.length>0)continue;
+                  var st=d.getAttribute("style")||"";
+                  var cls=d.className||"";
+                  var fw=/font-weight:\s*(600|700)/i.test(st);
+                  var fc=/color:\s*(#fff|rgb\(\s*255|white)/i.test(st)||/text-white/.test(cls);
+                  if(fw&&fc){clienteEl=d;break;}
+                }
+                var atual=clienteEl?(clienteEl.textContent||"").trim():"";
+                var novo=window.prompt("Renomear card (Proposta #"+numero+"):",atual);
+                if(novo===null)return;
+                novo=novo.trim();
+                if(!novo||novo===atual)return;
+                btn.disabled=true;btn.innerHTML="…";
+                fetch(SUPA_URL+"/rest/v1/simulacao_projetos?numero=eq."+encodeURIComponent(numero),{
+                  method:"PATCH",
+                  headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+SUPA_ANON,"Content-Type":"application/json","Prefer":"return=representation"},
+                  body:JSON.stringify({cliente:novo})
+                }).then(function(r){
+                  if(!r.ok)return r.text().then(function(tx){throw new Error("HTTP "+r.status+" "+tx.slice(0,120));});
+                  return r.json();
+                }).then(function(rows){
+                  if(!rows||!rows.length)throw new Error("Nenhum registro com Proposta #"+numero);
+                  btn.innerHTML="✓";
+                  setTimeout(function(){window.location.reload();},600);
+                }).catch(function(err){
+                  btn.innerHTML="✏️";btn.disabled=false;
+                  alert("Erro ao renomear: "+(err.message||err));
+                });
+              });
+              if(delBtn.parentElement)delBtn.parentElement.insertBefore(btn,delBtn);
+            });
+          }
+        });
+        obs.observe(document.body,{childList:true,subtree:true});
+
+        /* Init tracking */
+        initTracking();
+        window.addEventListener("popstate",initTracking);
+        var _push=history.pushState;history.pushState=function(){_push.apply(this,arguments);setTimeout(initTracking,100);};
+      })();
+      </script>
+      <script>
+      /* ─── EMBED CS — promove o painel spec-atend pra fullscreen ─── */
+      (function(){
+        if (document.documentElement.dataset.pktEmbed !== "cs") return;
+
+        // Garante que a rota é a do spec-atend (caso entrem em /, força navegação)
+        if (!location.pathname.includes("/operacional/spec-atend")) {
+          var newPath = "/operacional/spec-atend" + location.search + location.hash;
+          history.replaceState(null, "", newPath);
+        }
+
+        var lastPromoted = null;
+        function findPainelCS() {
+          // PainelCS tem a estrutura: grid com 3 colunas (320px 1fr 280px) ou 1fr no mobile.
+          // Procura por um div com gridTemplateColumns contendo "320px 1fr 280px" ou "1fr"
+          // E que tenha pelo menos 1 filho com input "🔍 Buscar..."
+          var candidates = document.querySelectorAll("div[style*='display: grid'][style*='gridTemplateColumns'], div[style*='display:grid']");
+          for (var i = 0; i < candidates.length; i++) {
+            var c = candidates[i];
+            var s = c.getAttribute("style") || "";
+            if (s.indexOf("320px") < 0 && s.indexOf("1fr") < 0) continue;
+            // Heurística: tem input com placeholder Buscar
+            if (c.querySelector('input[placeholder*="Buscar"]')) return c;
+          }
+          // Fallback: procura por texto "💬 Conversas" e sobe até o container do painel
+          var spans = document.querySelectorAll("button, div, span");
+          for (var j = 0; j < spans.length; j++) {
+            if ((spans[j].textContent || "").trim() === "💬 Conversas") {
+              var p = spans[j];
+              while (p && p !== document.body) {
+                if (p.querySelector && p.querySelector('input[placeholder*="Buscar"]')) return p;
+                p = p.parentElement;
+              }
+            }
+          }
+          return null;
+        }
+
+        function promote() {
+          var panel = findPainelCS();
+          if (!panel) return false;
+          if (panel === lastPromoted && panel.classList.contains("pkt-embed-visible")) return true;
+          // Marca esse painel
+          panel.classList.add("pkt-embed-visible");
+          lastPromoted = panel;
+          // Garante que o HTML reaja
+          document.documentElement.classList.add("pkt-embed-cs-ready");
+          return true;
+        }
+
+        // Tenta a cada 250ms até achar, depois mantém observer pra re-marcar caso re-renderize
+        var interval = setInterval(function(){
+          if (promote()) {
+            // observer pra re-promote se o painel for desmontado e re-montado
+            try {
+              new MutationObserver(function(){
+                if (!document.body.contains(lastPromoted) || !lastPromoted.classList.contains("pkt-embed-visible")) {
+                  promote();
+                }
+              }).observe(document.body, { childList: true, subtree: true });
+            } catch(_){}
+          }
+        }, 250);
+        // Para o interval depois de 30s pra não vazar
+        setTimeout(function(){ clearInterval(interval); }, 30000);
+
+        // Re-tenta ao mudar rota
+        window.addEventListener("popstate", function(){ setTimeout(promote, 200); });
+      })();
+      </script>
+    <script src="/assets/kanban-history-panel-pkt2.js" defer></script><script src="/assets/orcamento-recalc-aux-pkt2.js" defer></script><script src="/assets/card-chat-realtime-pkt7.js" defer></script><script src="/assets/selecionar-proposta-pkt3.js" defer></script><script src="/assets/ceo-aprovacoes-card-pkt9.js" defer></script><script src="/assets/marc-insumos-modal-pkt1.js" defer></script><script src="/assets/marc-ferragens-btn-pkt1.js" defer></script><script src="/assets/biblioteca-banner-pkt1.js" defer></script><script src="/assets/orcamento-tabela-paginate-pkt1.js" defer></script><script src="/assets/vend-bootstrap.js"></script><script src="/assets/card-docs-pkt1.js" defer></script><script src="/assets/motivo-rejeicao-card-pkt1.js" defer></script><script src="/assets/gerar-material-tab-pkt4.js" defer></script><script src="/assets/proposta-fallback-pkt1.js" defer></script><script src="/assets/orcamento-delete-fix-pkt1.js" defer></script><script src="/space-navona-toggle.js" defer></script><script src="/assets/orcamento-edit-recalc-confirm-pkt1.js"></script></body>
+  </html>

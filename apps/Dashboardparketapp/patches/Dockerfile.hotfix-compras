@@ -1,0 +1,2 @@
+FROM parket-dashboard:golden-complete
+COPY solicitar-compras-page-BNfXQCSS.js /usr/share/nginx/html/assets/solicitar-compras-page-BNfXQCSS.js

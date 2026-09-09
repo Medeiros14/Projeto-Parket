@@ -1,0 +1,82 @@
+You are a Senior UI Designer specialized in luxury architecture 
+and high-end material brands. 
+Create a complete Design System in Figma for a brand called PARKET — 
+a premium Brazilian company specialized in wood flooring, wooden 
+ceilings, wooden panels, decks, stairs, and architectural carpentry. 
+Parket works with elite architects and high-end residential projects.
+VISUAL REFERENCES: MK27 studio website, Jacobsen Arquitetura website, 
+Poliform, Boffi, Minotti, Aesop, Cereal Magazine.
+The design must feel: quiet, warm, tactile, architectural, editorial, 
+sophisticated. No visual noise. Maximum restraint. Let the materials 
+and photography dominate.
+DESIGN SYSTEM SPECIFICATIONS:
+TYPOGRAPHY:
+— Primary typeface: Söhne or Suisse Intl or Neue Haas Grotesk 
+  (if unavailable, use Inter or DM Sans)
+— Display headlines: Thin weight (100-300), sizes: 96px / 72px / 
+  56px / 40px. Letter-spacing: +0.02em to +0.04em
+— Body text: Regular weight (400), 18px, line-height 1.65, 
+  color #2A2A2A
+— Small labels / categories: All caps, 12px, letter-spacing +0.12em, 
+  weight 500
+— Technical specs: Monospace font (JetBrains Mono or IBM Plex Mono), 
+  14px, weight 400
+— Hierarchy scale: 96 / 72 / 56 / 40 / 28 / 20 / 18 / 14 / 12px
+COLOR PALETTE:
+— Background Primary: #FAF8F5 (warm white)
+— Background Secondary: #F0EBE3 (pale sand)
+— Background Dark: #1A1A1A (charcoal)
+— Background Darkest: #0D0D0D (near black)
+— Text Primary: #2A2A2A (dark charcoal)
+— Text Secondary: #8C8478 (warm gray)
+— Text on Dark: #E8E4DF (off-white)
+— Accent (very sparse use): #9C8B6E (aged brass)
+— Borders/Dividers: #D9D3CB (light taupe)
+— Hover state: #B5A48A (warm gold)
+— NO bright colors. NO blues, reds, greens. Only wood-derived tones.
+SPACING SCALE (8px base):
+4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 80 / 120 / 160px
+GRID:
+— Desktop: 1440px frame, 12 columns, 24px gutters, 80px margins, 
+  1280px content max-width
+— Tablet: 768px frame, 8 columns, 20px gutters, 40px margins
+— Mobile: 375px frame, 4 columns, 16px gutters, 24px margins
+CORNER RADIUS: 0px on everything. No rounded corners anywhere. 
+Sharp, architectural.
+SHADOWS: None. No drop shadows. No box shadows. Depth is created 
+through spacing, layering and photography only.
+COMPONENTS TO CREATE:
+1. Header (transparent + solid variants, desktop + mobile)
+2. Navigation (desktop horizontal + mobile fullscreen overlay)
+3. Hero section (video placeholder + text overlay)
+4. Section heading (thin display type + optional subtitle)
+5. Product category card (image + label overlay, hover state)
+6. Project card (image + project name + architect + city)
+7. Specification table (clean rows, hairline dividers)
+8. Finish/swatch selector (horizontal row, active state)
+9. CTA buttons (primary ghost-outline + secondary text-link)
+10. Download row (icon + filename + filetype + filesize)
+11. Testimonial/quote block
+12. Footer (3-column layout)
+13. Breadcrumb navigation
+14. Image gallery grid (2-col, 3-col variants)
+15. Sticky CTA bar (bottom of product pages)
+16. Accordion/FAQ item (plus icon trigger)
+17. Newsletter signup (email field + submit)
+18. Showroom card (image + address + CTA)
+BUTTON STYLES:
+— Primary: 1px border #2A2A2A, no fill, text #2A2A2A, 
+  padding 16px 40px, all caps, 13px, letter-spacing +0.08em. 
+  Hover: fill #2A2A2A, text #FAF8F5
+— Secondary: No border, no fill, text #2A2A2A, underline animation. 
+  "Ver mais →" style
+— On dark backgrounds: 1px border #E8E4DF, text #E8E4DF. 
+  Hover: fill #E8E4DF, text #1A1A1A
+IMAGE PLACEHOLDERS:
+Use warm-toned architectural photography placeholders. 
+Show wood floors in large open spaces with natural light. 
+Aspect ratios: Hero 16:9, Cards 3:4, Details 1:1, 
+Full-width 2:1.
+Deliver everything organized in Figma with proper auto-layout, 
+named layers, and variants for each component state 
+(default, hover, active, disabled, mobile).

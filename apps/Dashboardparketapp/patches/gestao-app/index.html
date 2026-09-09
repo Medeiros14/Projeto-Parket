@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>Parket Base — Gestão</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; background:#0a0a0a; color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; min-height:100vh; }
+  a { color:#60A5FA; text-decoration:none; }
+
+  /* App layout: sidebar + main */
+  .app { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+  .sidebar { background:#0d0d0d; border-right:1px solid rgba(255,255,255,0.05); padding:18px 14px; display:flex; flex-direction:column; gap:6px; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  .sidebar .brand { padding:6px 8px 18px; border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:10px; }
+  .sidebar .brand .logo { font-size:16px; font-weight:800; color:#D4A853; letter-spacing:0.1em; }
+  .sidebar .brand .tag { font-size:9px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.12em; margin-top:3px; }
+  .sidebar .section-label { font-size:9px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.12em; padding:14px 10px 6px; }
+  .navlink { background:transparent; border:none; color:rgba(255,255,255,0.7); padding:9px 12px; border-radius:7px; cursor:pointer; font-size:13px; font-weight:500; text-align:left; display:flex; align-items:center; gap:10px; transition:background 100ms, color 100ms; }
+  .navlink:hover { background:rgba(255,255,255,0.04); color:#fff; }
+  .navlink.active { background:rgba(212,168,83,0.12); color:#D4A853; font-weight:600; }
+  .navlink .icon { font-size:15px; width:18px; text-align:center; }
+  .navlink .count { margin-left:auto; font-size:10px; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); padding:1px 7px; border-radius:8px; }
+  .navlink.active .count { background:rgba(212,168,83,0.2); color:#D4A853; }
+
+  .main { padding:24px 32px; max-width:1400px; }
+
+  /* Page header */
+  .pagehd { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+  .pagehd h1 { font-size:22px; font-weight:700; margin:0; }
+  .pagehd .crumb { font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.08em; }
+
+  /* Stats */
+  .grid-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:24px; }
+  .stat { background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px 16px; }
+  .stat .lbl { font-size:10px; color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; }
+  .stat .val { font-size:24px; font-weight:700; color:#fff; line-height:1; }
+  .stat .sub { font-size:11px; color:rgba(255,255,255,0.5); margin-top:4px; }
+
+  /* Filters */
+  .filters { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px; padding:10px 12px; background:#0f0f0f; border:1px solid rgba(255,255,255,0.05); border-radius:8px; }
+  .filters select, .filters input { background:#1a1a1a; border:1px solid rgba(255,255,255,0.1); color:#fff; padding:7px 10px; border-radius:6px; font-size:12px; outline:none; }
+  .filters input:focus, .filters select:focus { border-color:#D4A853; }
+  .filters .clear { background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#F87171; padding:7px 12px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; }
+  .filters .info { margin-left:auto; font-size:11px; color:rgba(255,255,255,0.5); }
+
+  /* Cards */
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:14px; }
+  .card { background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; cursor:pointer; transition:border-color 120ms, transform 120ms; }
+  .card:hover { border-color:rgba(212,168,83,0.4); transform:translateY(-1px); }
+  .card .hd { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:8px; }
+  .card .obra { font-family:ui-monospace,monospace; font-size:10px; color:rgba(255,255,255,0.45); }
+  .card h3 { font-size:14px; font-weight:700; color:#fff; margin:2px 0 0; line-height:1.25; }
+  .col-pill { padding:2px 9px; border-radius:11px; font-size:10px; font-weight:600; flex-shrink:0; white-space:nowrap; }
+  .col-pill.entrada { background:rgba(107,114,128,0.18); color:#9CA3AF; }
+  .col-pill.analisando { background:rgba(59,130,246,0.18); color:#60A5FA; }
+  .col-pill.desenvolvendo { background:rgba(245,158,11,0.18); color:#FBBF24; }
+  .col-pill.verificacao { background:rgba(168,85,247,0.18); color:#C084FC; }
+  .col-pill.liberacao { background:rgba(16,185,129,0.18); color:#34D399; }
+  .col-pill.envio, .col-pill.entregue, .col-pill.em-rota { background:rgba(20,184,166,0.18); color:#5EEAD4; }
+  .pills { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+  .pill { padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; }
+  .pill.pend { background:rgba(107,114,128,0.18); color:#9CA3AF; }
+  .pill.ok { background:rgba(16,185,129,0.18); color:#34D399; }
+  .pill.nok { background:rgba(239,68,68,0.18); color:#F87171; }
+  .pill.total { background:rgba(212,168,83,0.12); color:#D4A853; }
+  .progress { background:rgba(255,255,255,0.05); height:6px; border-radius:3px; overflow:hidden; margin-top:10px; }
+  .progress > div { height:100%; background:linear-gradient(90deg,#10B981,#34D399); transition:width 200ms; }
+  .card .ftr { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:10px; font-size:10px; color:rgba(255,255,255,0.45); }
+
+  /* Detail */
+  .back { background:transparent; border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; margin-bottom:16px; }
+  .header-card { background:linear-gradient(135deg,rgba(212,168,83,0.12),rgba(212,168,83,0.04)); border:1px solid rgba(212,168,83,0.25); border-radius:12px; padding:20px 24px; margin-bottom:20px; }
+  .header-card .lbl2 { font-size:11px; color:#D4A853; text-transform:uppercase; letter-spacing:0.08em; }
+  .header-card h1 { font-size:22px; font-weight:700; margin:6px 0 2px; line-height:1.2; }
+  .header-card .obra { font-family:ui-monospace,monospace; font-size:12px; color:rgba(255,255,255,0.55); }
+
+  .section { background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .section h2 { font-size:13px; font-weight:700; margin:0 0 12px; color:#fff; text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:8px; }
+  .section h2 .badge { font-size:10px; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); padding:2px 8px; border-radius:8px; font-weight:600; letter-spacing:0; text-transform:none; }
+  .servico-group { margin-bottom:18px; }
+  .servico-group:last-child { margin-bottom:0; }
+  .servico-title { font-size:11px; font-weight:700; color:#D4A853; text-transform:uppercase; letter-spacing:0.06em; margin:6px 0 8px; }
+
+  /* Item table */
+  table.itens { width:100%; border-collapse:collapse; font-size:12px; }
+  table.itens th { text-align:left; font-size:10px; text-transform:uppercase; color:rgba(255,255,255,0.4); letter-spacing:0.06em; font-weight:600; padding:6px 10px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  table.itens td { padding:10px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:top; }
+  table.itens tr:hover td { background:rgba(255,255,255,0.02); }
+  .status-pill { padding:3px 10px; border-radius:11px; font-size:10px; font-weight:700; display:inline-block; white-space:nowrap; }
+
+  /* Gallery */
+  .gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+  .gallery .ph { aspect-ratio:1; background:#080808; border:1px solid rgba(255,255,255,0.05); border-radius:8px; overflow:hidden; cursor:pointer; position:relative; }
+  .gallery .ph img { width:100%; height:100%; object-fit:cover; display:block; }
+  .gallery .ph .ovly { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,0.92)); padding:18px 8px 6px; }
+  .gallery .ph .ovly .t { color:#fff; font-size:10px; font-weight:600; line-height:1.2; }
+  .gallery .ph .ovly .s { color:rgba(255,255,255,0.7); font-size:9px; margin-top:1px; }
+
+  /* Timeline */
+  .tl { display:flex; flex-direction:column; gap:8px; }
+  .tlitem { padding:10px 14px; background:rgba(255,255,255,0.02); border-left:3px solid #888; border-radius:6px; transition:background 100ms; }
+  .tlitem.clickable { cursor:pointer; }
+  .tlitem.clickable:hover { background:rgba(255,255,255,0.04); }
+  .tlitem .tlrow { display:flex; gap:12px; align-items:flex-start; }
+  .tlitem .tlmain { flex:1; min-width:0; }
+  .tlitem .t1 { font-size:12px; color:#fff; font-weight:600; }
+  .tlitem .t2 { font-size:10px; color:rgba(255,255,255,0.55); margin-top:3px; line-height:1.4; }
+  .tlitem img { width:48px; height:48px; border-radius:5px; object-fit:cover; cursor:pointer; flex-shrink:0; border:1px solid rgba(255,255,255,0.08); }
+
+  /* Lightbox */
+  .lb { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.93); display:flex; align-items:center; justify-content:center; padding:20px; cursor:pointer; }
+  .lb img { max-width:94vw; max-height:90vh; border-radius:8px; }
+  .lb .x { position:absolute; top:18px; right:18px; background:rgba(255,255,255,0.12); border:none; color:#fff; width:38px; height:38px; border-radius:8px; font-size:18px; cursor:pointer; }
+
+  /* Misc */
+  .empty { padding:60px 20px; text-align:center; color:rgba(255,255,255,0.5); }
+  .empty .ico { font-size:38px; margin-bottom:8px; }
+  .spinner { display:inline-block; width:18px; height:18px; border:2px solid rgba(255,255,255,0.2); border-top-color:#D4A853; border-radius:50%; animation:spin 700ms linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .meta-sm { font-size:10px; color:rgba(255,255,255,0.5); }
+
+  /* Mobile */
+  @media (max-width:768px){
+    .app { grid-template-columns:1fr; }
+    .sidebar { position:relative; height:auto; flex-direction:row; gap:4px; overflow-x:auto; flex-wrap:nowrap; padding:10px; border-right:none; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .sidebar .brand, .sidebar .section-label { display:none; }
+    .sidebar .navlink { flex-shrink:0; padding:7px 11px; font-size:11px; }
+    .sidebar .navlink .count { display:none; }
+    .main { padding:14px; }
+    .pagehd h1 { font-size:18px; }
+    .cards { grid-template-columns:1fr; }
+  }
+  /* === Tema claro (mesmo truque do space.parket) === */
+  [data-theme=light]{filter:invert() hue-rotate(180deg) contrast(1.25) brightness(.95);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+  [data-theme=light] *{-webkit-font-smoothing:antialiased!important;text-rendering:optimizeLegibility!important}
+  [data-theme=light] img,[data-theme=light] video,[data-theme=light] picture,[data-theme=light] iframe,[data-theme=light] canvas,[data-theme=light] svg image{filter:invert() hue-rotate(180deg)}
+  [data-theme=light] ::-webkit-scrollbar-thumb{background:#645a5059}
+  [data-theme=light] ::-webkit-scrollbar-thumb:hover{background:#645a508c}
+  #__pkt_theme_btn{position:fixed;bottom:14px;right:14px;z-index:2147483647;background:#1a1a1a;color:#fafafa;border:1px solid #333;border-radius:50%;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:transform .15s}
+  #__pkt_theme_btn:hover{transform:scale(1.05)}
+  [data-theme=light] #__pkt_theme_btn{background:#fafafa;color:#1a1a1a;border-color:#ccc}
+</style>
+<script>
+  /* Aplica tema salvo ANTES do body renderizar (evita flash) */
+  (function(){try{var t=localStorage.getItem('parket-theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">PARKET • BASE</div>
+      <div class="tag">Gestão e Acompanhamento</div>
+    </div>
+    <button class="navlink" data-route="visao-geral"><span class="icon">📊</span><span>Visão Geral</span></button>
+    <div class="section-label">Setores</div>
+    <button class="navlink" data-route="producao"><span class="icon">🏭</span><span>Produção</span><span class="count" id="cnt-prod">·</span></button>
+    <button class="navlink" data-route="logistica"><span class="icon">🚚</span><span>Logística</span><span class="count" id="cnt-log">·</span></button>
+    <div class="section-label">Acompanhamento</div>
+    <button class="navlink" data-route="timeline"><span class="icon">📜</span><span>Linha do Tempo</span></button>
+    <button class="navlink" data-route="galeria"><span class="icon">🖼</span><span>Galeria de Fotos</span><span class="count" id="cnt-fotos">·</span></button>
+    <button class="navlink" data-route="itens"><span class="icon">📦</span><span>Todos os Itens</span><span class="count" id="cnt-itens">·</span></button>
+    <div class="section-label">Leitor de QR</div>
+    <a class="navlink" href="/leitor/" target="_blank" style="text-decoration:none"><span class="icon">📷</span><span>Abrir Leitor (web)</span></a>
+    <a class="navlink" href="/app/parket-base.apk" download="parket-base.apk" style="text-decoration:none;background:rgba(34,197,94,0.1);color:#4ADE80;border:1px solid rgba(34,197,94,0.25)"><span class="icon">📥</span><span>Baixar APK Android</span></a>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+
+<script type="module">
+const SUPABASE_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+const STATUS = {
+  "pendente":         { color:"#9CA3AF", bg:"rgba(107,114,128,0.18)", label:"Pendente" },
+  "em-producao":      { color:"#FBBF24", bg:"rgba(245,158,11,0.18)",  label:"Em produção" },
+  "aprovado":         { color:"#34D399", bg:"rgba(16,185,129,0.18)",  label:"Aprovado" },
+  "nao-conforme":     { color:"#F87171", bg:"rgba(239,68,68,0.18)",   label:"Não-conforme" },
+  "enviado":          { color:"#60A5FA", bg:"rgba(59,130,246,0.18)",  label:"Enviado" },
+  "em-transito":      { color:"#5EEAD4", bg:"rgba(20,184,166,0.18)",  label:"Em trânsito" },
+  "recebido-na-obra": { color:"#C084FC", bg:"rgba(168,85,247,0.18)",  label:"Recebido" },
+  "instalado":        { color:"#4ADE80", bg:"rgba(34,197,94,0.20)",   label:"Instalado" },
+};
+const SETOR_LABEL = { producao:"Produção", logistica:"Logística", obra:"Obra" };
+const SETOR_COLOR = { producao:"#FBBF24", logistica:"#60A5FA", obra:"#C084FC" };
+const COL_TITLES = {
+  "entrada-de-projeto":"Entrada de Projeto", "analisando":"Analisando", "desenvolvendo":"Desenvolvendo",
+  "verificacao-interna":"Verificação Interna", "liberacao":"Liberação", "envio":"Envio",
+  "entrada":"Entrada", "requisicao":"Requisição", "solicitacao-frete":"Solicitação de Frete",
+  "em-rota":"Em Rota", "entregue":"Entregue",
+};
+
+async function api(path, opts={}){
+  const res = await fetch(SUPABASE_URL + path, {
+    ...opts,
+    headers: {
+      "apikey": SUPABASE_ANON, "Authorization": "Bearer " + SUPABASE_ANON,
+      "Content-Type": "application/json", ...(opts.headers||{}),
+    }
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text().catch(()=>'?')}`);
+  if (res.status === 204) return null;
+  const txt = await res.text(); if (!txt) return null;
+  try { return JSON.parse(txt); } catch { return null; }
+}
+function esc(s){ return String(s||"").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c])); }
+function fmt(iso, full=false){
+  if (!iso) return "";
+  const d = new Date(iso);
+  return full ? d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"})
+              : d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+function timeAgo(iso){
+  if (!iso) return "—";
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff/60000);
+  if (m < 1) return "agora";
+  if (m < 60) return `${m}m atrás`;
+  const h = Math.floor(m/60);
+  if (h < 24) return `${h}h atrás`;
+  return `${Math.floor(h/24)}d atrás`;
+}
+function openLightbox(url, chkId){
+  const lb = document.createElement("div");
+  lb.className = "lb";
+  lb.innerHTML = `
+    <img src="${esc(url)}"/>
+    <button class="x">✕</button>
+    ${chkId ? `<button class="del" style="position:absolute;bottom:18px;right:18px;background:rgba(239,68,68,0.18);border:1px solid rgba(239,68,68,0.4);color:#F87171;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">🗑 Apagar foto</button>` : ""}
+  `;
+  lb.onclick = (ev) => { if (ev.target === lb || ev.target.classList.contains("x")) lb.remove(); };
+  if (chkId) {
+    lb.querySelector(".del").onclick = async (ev) => {
+      ev.stopPropagation();
+      if (!confirm("Apagar esta foto? Não dá pra desfazer.")) return;
+      try {
+        await api(`/rest/v1/itens_checkpoints?id=eq.${chkId}`, {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: JSON.stringify({ foto_url: null }),
+        });
+        lb.remove();
+        // Atualiza state local + re-render
+        const c = state.chks.find(x => x.id === chkId);
+        if (c) c.foto_url = null;
+        route();
+      } catch(err) { alert("Erro ao apagar: " + err.message); }
+    };
+  }
+  document.body.appendChild(lb);
+}
+function colCls(col){
+  if (!col) return "";
+  if (col === "entrada-de-projeto") return "entrada";
+  if (col === "verificacao-interna") return "verificacao";
+  if (col === "em-rota" || col === "entregue") return "em-rota";
+  return col;
+}
+
+const main = document.getElementById("main");
+const state = { cards: [], itens: [], chks: [], filter: { search:"", status:"" } };
+
+function setActiveNav(route){
+  document.querySelectorAll(".navlink").forEach(b => b.classList.toggle("active", b.dataset.route === route));
+}
+
+async function fetchAll(){
+  const [cards, itens, chks] = await Promise.all([
+    api(`/rest/v1/kanban_cards?dept_id=in.(producao,logistica)&select=id,title,obra,dept_id,column_id,updated_at&order=updated_at.desc&limit=300`),
+    api(`/rest/v1/itens_rastreio?select=*&order=updated_at.desc&limit=3000`),
+    api(`/rest/v1/itens_checkpoints?select=*&order=created_at.desc&limit=300`),
+  ]);
+  state.cards = cards || [];
+  state.itens = itens || [];
+  state.chks = chks || [];
+  // Atualiza contadores na sidebar
+  const cardsProd = state.cards.filter(c => c.dept_id === "producao").length;
+  const cardsLog  = state.cards.filter(c => c.dept_id === "logistica").length;
+  document.getElementById("cnt-prod").textContent = cardsProd;
+  document.getElementById("cnt-log").textContent  = cardsLog;
+  document.getElementById("cnt-fotos").textContent = state.chks.filter(c => c.foto_url).length;
+  document.getElementById("cnt-itens").textContent = state.itens.length;
+}
+
+/* ─────────── Routing ─────────── */
+function route(){
+  const url = new URL(location.href);
+  const path = url.searchParams.get("p") || "visao-geral";
+  const cardId = url.searchParams.get("card");
+  if (cardId) { setActiveNav(""); return renderDetalhe(cardId); }
+  setActiveNav(path);
+  state.filter = { search:"", status:"" }; // reset por rota
+  if (path === "producao") renderSetor("producao");
+  else if (path === "logistica") renderSetor("logistica");
+  else if (path === "timeline") renderTimeline();
+  else if (path === "galeria") renderGaleria();
+  else if (path === "itens") renderItensList();
+  else renderVisaoGeral();
+}
+window.addEventListener("popstate", route);
+document.querySelectorAll(".navlink").forEach(b => b.onclick = () => {
+  history.pushState({}, "", "/?p=" + b.dataset.route);
+  route();
+});
+
+/* ─────────── Helpers de agregação ─────────── */
+function statusBucket(s){
+  if (s === "pendente" || s === "em-producao") return "pend";
+  if (s === "nao-conforme") return "nok";
+  return "ok";
+}
+function cardCounters(cardId){
+  const its = state.itens.filter(i => i.card_id === cardId);
+  const cnt = { total: its.length, pend:0, ok:0, nok:0 };
+  for (const it of its) cnt[statusBucket(it.status_atual)]++;
+  cnt.pct = cnt.total ? Math.round(cnt.ok*100/cnt.total) : 0;
+  return cnt;
+}
+function lastChkForCard(cardId){
+  const its = state.itens.filter(i => i.card_id === cardId).map(i => i.id);
+  return state.chks.find(c => its.includes(c.item_id));
+}
+
+/* ─────────── Visão Geral ─────────── */
+function statsRow(scope){
+  // scope = "all" | "producao" | "logistica"
+  let cards = state.cards;
+  let itens = state.itens;
+  if (scope !== "all") {
+    cards = cards.filter(c => c.dept_id === scope);
+    const ids = new Set(cards.map(c => c.id));
+    itens = itens.filter(i => ids.has(i.card_id));
+  }
+  const total = itens.length;
+  const ok    = itens.filter(i => statusBucket(i.status_atual) === "ok").length;
+  const pend  = itens.filter(i => statusBucket(i.status_atual) === "pend").length;
+  const nok   = itens.filter(i => statusBucket(i.status_atual) === "nok").length;
+  return `
+    <div class="grid-stats">
+      <div class="stat"><div class="lbl">Projetos</div><div class="val">${cards.length}</div><div class="sub">${cards.filter(c=>c.column_id!=="envio"&&c.column_id!=="entregue").length} ativos</div></div>
+      <div class="stat"><div class="lbl">Itens rastreados</div><div class="val">${total}</div><div class="sub">QRs gerados</div></div>
+      <div class="stat"><div class="lbl">Aprovados / em curso</div><div class="val" style="color:#34D399">${ok}</div><div class="sub">${total ? Math.round(ok*100/total) : 0}% do total</div></div>
+      <div class="stat"><div class="lbl">Pendentes</div><div class="val" style="color:#FBBF24">${pend}</div><div class="sub">aguardando verificação</div></div>
+      <div class="stat"><div class="lbl">Não-conforme</div><div class="val" style="color:#F87171">${nok}</div><div class="sub">precisa correção</div></div>
+    </div>`;
+}
+
+function renderVisaoGeral(){
+  document.title = "Parket Base — Visão Geral";
+  main.innerHTML = `
+    <div class="pagehd">
+      <div>
+        <div class="crumb">Dashboard</div>
+        <h1>Visão Geral</h1>
+      </div>
+    </div>
+    ${statsRow("all")}
+
+    <div class="section">
+      <h2>🏭 Produção <span class="badge">${state.cards.filter(c=>c.dept_id==="producao").length} projetos</span></h2>
+      ${statsRow("producao")}
+      <button class="navlink active" onclick="history.pushState({},'','/?p=producao');route()" style="display:inline-flex;width:auto;margin-top:4px">Ver todos os projetos de Produção →</button>
+    </div>
+
+    <div class="section">
+      <h2>🚚 Logística <span class="badge">${state.cards.filter(c=>c.dept_id==="logistica").length} projetos</span></h2>
+      ${statsRow("logistica")}
+      <button class="navlink active" onclick="history.pushState({},'','/?p=logistica');route()" style="display:inline-flex;width:auto;margin-top:4px">Ver todos os projetos de Logística →</button>
+    </div>
+
+    <div class="section">
+      <h2>📜 Últimas leituras <span class="badge">${state.chks.length}</span></h2>
+      ${renderTimelineList(state.chks.slice(0, 12))}
+      ${state.chks.length > 12 ? `<button class="back" style="margin-top:14px" onclick="history.pushState({},'','/?p=timeline');route()">Ver todas →</button>` : ""}
+    </div>
+  `;
+  bindRoutes();
+}
+window.route = route;
+
+/* ─────────── Setor (Produção/Logística) ─────────── */
+function renderSetor(setor){
+  const lbl = setor === "producao" ? "Produção" : "Logística";
+  const icon = setor === "producao" ? "🏭" : "🚚";
+  document.title = `Parket Base — ${lbl}`;
+
+  let cards = state.cards.filter(c => c.dept_id === setor);
+  const f = state.filter;
+  if (f.search) {
+    const q = f.search.toLowerCase();
+    cards = cards.filter(c => (c.title||"").toLowerCase().includes(q) || (c.obra||"").toLowerCase().includes(q));
+  }
+  if (f.status) cards = cards.filter(c => c.column_id === f.status);
+
+  // Lista de colunas disponíveis nesse setor
+  const colsDisp = [...new Set(state.cards.filter(c=>c.dept_id===setor).map(c=>c.column_id))].filter(Boolean);
+
+  main.innerHTML = `
+    <div class="pagehd">
+      <div>
+        <div class="crumb">${icon} Setor</div>
+        <h1>${lbl}</h1>
+      </div>
+    </div>
+    ${statsRow(setor)}
+    <div class="filters">
+      <input id="_q" placeholder="Buscar cliente, obra..." value="${esc(f.search)}" style="min-width:240px">
+      <select id="_sc">
+        <option value="">Todas as colunas</option>
+        ${colsDisp.map(s => `<option value="${esc(s)}" ${f.status===s?"selected":""}>${esc(COL_TITLES[s]||s)}</option>`).join("")}
+      </select>
+      ${(f.search||f.status)?`<button class="clear" id="_cl">Limpar filtros</button>`:""}
+      <span class="info">${cards.length} ${cards.length===1?"projeto":"projetos"}</span>
+    </div>
+    <div class="cards" id="_cards">
+      ${cards.length ? cards.map(renderCardThumb).join("") : `<div class="empty" style="grid-column:1/-1"><div class="ico">📦</div>Nenhum projeto encontrado.</div>`}
+    </div>
+  `;
+  document.getElementById("_q").oninput = (e) => { state.filter.search = e.target.value; renderSetor(setor); };
+  document.getElementById("_sc").onchange = (e) => { state.filter.status = e.target.value; renderSetor(setor); };
+  if (document.getElementById("_cl")) document.getElementById("_cl").onclick = () => { state.filter = { search:"", status:"" }; renderSetor(setor); };
+  for (const el of document.querySelectorAll("#_cards .card")) el.onclick = () => goCard(el.dataset.id);
+}
+
+function renderCardThumb(c){
+  const cnt = cardCounters(c.id);
+  const last = lastChkForCard(c.id);
+  return `
+    <div class="card" data-id="${c.id}">
+      <div class="hd">
+        <div style="min-width:0;flex:1">
+          <div class="obra">${esc(c.obra||"—")}</div>
+          <h3>${esc(c.title||"—")}</h3>
+        </div>
+        <span class="col-pill ${colCls(c.column_id)}">${esc(COL_TITLES[c.column_id]||c.column_id||"—")}</span>
+      </div>
+      <div class="pills">
+        <span class="pill pend">⏳ ${cnt.pend}</span>
+        <span class="pill ok">✓ ${cnt.ok}</span>
+        ${cnt.nok?`<span class="pill nok">✕ ${cnt.nok}</span>`:""}
+        <span class="pill total">📦 ${cnt.total}</span>
+      </div>
+      <div class="progress"><div style="width:${cnt.pct}%"></div></div>
+      <div class="ftr">
+        <span>${esc(SETOR_LABEL[c.dept_id]||c.dept_id)}</span>
+        <span>${last ? "↻ " + timeAgo(last.created_at) : (c.updated_at ? "atualizado " + timeAgo(c.updated_at) : "—")}</span>
+      </div>
+    </div>`;
+}
+
+function goCard(id){ history.pushState({}, "", "/?card=" + id); renderDetalhe(id); }
+
+/* ─────────── Detalhe ─────────── */
+async function renderDetalhe(cardId){
+  main.innerHTML = `<div class="empty"><span class="spinner"></span><div>Carregando projeto…</div></div>`;
+  const card = state.cards.find(c => c.id === cardId) || (await api(`/rest/v1/kanban_cards?id=eq.${cardId}&select=*`))?.[0];
+  if (!card) { main.innerHTML = `<div class="empty"><div class="ico">❌</div>Projeto não encontrado.</div>`; return; }
+
+  // Refetch fresh
+  const its = (await api(`/rest/v1/itens_rastreio?card_id=eq.${cardId}&select=*&order=servico,ambiente`)) || [];
+  const idsCsv = its.map(i => `"${i.id}"`).join(",") || '""';
+  const cs = (await api(`/rest/v1/itens_checkpoints?item_id=in.(${idsCsv})&select=*&order=created_at.desc`)) || [];
+
+  const total = its.length;
+  const ok    = its.filter(i => statusBucket(i.status_atual) === "ok").length;
+  const pend  = its.filter(i => statusBucket(i.status_atual) === "pend").length;
+  const nok   = its.filter(i => statusBucket(i.status_atual) === "nok").length;
+  const pct   = total ? Math.round(ok*100/total) : 0;
+
+  const porServ = {};
+  for (const i of its) (porServ[i.servico||"—"] = porServ[i.servico||"—"] || []).push(i);
+
+  const fotos = cs.filter(c => c.foto_url);
+  const itMap = {}; for (const i of its) itMap[i.id] = i;
+
+  const setorLbl = SETOR_LABEL[card.dept_id] || card.dept_id;
+
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="back" id="_back" style="margin:0">← ${esc(setorLbl)}</button>
+      <button class="back" id="_pdf" style="margin:0;background:rgba(212,168,83,0.12);border-color:rgba(212,168,83,0.4);color:#D4A853;font-weight:600">📄 Gerar PDF</button>
+    </div>
+    <div class="header-card">
+      <div class="lbl2">${esc(setorLbl)} · Projeto · Cliente</div>
+      <h1>${esc(card.title||"—")}</h1>
+      ${card.obra ? `<div class="obra">OBRA: ${esc(card.obra)}</div>` : ""}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center">
+        <span class="col-pill ${colCls(card.column_id)}">${esc(COL_TITLES[card.column_id]||card.column_id||"—")}</span>
+        <span class="pill pend">⏳ ${pend} pendentes</span>
+        <span class="pill ok">✓ ${ok} aprovados</span>
+        ${nok ? `<span class="pill nok">✕ ${nok} não-conforme</span>` : ""}
+        <span class="pill total">${total} total · ${pct}%</span>
+      </div>
+      <div class="progress" style="margin-top:12px;background:rgba(255,255,255,0.08)"><div style="width:${pct}%"></div></div>
+    </div>
+
+    ${fotos.length ? `
+    <div class="section">
+      <h2>🖼 Fotos do Projeto <span class="badge">${fotos.length}</span></h2>
+      <div class="gallery">
+        ${fotos.map(c => {
+          const it = itMap[c.item_id]; if (!it) return "";
+          return `<div class="ph" data-url="${esc(c.foto_url)}" data-chk="${esc(c.id)}">
+            <img src="${esc(c.foto_url)}" loading="lazy"/>
+            <div class="ovly">
+              <div class="t">${esc(it.servico)} · ${esc(it.ambiente||"—")}</div>
+              <div class="s">${esc(SETOR_LABEL[c.setor]||c.setor)} · ${esc(c.verificado_por||"—")} · ${fmt(c.created_at)}</div>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>` : ""}
+
+    <div class="section">
+      <h2>📋 Itens do Levantamento <span class="badge">${total}</span></h2>
+      ${Object.keys(porServ).sort().map(svc => `
+        <div class="servico-group">
+          <div class="servico-title">${esc(svc)} · ${porServ[svc].length} ${porServ[svc].length===1?"item":"itens"}</div>
+          <table class="itens">
+            <thead><tr><th>Ambiente</th><th>Descrição</th><th>Qtd</th><th>Status</th><th>Atualizado</th></tr></thead>
+            <tbody>
+              ${porServ[svc].map(i => {
+                const st = STATUS[i.status_atual] || STATUS["pendente"];
+                return `<tr>
+                  <td style="color:#fff;font-weight:600">${esc(i.ambiente||"—")}</td>
+                  <td style="color:rgba(255,255,255,0.7)">${esc(i.descricao||"—")}</td>
+                  <td>${esc(i.qtd?(i.qtd+(i.unidade||"")):"—")}</td>
+                  <td><span class="status-pill" style="background:${st.bg};color:${st.color}">${st.label}</span></td>
+                  <td class="meta-sm">${i.updated_at?timeAgo(i.updated_at):"—"}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>`).join("")}
+    </div>
+
+    <div class="section">
+      <h2>📜 Histórico de Leituras <span class="badge">${cs.length}</span></h2>
+      ${cs.length ? renderTimelineList(cs, itMap, false) : `<div class="empty">Sem leituras de QR ainda neste projeto.</div>`}
+    </div>
+  `;
+  document.getElementById("_back").onclick = () => {
+    if (card.dept_id === "producao" || card.dept_id === "logistica") {
+      history.pushState({}, "", "/?p=" + card.dept_id);
+      setActiveNav(card.dept_id);
+      renderSetor(card.dept_id);
+    } else { history.back(); }
+  };
+  document.getElementById("_pdf").onclick = () => gerarPdfProjeto(card, its, cs);
+  for (const el of document.querySelectorAll(".gallery .ph")) el.onclick = () => openLightbox(el.dataset.url, el.dataset.chk);
+  for (const img of document.querySelectorAll(".tlitem img[data-url]")) img.onclick = (ev) => { ev.stopPropagation(); openLightbox(img.dataset.url, img.dataset.chk); };
+}
+
+function gerarPdfProjeto(card, itens, chks) {
+  // Agrupa por serviço
+  const porServ = {};
+  for (const i of itens) (porServ[i.servico||"—"] = porServ[i.servico||"—"] || []).push(i);
+  const total = itens.length;
+  const ok    = itens.filter(i => statusBucket(i.status_atual) === "ok").length;
+  const pend  = itens.filter(i => statusBucket(i.status_atual) === "pend").length;
+  const nok   = itens.filter(i => statusBucket(i.status_atual) === "nok").length;
+  const pct   = total ? Math.round(ok*100/total) : 0;
+
+  // Última leitura por item (pra mostrar quem verificou)
+  const lastByItem = {};
+  for (const c of chks) if (!lastByItem[c.item_id]) lastByItem[c.item_id] = c;
+
+  const setorLbl = SETOR_LABEL[card.dept_id] || card.dept_id;
+  const dataGer = new Date().toLocaleString("pt-BR");
+
+  const w = window.open("", "_blank", "width=900,height=900");
+  if (!w) { alert("Permita pop-ups pra gerar o PDF."); return; }
+
+  let body = "";
+  for (const svc of Object.keys(porServ).sort()) {
+    const arr = porServ[svc];
+    body += `<h3 class="svc">${esc(svc)} <span class="svc-count">(${arr.length} ${arr.length===1?"item":"itens"})</span></h3>`;
+    body += `<table class="tab"><thead><tr>
+      <th>Ambiente</th><th>Descrição</th><th>Qtd</th><th>Status</th><th>Verificado por</th><th>Quando</th>
+    </tr></thead><tbody>`;
+    for (const i of arr) {
+      const st = STATUS[i.status_atual] || STATUS["pendente"];
+      const last = lastByItem[i.id];
+      body += `<tr>
+        <td><b>${esc(i.ambiente||"—")}</b></td>
+        <td>${esc(i.descricao||"—")}</td>
+        <td>${esc(i.qtd ? (i.qtd + (i.unidade||"")) : "—")}</td>
+        <td><span class="st" style="background:${st.bg};color:${st.color}">${st.label}</span></td>
+        <td>${last ? esc(last.verificado_por||"—") : "—"}</td>
+        <td>${last ? esc(fmt(last.created_at, true)) : "—"}</td>
+      </tr>`;
+    }
+    body += `</tbody></table>`;
+  }
+
+  w.document.open();
+  w.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="utf-8"><title>${esc(card.title||"Projeto")} — Acompanhamento</title>
+    <style>
+      @page { margin: 10mm; size: A4; }
+      body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 12mm; background:#fff; color:#222; font-size:11px; }
+      .hd { border-bottom: 2px solid #D4A853; padding-bottom: 10px; margin-bottom: 14px; }
+      .hd .tag { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.08em; }
+      .hd h1 { font-size: 18px; margin: 4px 0 2px; color: #111; }
+      .hd .sub { font-size: 12px; color: #555; font-family: ui-monospace, monospace; }
+      .hd .meta { font-size: 9px; color: #888; margin-top: 4px; }
+      .stats { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+      .stat-box { border: 1px solid #ddd; border-radius: 5px; padding: 6px 10px; font-size: 10px; }
+      .stat-box b { font-size: 14px; display: block; }
+      .stat-box.pend b { color: #999; }
+      .stat-box.ok b { color: #10B981; }
+      .stat-box.nok b { color: #EF4444; }
+      .progress { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin: 10px 0 16px; }
+      .progress > div { height: 100%; background: linear-gradient(90deg, #10B981, #34D399); }
+      h3.svc { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #B89A4F; margin: 16px 0 6px; border-bottom: 1px solid #eee; padding-bottom: 3px; }
+      h3.svc .svc-count { color: #888; font-size: 9px; font-weight: 400; }
+      table.tab { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 8px; page-break-inside: avoid; }
+      table.tab th { text-align: left; padding: 5px 6px; background: #f7f7f7; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #ddd; }
+      table.tab td { padding: 5px 6px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+      table.tab tr { page-break-inside: avoid; }
+      .st { padding: 2px 7px; border-radius: 8px; font-size: 8.5px; font-weight: 700; display: inline-block; }
+      .actions { margin-bottom: 10mm; }
+      .actions button { padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; border: 1px solid #888; background: #f7f7f7; }
+      @media print { .actions { display: none; } }
+    </style>
+  </head><body>
+    <div class="actions"><button onclick="window.print()">🖨 Imprimir / Salvar PDF</button></div>
+    <div class="hd">
+      <div class="tag">${esc(setorLbl)} · Acompanhamento de Produção</div>
+      <h1>${esc(card.title||"—")}</h1>
+      ${card.obra ? `<div class="sub">OBRA: ${esc(card.obra)}</div>` : ""}
+      <div class="meta">Coluna atual: <b>${esc(COL_TITLES[card.column_id]||card.column_id||"—")}</b> · Gerado em ${esc(dataGer)}</div>
+    </div>
+    <div class="stats">
+      <div class="stat-box"><b>${total}</b>Total de itens</div>
+      <div class="stat-box pend"><b>${pend}</b>Pendentes</div>
+      <div class="stat-box ok"><b>${ok}</b>Aprovados / em curso</div>
+      ${nok ? `<div class="stat-box nok"><b>${nok}</b>Não-conforme</div>` : ""}
+      <div class="stat-box"><b>${pct}%</b>Progresso</div>
+    </div>
+    <div class="progress"><div style="width:${pct}%"></div></div>
+    ${body}
+  </body></html>`);
+  w.document.close();
+}
+
+/* ─────────── Timeline ─────────── */
+function renderTimelineList(arr, itMap, includeProject=true){
+  if (!itMap) { itMap = {}; for (const i of state.itens) itMap[i.id] = i; }
+  const cardMap = {}; for (const c of state.cards) cardMap[c.id] = c;
+  if (!arr.length) return `<div class="empty">Sem leituras ainda.</div>`;
+  return `<div class="tl">${arr.map(c => {
+    const it = itMap[c.item_id]; const cd = it ? cardMap[it.card_id] : null;
+    const stColor = c.status==="aprovado"?"#34D399":(c.status==="nao-conforme"?"#F87171":"#9CA3AF");
+    const setCor = SETOR_COLOR[c.setor] || "#888";
+    const clickable = includeProject && cd;
+    return `<div class="tlitem ${clickable?"clickable":""}" style="border-left-color:${setCor}" ${clickable?`data-card="${cd.id}"`:""}>
+      <div class="tlrow">
+        <div class="tlmain">
+          <div class="t1">${includeProject && cd ? `<span style="color:#D4A853">${esc(cd.title)}</span> · ` : ""}${it ? esc(it.servico + " · " + (it.ambiente||"—")) : esc(c.item_id.slice(0,8))}</div>
+          <div class="t2">
+            <b style="color:${setCor}">${esc(SETOR_LABEL[c.setor]||c.setor)}</b> · ${esc(c.acao)} ·
+            <span style="color:${stColor}">${esc(c.status)}</span> · ${esc(c.verificado_por||"—")} · ${fmt(c.created_at, true)}
+            ${c.obs?` · <i style="color:rgba(255,255,255,0.5)">${esc(c.obs)}</i>`:""}
+          </div>
+        </div>
+        ${c.foto_url?`<img src="${esc(c.foto_url)}" data-url="${esc(c.foto_url)}" data-chk="${esc(c.id)}"/>`:""}
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function bindRoutes(){
+  for (const el of document.querySelectorAll(".tlitem.clickable")) {
+    el.onclick = (ev) => {
+      if (ev.target.tagName === "IMG") { openLightbox(ev.target.dataset.url, ev.target.dataset.chk); return; }
+      goCard(el.dataset.card);
+    };
+  }
+  for (const img of document.querySelectorAll(".tlitem img[data-url]")) {
+    img.onclick = (ev) => { ev.stopPropagation(); openLightbox(img.dataset.url, img.dataset.chk); };
+  }
+}
+
+function renderTimeline(){
+  document.title = "Parket Base — Linha do Tempo";
+  main.innerHTML = `
+    <div class="pagehd"><div><div class="crumb">Acompanhamento</div><h1>Linha do Tempo</h1></div></div>
+    <div class="section">
+      <h2>📜 Últimas leituras de QR <span class="badge">${state.chks.length}</span></h2>
+      ${renderTimelineList(state.chks)}
+    </div>`;
+  bindRoutes();
+}
+
+function renderGaleria(){
+  document.title = "Parket Base — Galeria";
+  const cs = state.chks.filter(c => c.foto_url);
+  const itMap = {}; for (const i of state.itens) itMap[i.id] = i;
+  const cardMap = {}; for (const c of state.cards) cardMap[c.id] = c;
+  main.innerHTML = `
+    <div class="pagehd"><div><div class="crumb">Acompanhamento</div><h1>Galeria de Fotos</h1></div></div>
+    <div class="section">
+      <h2>🖼 Todas as fotos <span class="badge">${cs.length}</span></h2>
+      ${cs.length ? `<div class="gallery">${cs.map(c => {
+        const it = itMap[c.item_id]; const cd = it ? cardMap[it.card_id] : null;
+        return `<div class="ph" data-url="${esc(c.foto_url)}" data-chk="${esc(c.id)}">
+          <img src="${esc(c.foto_url)}" loading="lazy"/>
+          <div class="ovly">
+            <div class="t">${cd ? esc(cd.title) : "?"}</div>
+            <div class="s">${it ? esc(it.servico + " · " + (it.ambiente||"—")) : ""} · ${fmt(c.created_at)}</div>
+          </div>
+        </div>`;
+      }).join("")}</div>` : `<div class="empty"><div class="ico">📷</div>Nenhuma foto ainda.</div>`}
+    </div>`;
+  for (const el of document.querySelectorAll(".gallery .ph")) el.onclick = () => openLightbox(el.dataset.url, el.dataset.chk);
+}
+
+function renderItensList(){
+  document.title = "Parket Base — Itens";
+  const cardMap = {}; for (const c of state.cards) cardMap[c.id] = c;
+  // Group by status_atual
+  const porStatus = {};
+  for (const it of state.itens) (porStatus[it.status_atual] = porStatus[it.status_atual] || []).push(it);
+  const order = ["pendente","em-producao","aprovado","enviado","em-transito","recebido-na-obra","instalado","nao-conforme"];
+  main.innerHTML = `
+    <div class="pagehd"><div><div class="crumb">Acompanhamento</div><h1>Todos os Itens</h1></div></div>
+    <div class="grid-stats">
+      ${order.map(s => {
+        const arr = porStatus[s] || [];
+        const st = STATUS[s];
+        return `<div class="stat"><div class="lbl" style="color:${st.color}">${st.label}</div><div class="val">${arr.length}</div></div>`;
+      }).join("")}
+    </div>
+    <div class="section">
+      <h2>📦 Lista <span class="badge">${state.itens.length}</span></h2>
+      <table class="itens">
+        <thead><tr><th>Projeto</th><th>Setor</th><th>Serviço</th><th>Ambiente</th><th>Qtd</th><th>Status</th><th>Atualizado</th></tr></thead>
+        <tbody>
+          ${state.itens.slice(0, 500).map(i => {
+            const cd = cardMap[i.card_id];
+            const st = STATUS[i.status_atual] || STATUS["pendente"];
+            return `<tr style="cursor:pointer" data-card="${i.card_id}">
+              <td style="color:#fff;font-weight:600">${cd ? esc(cd.title) : "—"}</td>
+              <td><span class="meta-sm">${cd ? esc(SETOR_LABEL[cd.dept_id]||cd.dept_id) : "—"}</span></td>
+              <td>${esc(i.servico||"—")}</td>
+              <td style="color:rgba(255,255,255,0.7)">${esc(i.ambiente||"—")}</td>
+              <td>${esc(i.qtd?(i.qtd+(i.unidade||"")):"—")}</td>
+              <td><span class="status-pill" style="background:${st.bg};color:${st.color}">${st.label}</span></td>
+              <td class="meta-sm">${i.updated_at?timeAgo(i.updated_at):"—"}</td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+      ${state.itens.length > 500 ? `<div style="text-align:center;margin-top:10px;color:rgba(255,255,255,0.5);font-size:11px">Mostrando 500 de ${state.itens.length}. Refine pelo projeto.</div>` : ""}
+    </div>`;
+  for (const tr of document.querySelectorAll("tr[data-card]")) tr.onclick = () => goCard(tr.dataset.card);
+}
+
+/* ─────────── Boot ─────────── */
+let _pollTimer = null;
+async function boot(){
+  main.innerHTML = `<div class="empty"><span class="spinner"></span><div>Carregando…</div></div>`;
+  try { await fetchAll(); route(); }
+  catch(err){ main.innerHTML = `<div class="empty"><div class="ico">⚠️</div>Erro: ${esc(err.message)}</div>`; return; }
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(() => { fetchAll().then(()=>{ const u = new URL(location.href); if (!u.searchParams.get("card")) route(); }).catch(()=>{}); }, 30000);
+}
+boot();
+
+/* === Toggle de tema claro/escuro (floating button) === */
+(function(){
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme', t);
+    var btn = document.getElementById('__pkt_theme_btn');
+    if (btn) btn.textContent = t === 'light' ? '🌙' : '☀️';
+  }
+  function mountBtn(){
+    if (document.getElementById('__pkt_theme_btn')) return;
+    var b = document.createElement('button');
+    b.id = '__pkt_theme_btn';
+    b.title = 'Alternar tema claro/escuro';
+    var cur = document.documentElement.getAttribute('data-theme') || 'dark';
+    b.textContent = cur === 'light' ? '🌙' : '☀️';
+    b.onclick = function(){
+      var nxt = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      try { localStorage.setItem('parket-theme', nxt); } catch(e){}
+      applyTheme(nxt);
+    };
+    document.body.appendChild(b);
+  }
+  if (document.body) mountBtn();
+  else document.addEventListener('DOMContentLoaded', mountBtn);
+})();
+</script>
+</body>
+</html>

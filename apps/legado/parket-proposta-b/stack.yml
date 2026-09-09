@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  web:
+    image: parket-proposta-b:v1
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        - traefik.http.routers.proposta-b.rule=Host(`proposta.parket.works`) && PathPrefix(`/b`)
+        - traefik.http.routers.proposta-b.priority=100
+        - traefik.http.routers.proposta-b.entrypoints=websecure
+        - traefik.http.routers.proposta-b.tls=true
+        - traefik.http.routers.proposta-b.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.proposta-b-http.rule=Host(`proposta.parket.works`) && PathPrefix(`/b`)
+        - traefik.http.routers.proposta-b-http.priority=100
+        - traefik.http.routers.proposta-b-http.entrypoints=web
+        - traefik.http.services.proposta-b.loadbalancer.server.port=80
+
+networks:
+  network_public:
+    external: true

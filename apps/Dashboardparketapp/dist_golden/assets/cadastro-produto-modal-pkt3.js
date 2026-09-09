@@ -1,0 +1,638 @@
+// cadastro-produto-modal-pkt1.js
+// ─────────────────────────────────────────────────────────────
+// Modal de cadastro/edição de produto pra tabela de preços do
+// Orçamento. Renderiza campos DINÂMICOS por categoria — comuns
+// (espécie, preço, etc) em colunas fixas + específicos em JSONB
+// `atributos_extras`. Cada campo específico é combobox: dropdown
+// com valores já cadastrados + input livre pra criar valor novo.
+//
+// Expõe `window.__pkt_openCadastroProduto({initial, onSaved, onClose})`.
+// ─────────────────────────────────────────────────────────────
+import { s as supabase } from "./index-DZtetJYP.js";
+
+const ACC = "#D4A853";
+const BG = "#0A0A0A";
+const CARD_BG = "#111111";
+const BORDER = "rgba(255,255,255,0.08)";
+const TEXT = "#fff";
+const TEXT_DIM = "rgba(255,255,255,0.5)";
+const TEXT_MED = "rgba(255,255,255,0.7)";
+const GREEN = "#10B981";
+const RED = "#EF4444";
+const YELLOW = "#F59E0B";
+
+// ─── CONFIG: quais campos cada categoria tem ────────────────────
+// Cada campo específico vai em atributos_extras[key].
+// `options` é a lista inicial de sugestões; quando o user cadastra
+// valores novos, eles vão para o combobox automaticamente.
+// Mapa Tipo de Porta → Modelos disponíveis. Quando o user escolhe "Porta
+// Pivotante", o dropdown Modelo passa a oferecer CIR/GERIS/etc. Modelos
+// extras vindos do banco (legacy) são adicionados via fetchOptions.
+const MODELOS_POR_TIPO_PORTA = {
+  "Porta de Passagem":      ["Passagem Interna 3D", "Passagem Interna WC 3D"],
+  "Porta Pivotante":        ["Pivotante CIR Externa", "Pivotante CIR Interna", "Pivotante CIR WC", "Pivotante GERIS EXTERNA", "Pivotante GERIS Interna", "Pivotante ITALY LINE Interna", "Pivotante ITALY LINE WC"],
+  "Porta de Correr":        ["DN150 Interno", "DN150 WC", "RO82TOP WC"],
+  "Porta Camarão": ["Camarão 2 Folhas"],
+};
+const CATEGORY_CONFIG = {
+  piso: {
+    label: "Piso", unit: "m²",
+    fields: [
+      { key: "subtipo", label: "Subtipo", options: ["Régua", "Chevron", "Espinha", "Mosaico"] },
+      { key: "origem", label: "Origem", options: ["Nacional", "Importado"] },
+      { key: "acabamento", label: "Acabamento", options: ["Laca", "Lâmina Natural", "Lâmina Imbuia", "Lâmina Carvalho Europeu", "Lâmina Nogueira", "Lâmina Sucupira", "Lâmina Cabreúva", "Lâmina Tauari", "Lâmina Cumaru", "Assoalho", "Maciço", "Ripado", "Muxarabi", "Toblerone", "Moldura Vidro", "Boiserie", "Blindada"] },
+      { key: "dimensao", label: "Dimensão", options: [] },
+    ],
+  },
+  forro: {
+    label: "Forro", unit: "m²",
+    fields: [
+      { key: "subtipo", label: "Subtipo", options: ["Régua", "Ripado", "Toblerone"] },
+      { key: "origem", label: "Origem", options: ["Nacional", "Importado"] },
+      { key: "acabamento", label: "Acabamento", options: ["Laca", "Lâmina Natural", "Lâmina Imbuia", "Lâmina Carvalho Europeu", "Lâmina Nogueira", "Lâmina Sucupira", "Lâmina Cabreúva", "Lâmina Tauari", "Lâmina Cumaru", "Assoalho", "Maciço", "Ripado", "Muxarabi", "Toblerone", "Moldura Vidro", "Boiserie", "Blindada"] },
+      { key: "dimensao", label: "Dimensão", options: [] },
+    ],
+  },
+  painel: {
+    label: "Painel", unit: "m²",
+    fields: [
+      { key: "subtipo", label: "Subtipo", options: ["Lâmina", "Ripado", "Toblerone", "Muxarabi", "Moldura Vidro"] },
+      { key: "origem", label: "Origem", options: ["Nacional", "Importado"] },
+      { key: "acabamento", label: "Acabamento", options: ["Laca", "Lâmina Natural", "Lâmina Imbuia", "Lâmina Carvalho Europeu", "Lâmina Nogueira", "Lâmina Sucupira", "Lâmina Cabreúva", "Lâmina Tauari", "Lâmina Cumaru", "Assoalho", "Maciço", "Ripado", "Muxarabi", "Toblerone", "Moldura Vidro", "Boiserie", "Blindada"] },
+      { key: "dimensao", label: "Dimensão", options: [] },
+    ],
+  },
+  deck: {
+    label: "Deck", unit: "m²",
+    fields: [
+      { key: "subtipo", label: "Subtipo", options: ["Régua Madeira", "Hidráulico"] },
+      { key: "acabamento", label: "Acabamento", options: ["Laca", "Lâmina Natural", "Lâmina Imbuia", "Lâmina Carvalho Europeu", "Lâmina Nogueira", "Lâmina Sucupira", "Lâmina Cabreúva", "Lâmina Tauari", "Lâmina Cumaru", "Assoalho", "Maciço", "Ripado", "Muxarabi", "Toblerone", "Moldura Vidro", "Boiserie", "Blindada"] },
+      { key: "dimensao", label: "Dimensão", options: [] },
+    ],
+  },
+  porta: {
+    label: "Porta", unit: "un",
+    fields: [
+      { key: "tipo", label: "Tipo de Porta", options: ["Porta de Passagem", "Porta de Correr", "Porta Pivotante", "Porta Camarão"], dependents: ["modelo"] },
+      { key: "modelo", label: "Modelo", options: [], dependsOn: "tipo" },
+      { key: "acabamento", label: "Acabamento", options: ["Laca", "Lâmina Natural", "Lâmina Imbuia", "Lâmina Carvalho Europeu", "Lâmina Nogueira", "Lâmina Sucupira", "Lâmina Cabreúva", "Lâmina Tauari", "Lâmina Cumaru", "Assoalho", "Maciço", "Ripado", "Muxarabi", "Toblerone", "Moldura Vidro", "Boiserie", "Blindada"] },
+      { key: "regua", label: "Régua (insumo)", options: ["Régua 15/3 × 100mm", "Régua 15/3 × 125 × 1200mm", "Régua 15/3 × 150mm", "Régua 15/3 × 190 × 1900mm", "Régua 15/3 × 190 × comp. variável", "Régua 19/4 × 300mm", "Régua 20/6 × 30cm × 4000mm", "Régua 20/6 × 400 × 5000mm", "Régua 20x20xComp. Variavel"] },
+      { key: "qtd_regua_m2", label: "m² da porta", options: ["0.5", "1", "1.5", "2", "2.5", "3", "4", "5"] },
+    ],
+  },
+  brise: {
+    label: "Brise", unit: "m²",
+    fields: [
+      { key: "tipo", label: "Tipo", options: ["Muxarabi", "Vertical", "Horizontal"] },
+      { key: "espacamento", label: "Espaçamento (mm)", options: [] },
+      { key: "largura_lamina", label: "Largura da lâmina (mm)", options: [] },
+    ],
+  },
+  sauna: {
+    label: "Sauna", unit: "m²",
+    fields: [
+      { key: "tipo", label: "Tipo", options: ["Casquinha", "Régua", "Ripado"] },
+      { key: "acabamento", label: "Acabamento", options: ["Laca", "Lâmina Natural", "Lâmina Imbuia", "Lâmina Carvalho Europeu", "Lâmina Nogueira", "Lâmina Sucupira", "Lâmina Cabreúva", "Lâmina Tauari", "Lâmina Cumaru", "Assoalho", "Maciço", "Ripado", "Muxarabi", "Toblerone", "Moldura Vidro", "Boiserie", "Blindada"] },
+      { key: "dimensao", label: "Dimensão", options: [] },
+    ],
+  },
+  revestimento: {
+    label: "Revestimento", unit: "m²",
+    fields: [
+      { key: "subtipo", label: "Subtipo", options: ["Régua", "Ripado", "Mosaico"] },
+      { key: "origem", label: "Origem", options: ["Nacional", "Importado"] },
+      { key: "acabamento", label: "Acabamento", options: ["Laca", "Lâmina Natural", "Lâmina Imbuia", "Lâmina Carvalho Europeu", "Lâmina Nogueira", "Lâmina Sucupira", "Lâmina Cabreúva", "Lâmina Tauari", "Lâmina Cumaru", "Assoalho", "Maciço", "Ripado", "Muxarabi", "Toblerone", "Moldura Vidro", "Boiserie", "Blindada"] },
+      { key: "dimensao", label: "Dimensão", options: [] },
+    ],
+  },
+  mao_de_obra: {
+    label: "Mão de Obra", unit: "m²",
+    fields: [
+      { key: "tipo", label: "Tipo", options: ["Remoção + Instalação", "Só Instalação", "Só Remoção", "Manutenção", "Reparo"] },
+      { key: "aplica_em", label: "Aplica em", options: ["Piso", "Forro", "Painel", "Deck", "Marcenaria", "Porta", "Brise", "Sauna", "Escada", "Outro"] },
+      { key: "unidade", label: "Unidade", options: ["m²", "ml (metro linear)", "un (unidade)"] },
+    ],
+  },
+  escada: {
+    label: "Escada", unit: "un",
+    fields: [
+      { key: "tipo", label: "Tipo", options: ["Pisada", "Patamar", "Espelho", "Casquinha"] },
+      { key: "acabamento", label: "Acabamento", options: ["Laca", "Lâmina Natural", "Lâmina Imbuia", "Lâmina Carvalho Europeu", "Lâmina Nogueira", "Lâmina Sucupira", "Lâmina Cabreúva", "Lâmina Tauari", "Lâmina Cumaru", "Assoalho", "Maciço", "Ripado", "Muxarabi", "Toblerone", "Moldura Vidro", "Boiserie", "Blindada"] },
+      { key: "dimensao", label: "Dimensão (espessura × largura)", options: [] },
+    ],
+  },
+};
+
+// ─── Helpers ──────────────────────────────────────────────────
+async function loadFieldOptions(categoria, fieldKey) {
+  // Busca valores únicos já cadastrados no banco pra (categoria, campo)
+  try {
+    const { data, error } = await supabase
+      .from("orcamento_tabela_precos")
+      .select("atributos_extras")
+      .eq("categoria", categoria)
+      .not("atributos_extras", "is", null)
+      .limit(500);
+    if (error) return [];
+    const vals = new Set();
+    for (const row of (data || [])) {
+      const v = row.atributos_extras?.[fieldKey];
+      if (v == null || v === "") continue;
+      const sv = String(v).trim();
+      // Pra categoria=porta + tipo: só aceita valores que começam com "Porta "
+      // (= as 4 opções gerais Porta de Passagem/Correr/Pivotante/Camarão).
+      // Sem esse filtro, valores legados como "CIR" ou "Pivotante" sozinhos
+      // poluem o dropdown de Tipo.
+      if (categoria === "porta" && fieldKey === "tipo" && !/^Porta /i.test(sv)) continue;
+      // Pra categoria=porta + modelo: rejeita só valores que começam com "Porta "
+      // (= são tipos, não modelos)
+      if (categoria === "porta" && fieldKey === "modelo" && /^Porta /i.test(sv)) continue;
+      vals.add(sv);
+    }
+    // Para PORTA: o dropdown de "modelo" e "tipo" precisa puxar também
+    // dos produtos legacy que só têm tipo_porta/modelo_porta preenchidos
+    // (sem atributos_extras populado). Sem isso, valores históricos como
+    // "DN150", "RO82TOP", "Porta Camarão" não aparecem no dropdown.
+    if (categoria === "porta" && fieldKey === "modelo") {
+      // Modelo: opções estáticas (curtas: CIR, GERIS, DN150) + extração
+      // da MARCA dos tipo_porta legacy. Skipa stopwords de localização.
+      try {
+        const tipoSel = (typeof window !== "undefined" && window.__pkt_field_tipo_value) || "";
+        const estaticas = MODELOS_POR_TIPO_PORTA[tipoSel] || [];
+        for (const m of estaticas) vals.add(m);
+        if (tipoSel) {
+          const { data: lg } = await supabase
+            .from("orcamento_tabela_precos")
+            .select("tipo_porta")
+            .eq("categoria", "porta")
+            .eq("ativo", true)
+            .eq("modelo_porta", tipoSel)
+            .not("tipo_porta", "is", null)
+            .limit(500);
+          // Stopwords: localização e tipo curto
+          const skip = new Set(["interna","externa","wc","interno","externo","do","de","da","com","sem","e","passagem","pivotante","correr","camarão","camarao"]);
+          for (const r of (lg || [])) {
+            const raw = (r.tipo_porta || "").trim();
+            if (!raw) continue;
+            // Pega cada palavra que NÃO é stopword
+            for (const w of raw.split(/\s+/)) {
+              const t = w.trim();
+              if (t && t.length >= 2 && !skip.has(t.toLowerCase())) vals.add(t);
+            }
+          }
+        }
+      } catch {}
+    }
+    if (categoria === "porta" && fieldKey === "tipo") {
+      // Tipo: puxa do modelo_porta legacy (categoria geral)
+      try {
+        const { data: lg } = await supabase
+          .from("orcamento_tabela_precos")
+          .select("modelo_porta")
+          .eq("categoria", "porta")
+          .eq("ativo", true)
+          .not("modelo_porta", "is", null)
+          .limit(500);
+        for (const r of (lg || [])) {
+          if (r.modelo_porta) vals.add(String(r.modelo_porta).trim());
+        }
+      } catch {}
+    }
+    // Especial: campo "regua" em porta → puxa TODAS as réguas existentes no
+    // catálogo (de qualquer categoria — piso, forro, painel etc.) baseado em
+    // dimensao_label que começa com "Régua"
+    if (categoria === "porta" && fieldKey === "regua") {
+      try {
+        const { data: rg } = await supabase
+          .from("orcamento_tabela_precos")
+          .select("dimensao_label")
+          .ilike("dimensao_label", "Régua%")
+          .eq("ativo", true)
+          .limit(2000);
+        for (const r of (rg || [])) {
+          if (r.dimensao_label) vals.add(String(r.dimensao_label).trim());
+        }
+      } catch {}
+    }
+    return [...vals].sort();
+  } catch (e) {
+    return [];
+  }
+}
+
+async function loadSpecieOptions(categoria) {
+  try {
+    const { data, error } = await supabase
+      .from("orcamento_tabela_precos")
+      .select("especie_id,especie_nome")
+      .eq("categoria", categoria)
+      .limit(500);
+    if (error) return [];
+    const seen = new Map();
+    for (const r of (data || [])) {
+      if (r.especie_id && !seen.has(r.especie_id)) {
+        seen.set(r.especie_id, r.especie_nome || r.especie_id);
+      }
+    }
+    return [...seen.entries()].map(([id, nome]) => ({ id, nome })).sort((a, b) => a.nome.localeCompare(b.nome));
+  } catch {
+    return [];
+  }
+}
+
+const _brl = (v) =>
+  Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// ─── HTML render ──────────────────────────────────────────────
+function _renderHTML({ initial }) {
+  const isEdit = Boolean(initial?.id);
+  const cat = initial?.categoria || "piso";
+  return `
+<div id="__pkt_cad" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:14px;width:min(820px,100%);max-height:90vh;overflow-y:auto;padding:24px;color:${TEXT};font-family:system-ui,sans-serif;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div>
+        <h3 style="font-size:1rem;font-weight:700;margin:0;color:${ACC};">${isEdit ? "Editar Produto" : "Novo Produto"}</h3>
+        <p style="font-size:0.65rem;color:${TEXT_DIM};margin:3px 0 0;">Tabela de Preços — Orçamento</p>
+      </div>
+      <button id="__pkt_close" style="background:none;border:none;color:${TEXT_DIM};cursor:pointer;font-size:1.2rem;">✕</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <!-- Categoria -->
+      <div>
+        <label style="font-size:0.55rem;color:${TEXT_DIM};text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Categoria *</label>
+        <select id="__pkt_cat" style="${_inputStyle()}">
+          ${Object.entries(CATEGORY_CONFIG).map(([k, v]) =>
+            `<option value="${k}" ${k === cat ? "selected" : ""}>${v.label}</option>`
+          ).join("")}
+        </select>
+      </div>
+
+      <!-- Campos específicos da categoria (tipo, modelo, acabamento) — preenchidos por JS -->
+      <div id="__pkt_specific"></div>
+
+      <!-- Espécie da madeira (combobox) — DEPOIS dos campos específicos -->
+      <div>
+        <label style="font-size:0.55rem;color:${TEXT_DIM};text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Espécie da madeira *</label>
+        <input id="__pkt_especie" list="__pkt_especie_list" placeholder="ex: Tauari, Carvalho Europeu, Cumaru…" style="${_inputStyle()}" />
+        <datalist id="__pkt_especie_list"></datalist>
+        <p style="font-size:0.55rem;color:${TEXT_DIM};margin:3px 0 0;">Digite uma espécie nova ou escolha da lista (valores já cadastrados)</p>
+      </div>
+
+      <!-- Dimensão / Cores / Preço (campos comuns) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <label style="font-size:0.55rem;color:${TEXT_DIM};text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Preço *</label>
+          <input id="__pkt_preco" type="number" min="0" step="0.01" placeholder="0.00" style="${_inputStyle()}" />
+          <p id="__pkt_preco_label" style="font-size:0.55rem;color:${TEXT_DIM};margin:3px 0 0;">R$ / m²</p>
+        </div>
+        <div>
+          <label style="font-size:0.55rem;color:${TEXT_DIM};text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Ordem (sort)</label>
+          <input id="__pkt_ordem" type="number" min="0" step="1" placeholder="0" style="${_inputStyle()}" />
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:0.55rem;color:${TEXT_DIM};text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Cores / Acabamentos (vírgula separado)</label>
+        <textarea id="__pkt_cores" rows="2" placeholder="Naturalle, Mont Blanc, Marrone, ..." style="${_inputStyle()};resize:vertical;"></textarea>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input id="__pkt_ativo" type="checkbox" checked style="cursor:pointer;width:16px;height:16px;" />
+        <label for="__pkt_ativo" style="font-size:0.7rem;color:${TEXT_MED};cursor:pointer;">Produto ativo (aparece no simulador de orçamento)</label>
+      </div>
+
+      <div id="__pkt_err" style="display:none;padding:10px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;font-size:0.65rem;color:${RED};"></div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+        <button id="__pkt_cancel" style="padding:9px 16px;border:1px solid ${BORDER};background:transparent;color:${TEXT_DIM};border-radius:6px;cursor:pointer;font-size:0.7rem;">Cancelar</button>
+        <button id="__pkt_save" style="padding:9px 18px;border:none;background:${GREEN};color:#fff;border-radius:6px;cursor:pointer;font-size:0.7rem;font-weight:700;">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+}
+
+function _inputStyle() {
+  return `width:100%;padding:8px 11px;background:${BG};border:1px solid ${BORDER};border-radius:6px;color:${TEXT};font-size:0.75rem;outline:none;box-sizing:border-box;`;
+}
+
+// ─── Lógica principal ───────────────────────────────────────────
+async function openCadastroProduto(opts) {
+  const { initial = {}, onSaved, onClose } = opts || {};
+
+  // Limpa instância anterior se houver
+  const old = document.getElementById("__pkt_cad");
+  if (old) old.remove();
+
+  const wrap = document.createElement("div");
+  wrap.innerHTML = _renderHTML({ initial });
+  document.body.appendChild(wrap.firstElementChild);
+
+  const root = document.getElementById("__pkt_cad");
+  const $ = (id) => root.querySelector("#" + id);
+  const close = () => { root.remove(); onClose && onClose(); };
+
+  $("__pkt_close").onclick = close;
+  $("__pkt_cancel").onclick = close;
+  // click-fora-fecha desativado pra evitar fechamento acidental durante cadastro
+
+  // Preenche valores iniciais (modo edição)
+  if (initial.especie_nome) $("__pkt_especie").value = initial.especie_nome;
+  if (initial.preco != null) $("__pkt_preco").value = initial.preco;
+  if (initial.ordem != null) $("__pkt_ordem").value = initial.ordem;
+  if (initial.ativo === false) $("__pkt_ativo").checked = false;
+  if (initial.cores && Array.isArray(initial.cores)) {
+    $("__pkt_cores").value = initial.cores.join(", ");
+  }
+
+  // Renderiza campos específicos quando categoria muda
+  async function renderSpecific(cat) {
+    const cfg = CATEGORY_CONFIG[cat];
+    const container = $("__pkt_specific");
+    if (!cfg) { container.innerHTML = ""; return; }
+
+    $("__pkt_preco_label").textContent = "R$ / " + cfg.unit;
+
+    let html = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">`;
+    for (const f of cfg.fields) {
+      const listId = `__pkt_opt_${f.key}`;
+      const inputId = `__pkt_field_${f.key}`;
+      html += `
+<div>
+  <label style="font-size:0.55rem;color:${TEXT_DIM};text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">${f.label}</label>
+  <input id="${inputId}" list="${listId}" placeholder="—" style="${_inputStyle()}" />
+  <datalist id="${listId}"></datalist>
+</div>`;
+    }
+    html += `</div>`;
+    container.innerHTML = html;
+
+    // Popula datalists: opções hardcoded + valores únicos do banco
+    for (const f of cfg.fields) {
+      const dbVals = await loadFieldOptions(cat, f.key);
+      const merged = [...new Set([...(f.options || []), ...dbVals])];
+      const dl = $(`__pkt_opt_${f.key}`);
+      dl.innerHTML = merged.map(v => `<option value="${_esc(v)}">`).join("");
+      // Preenche valor inicial (edição)
+      const init = initial.atributos_extras?.[f.key];
+      if (init != null) $(`__pkt_field_${f.key}`).value = init;
+      // Pra porta: quando muda 'tipo', expõe valor em window e re-popula 'modelo'
+      if (cat === "porta" && f.key === "tipo") {
+        const _inp = $(`__pkt_field_${f.key}`);
+        if (_inp) {
+          window.__pkt_field_tipo_value = _inp.value || "";
+          const _handler = async () => {
+            window.__pkt_field_tipo_value = _inp.value || "";
+            // Limpa o valor do modelo e recarrega as options
+            const _mInp = $(`__pkt_field_modelo`);
+            const _mList = $(`__pkt_opt_modelo`);
+            if (_mList) {
+              const opts = await loadFieldOptions("porta", "modelo");
+              _mList.innerHTML = "";
+              for (const o of opts) {
+                const opt = document.createElement("option");
+                opt.value = o;
+                _mList.appendChild(opt);
+              }
+            }
+          };
+          _inp.addEventListener("input", _handler);
+          _inp.addEventListener("change", _handler);
+        }
+      }
+    }
+  }
+
+  // Datalist da espécie (preencher conforme categoria)
+  async function refreshEspecieList(cat) {
+    const opts = await loadSpecieOptions(cat);
+    const dl = $("__pkt_especie_list");
+    dl.innerHTML = opts.map(o => `<option value="${_esc(o.nome)}">`).join("");
+  }
+
+  $("__pkt_cat").onchange = async (e) => {
+    const cat = e.target.value;
+    await renderSpecific(cat);
+    await refreshEspecieList(cat);
+  };
+
+  // Init (não-bloqueante: se renderSpecific/refreshEspecieList falhar, o save ainda funciona)
+  try {
+    await renderSpecific(initial.categoria || "piso");
+  } catch (e) { console.error("[CadProduto] renderSpecific falhou:", e); }
+  try {
+    await refreshEspecieList(initial.categoria || "piso");
+  } catch (e) { console.error("[CadProduto] refreshEspecieList falhou:", e); }
+
+  // ── Salvar ──
+  $("__pkt_save").onclick = async () => {
+    console.log("%c[CadProduto] CLICK SALVAR", "background:#22c55e;color:#fff;padding:2px 6px");
+    const cat = $("__pkt_cat").value;
+    const cfg = CATEGORY_CONFIG[cat];
+    const especie = ($("__pkt_especie").value || "").trim();
+    const preco = parseFloat($("__pkt_preco").value || "0");
+    const ordem = parseInt($("__pkt_ordem").value || "0", 10);
+    const ativo = $("__pkt_ativo").checked;
+    const coresRaw = $("__pkt_cores").value || "";
+    const cores = coresRaw.split(",").map(s => s.trim()).filter(Boolean);
+
+    // Validação
+    const err = $("__pkt_err");
+    err.style.display = "none";
+    err.textContent = "";
+    if (!especie) {
+      err.textContent = "Espécie é obrigatória.";
+      err.style.display = "block"; return;
+    }
+    if (!(preco > 0)) {
+      err.textContent = "Preço deve ser maior que zero.";
+      err.style.display = "block"; return;
+    }
+
+    // Monta atributos_extras com campos específicos
+    const atributos_extras = {};
+    for (const f of cfg.fields) {
+      const v = $(`__pkt_field_${f.key}`).value.trim();
+      if (v) atributos_extras[f.key] = v;
+    }
+
+    // especie_id = slug seguro (lowercase, sem espaço/acentos)
+    const especie_id = initial.especie_id || (cat + "_" + especie
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""));
+
+    const payload = {
+      categoria: cat,
+      especie_id,
+      especie_nome: especie,
+      preco,
+      ordem,
+      ativo,
+      tem_cores: cores.length > 0,
+      cores: cores.length > 0 ? cores : null,
+      atributos_extras,
+      // Campos legados pra compatibilidade com schema antigo
+      origem: atributos_extras.origem ? atributos_extras.origem.toLowerCase() : "nacional",
+      subtipo: atributos_extras.subtipo ? atributos_extras.subtipo.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g, "_") : "regua",
+      dimensao_id: initial.dimensao_id || ((cat === "porta" ? atributos_extras.regua : atributos_extras.dimensao) || "default")
+        .toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
+      dimensao_label: (cat === "porta" ? (atributos_extras.regua || "—") : (atributos_extras.dimensao || "—")),
+      dimensao_obs: initial.dimensao_obs || "",
+    };
+
+    // PORTA: se for um cadastro NOVO (sem id), pré-popula dimensao_obs com
+    // template padrão de insumos da porta. User pode editar depois.
+    if (cat === "porta" && !initial.id && !payload.dimensao_obs) {
+      payload.dimensao_obs = [
+        "DOBRADIÇA INVISIVEL SIMONSWERK TECTUS TE 640 3D A8 [160KG] - HAFELE Cód. do Item 924.17.525|4|UN",
+        "BORRACHA VEDAÇÃO MARROM 4MM [CAIXA]|1|UN",
+        "IMÃ 25X10|1|UN",
+        "FECHADURA AUXILIAR STARTEC CLASSE 3 – HAFELE COD. 911.22.490 AÇO ESCOVADO+ADAPTADOR CORJE|1|UN",
+        "ACABAMENTO OVAL PERSONALIZADO PARA CILINDRO CORJE - AFONSO [OBS: 02 FACES DA PORTA]|1|UN",
+        "COMPENSADO NAVAL 10MM [10X1200X3000]|2|UN",
+        "LAMINA NATURAL [0.20X3.00]|20|UN",
+        "MADEIRA MACIÇA TAUARI [0.02X0.20X3.00]|1|UN",
+        "MADEIRA MACIÇA TAUARI [0.02X0.20X1.00]|2|UN",
+        "PRANCHA CAXETA APL 120X300X3000 [05 UNI POR PORTA]|5|UN",
+        "COLA TITE BOND 1KG [02 UNI POR PORTA]|2|UN",
+        "BARRA TUBO 20 X 30 X 6,00 CH PRETO [03 BARRAS POR PORTA]|3|UN",
+        "BASE VERNIZ - BASE AGUA|8|UN",
+        "COLA PUR TEKBOND 500G [01 UNI PORTA]|1|UN",
+        "COLA DE CONTATO 2,8LT - FORMICA [01 UNI POR PORTA]|1|UN",
+        "GRAMPO TIPO ''U'' 10MM [100UNI POR PORTA]|100|UN",
+        "PINO F30 P/ PINADOR PNEUMATICO [100UNI POR PORTA]|100|UN",
+        "PARAFUSO BICROMATIZADO PHILIPS 6.0X80MM [20 UNID POR PORTA]|20|UN",
+        "BUCHA 80MM [20 UNID POR PORTA]|20|UN",
+      ].join(",");
+    }
+
+    // Campos específicos de PORTA (colunas legacy do schema)
+    // tipo_porta: string composta "<tipo> <modelo> <localizacao>" — formato
+    // usado pelo simulador como filtro (ex: "Pivotante CIR Interna").
+    // modelo_porta: categoria geral "Porta <tipo>" (ex: "Porta Pivotante").
+    if (cat === "porta") {
+      // 'tipo' = "Porta Pivotante" → modelo_porta direto
+      // 'modelo' = "Pivotante CIR Interna" (string completa) → tipo_porta direto
+      payload.modelo_porta = atributos_extras.tipo || null;
+      payload.tipo_porta = atributos_extras.modelo || null;
+    }
+
+    // Guard defensivo — payload NUNCA deve ter `id` (causaria duplicate-key
+    // se o banco já tivesse esse uuid). UUID novo é gerado pelo Postgres
+    // via gen_random_uuid() no DEFAULT da coluna.
+    delete payload.id;
+    delete payload.created_at;
+    delete payload.updated_at;
+
+    // Fallback REST direto — usa quando o client supabase global falha
+    // (token expirado, race, .single() retornando 0 rows, etc).
+    async function _restSave(p, isUpdate, updateId) {
+      try {
+        const SUPA = (typeof supabase !== "undefined" && supabase) || (window.supabase) || null;
+        const supaUrl = "https://hbxpilrxmitvzebluoom.supabase.co";
+        let supaKey = "";
+        try { supaKey = SUPA?.supabaseKey || ""; } catch {}
+        if (!supaKey) {
+          const scripts = Array.from(document.querySelectorAll("script")).map(s => s.textContent || "").join(" ");
+          const m = scripts.match(/eyJ[A-Za-z0-9_-]+\.eyJ[^"'`\s]{20,200}\.[A-Za-z0-9_-]+/);
+          if (m) supaKey = m[0];
+        }
+        let bearer = supaKey;
+        try {
+          const tokRaw = localStorage.getItem("sb-hbxpilrxmitvzebluoom-auth-token");
+          if (tokRaw) {
+            const tok = JSON.parse(tokRaw);
+            const at = tok?.access_token || tok?.currentSession?.access_token;
+            if (at) bearer = at;
+          }
+        } catch {}
+        const url = isUpdate
+          ? `${supaUrl}/rest/v1/orcamento_tabela_precos?id=eq.${encodeURIComponent(updateId)}`
+          : `${supaUrl}/rest/v1/orcamento_tabela_precos`;
+        const res = await fetch(url, {
+          method: isUpdate ? "PATCH" : "POST",
+          headers: {
+            "apikey": supaKey,
+            "Authorization": `Bearer ${bearer}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+          },
+          body: JSON.stringify(p),
+        });
+        const txt = await res.text();
+        if (!res.ok) return { error: { message: `HTTP ${res.status}: ${txt.slice(0, 300)}` } };
+        let d = null;
+        try { d = JSON.parse(txt); } catch {}
+        return { data: Array.isArray(d) ? d[0] : d };
+      } catch (e) {
+        return { error: { message: "REST fallback exception: " + (e?.message || e) } };
+      }
+    }
+
+    $("__pkt_save").disabled = true;
+    $("__pkt_save").textContent = "Salvando…";
+    try {
+      console.log("[CadProduto] payload:", JSON.parse(JSON.stringify(payload)),
+                  "mode:", initial.id ? "UPDATE id=" + initial.id : "INSERT");
+      let result;
+      // Tenta client supabase primeiro
+      try {
+        if (initial.id) {
+          result = await supabase.from("orcamento_tabela_precos")
+            .update(payload).eq("id", initial.id).select().single();
+        } else {
+          result = await supabase.from("orcamento_tabela_precos")
+            .insert(payload).select().single();
+        }
+      } catch (clientErr) {
+        console.warn("[CadProduto] supabase client exception:", clientErr);
+        result = { error: { message: "client exception: " + (clientErr?.message || clientErr) } };
+      }
+      // Se client falhou, tenta REST direto (mais resiliente — funciona com sessão expirada)
+      if (result?.error) {
+        console.warn("[CadProduto] client erro, tentando REST. Erro:", result.error);
+        const restResult = await _restSave(payload, !!initial.id, initial.id);
+        if (!restResult?.error) {
+          result = restResult;
+          console.log("%c[CadProduto] REST FALLBACK OK", "background:#3b82f6;color:#fff;padding:2px 6px");
+        } else {
+          throw new Error((result.error.message || "?") + " | REST: " + (restResult.error.message || "?"));
+        }
+      }
+      console.log("%c[CadProduto] SALVO ✓", "background:#22c55e;color:#fff;padding:2px 6px;font-weight:bold", result.data);
+      try { onSaved && onSaved(result.data); } catch (cbErr) {
+        console.warn("[CadProduto] onSaved cb falhou (não bloqueante):", cbErr);
+      }
+      close();
+    } catch (e) {
+      console.error("[CadProduto] save falhou:", e);
+      err.textContent = "❌ " + (e?.message || e);
+      err.style.display = "block";
+      err.style.background = "#7f1d1d";
+      err.style.color = "#fff";
+      err.style.padding = "8px 12px";
+      err.style.borderRadius = "6px";
+      err.style.fontSize = "11px";
+      err.style.marginTop = "8px";
+    } finally {
+      // SEMPRE reabilita o botão (mesmo se throw silencioso)
+      $("__pkt_save").disabled = false;
+      $("__pkt_save").textContent = "Salvar";
+    }
+  };
+}
+
+function _esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+if (typeof window !== "undefined") {
+  window.__pkt_openCadastroProduto = openCadastroProduto;
+  window.__pkt_CATEGORY_CONFIG = CATEGORY_CONFIG;
+}
+
+export { openCadastroProduto, CATEGORY_CONFIG };
+export default openCadastroProduto;

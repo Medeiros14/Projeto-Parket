@@ -1,0 +1,613 @@
+// custo-orcamento-modal-pkt1.js
+// ────────────────────────────────────────────────────────────────────
+// Gera FICHA HTML print-friendly de Custo de Orçamento.
+//
+// Lógica de INSUMOS herdada do handler antigo "Ficha de Insumos":
+//   - PORTA: lê `orcamento_tabela_precos.dimensao_obs` + `insumos_precos`
+//     pra montar lista de insumos específicos da porta (kit ferragens,
+//     parafusos, dobradiças etc).
+//   - PISO/FORRO/DECK/PAINEL: lê `orcamento_insumos_grade` por bloco e
+//     multiplica `qtd_por_unidade × m² do ambiente × custo_unit`.
+//
+// Adicional NOVO — MÃO DE OBRA (instalação):
+//   - Lê `orcamento_instalacao_precos` (tabela do PDF do user).
+//   - Defaults por categoria: PISO RETO 27, FORRO FINCAPINO 35 +
+//     REVESTIMENTO RIPADO 70, DECK C/ESTRUTURA 67, PAINEL C/ESTRUTURA
+//     70, RODAPÉ 20/ml.
+//
+// Totais: Insumos (custo fab) + MDO (custo instalação) = CUSTO TOTAL.
+//         Venda - Custo Total = Margem.
+//
+// Expõe `window.__pkt_openCustoOrcamento({simulacao, itens?, onSaved?})`.
+// ────────────────────────────────────────────────────────────────────
+import { s as supabase } from "./index-DZtetJYP.js";
+
+const _brl = (v) => "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function _normCat(c) { return String(c || "").split("||")[0].trim().toUpperCase(); }
+function _getM2(d) {
+  const m = (d || "").match(/metragem.*?([\d.,]+)\s*m/i);
+  if (!m) return 0;
+  const v = parseFloat(m[1].replace(",", "."));
+  return Number.isFinite(v) ? v : 0;
+}
+function _getMtl(d) {
+  const m = (d || "").match(/(\d{1,5}(?:[.,]\d{1,3})?)\s*(?:ml|mtl|m\.l)\b/i);
+  return m ? parseFloat(m[1].replace(",", ".")) : 0;
+}
+function _isAux(d) {
+  const u = ((d || "").split("\n")[0] || "").toUpperCase().trim();
+  return u.startsWith("INSTALAÇÃO") || u.startsWith("INSTALACAO") ||
+         u.startsWith("INSUMOS DE") || u === "INSUMOS" ||
+         u.startsWith("RECORTES") || u.startsWith("RODAP");
+}
+function _cleanCat(s) {
+  return (s || "").replace(/^[A-ZÇÁÉÍÓÚÀÂÊÔÃÕ]+\|\|/, "").replace(/\|\|/g, " ").trim() || (s || "") || "—";
+}
+
+const ORDER = ["PORTA", "PISO", "PAINEL", "FORRO", "DECK", "SAUNA", "REVESTIMENTO", "ESCADA", "MARCENARIA", "RODAPÉ", "RODAPE", "LOGISTICA", "LOGÍSTICA", "COMPRAS", "OUTROS"];
+
+// Mapeamento categoria → bloco de insumos da `orcamento_insumos_grade`.
+// (Default mais comum — futuramente pode ler subtipo do item pra escolher
+// bloco específico tipo `pisos_chevron` vs `pisos_ate_19`.)
+const CAT2BLOCO = {
+  FORRO: "forro_fincapino",
+  PISO: "pisos_ate_19",
+  DECK: "deck_madeira_25x10",
+  SAUNA: "deck_madeira_25x10",
+  PAINEL: "paineis",
+  REVESTIMENTO: "paineis",
+  RODAPÉ: "rodape_cordao",
+  RODAPE: "rodape_cordao",
+};
+
+// Defaults de mão de obra por categoria (PDF tabela PARKET)
+const MDO_DEFAULTS = {
+  PISO: ["PISO RETO"],
+  FORRO: ["ESTRUTURA DE FORRO (FINCA PINO)", "REVESTIMENTO FORRO (RIPADO)"],
+  DECK: ["DECK C/ ESTRUTURA"],
+  PAINEL: ["PAINEL COM ESTRUTURA"],
+  RODAPÉ: ["RODAPÉ"],
+  RODAPE: ["RODAPÉ"],
+};
+
+function _findMdoPreco(precos, categoria, servico) {
+  const cat = _normCat(categoria);
+  const want = String(servico || "").toUpperCase().replace(/\s+/g, "");
+  for (const p of precos) {
+    if (_normCat(p.categoria) !== cat) continue;
+    if (String(p.servico).toUpperCase().replace(/\s+/g, "") === want) return p;
+  }
+  return null;
+}
+
+async function openCustoOrcamento(opts) {
+  const { simulacao, itens: itensInline, onSaved } = opts || {};
+  const sim = simulacao || {};
+  if (!sim.id) {
+    alert("Simulação inválida — recarregue a página.");
+    return;
+  }
+
+  // ── Carrega itens (busca via supabase se não vier inline) ──
+  let itens = Array.isArray(itensInline) && itensInline.length > 0 ? itensInline : null;
+  if (!itens) {
+    const { data: rows, error } = await supabase
+      .from("simulacao_itens")
+      .select("*")
+      .eq("simulacao_id", sim.id)
+      .order("ordem");
+    if (error) {
+      alert("Erro ao buscar itens: " + error.message);
+      return;
+    }
+    itens = rows || [];
+  }
+  console.log("[CustoOrcamento] itens:", itens.length);
+
+  // ── Carrega catálogos em paralelo ──
+  const [resDim, resInsPr, resGrade, resInstal, resMarcFer, resMarcMad] = await Promise.all([
+    supabase.from("orcamento_tabela_precos").select("categoria,especie_nome,dimensao_label,dimensao_obs,tipo_porta,subtipo,preco,atributos_extras").eq("ativo", true),
+    supabase.from("insumos_precos").select("descricao,preco,unid_med").eq("ativo", true),
+    supabase.from("orcamento_insumos_grade").select("bloco_id,bloco_label,codigo,descricao,und,qtd_por_unidade,custo_unit,regra,divisor,obs").eq("ativo", true).order("ordem"),
+    supabase.from("orcamento_instalacao_precos").select("*").eq("ativo", true).order("categoria").order("ordem"),
+    supabase.from("marcenaria_ferragens").select("id,nome,categoria,fornecedor").eq("ativo", true),
+    supabase.from("marcenaria_madeiras").select("id,nome,unidade,categoria,fornecedor").eq("ativo", true),
+  ]);
+  const dimRows = resDim.data || [];
+  const insPrRows = resInsPr.data || [];
+  const gradeRows = resGrade.data || [];
+  const instalRows = resInstal.data || [];
+  const marcFerMap = new Map();
+  for (const f of (resMarcFer.data || [])) marcFerMap.set(f.id, f);
+  const marcMadMap = new Map();
+  for (const m of (resMarcMad.data || [])) marcMadMap.set(m.id, m);
+  console.log("[CustoOrcamento] dim:", dimRows.length, "insumos_precos:", insPrRows.length, "grade:", gradeRows.length, "instalacao:", instalRows.length);
+
+  // Mapa de preço por nome de insumo (upper) — pra PORTA
+  const pricesMap = new Map();
+  for (const pr of insPrRows) {
+    pricesMap.set((pr.descricao || "").toUpperCase(), {
+      preco: parseFloat(pr.preco) || 0,
+      unid_med: pr.unid_med || "UN",
+    });
+  }
+  // Grade de insumos por bloco_id
+  const gradeByBloco = new Map();
+  for (const it of gradeRows) {
+    if (!gradeByBloco.has(it.bloco_id)) gradeByBloco.set(it.bloco_id, []);
+    gradeByBloco.get(it.bloco_id).push(it);
+  }
+
+  // ── Monta seções (PORTA/PISO/FORRO/...) ──
+  const sections = new Map();
+  const getSec = (c) => {
+    if (!sections.has(c)) sections.set(c, { insumos: new Map(), produtos: [], totalM2: 0, totalMtl: 0, vendaTotal: 0 });
+    return sections.get(c);
+  };
+  let totalVendaBruto = 0;
+  // Descontos calculados à moda do card: desconto da simulação +
+  // desconto por item, ambos só sobre itens NÃO auxiliares (INSUMOS/
+  // INSTAL/LOGÍSTICA/MAO). Mantém compatibilidade com o valor mostrado
+  // no card da listagem.
+  const auxRegex = /INSUMOS?|INSTAL|LOG[IÍ]STICA|MAO|MÃO/i;
+  let descSim = 0;
+  let descItem = 0;
+  const descPercSim = Number(sim.desconto_perc) || 0;
+
+  for (const o of itens) {
+    const catU = String(o.categoria || "").toUpperCase();
+    const descU = (o.descritivo || "").toUpperCase();
+    let catBase = "OUTROS";
+    for (const c of ORDER) {
+      if (c !== "OUTROS" && catU.startsWith(c)) { catBase = c; break; }
+    }
+    const sec = getSec(catBase);
+    const amb = (o.descritivo || "").split("\n")[0] || "—";
+    const modelo = _cleanCat(catU);
+    const valor = Number(o.valor) || 0;
+    const m2 = _getM2(o.descritivo);
+    const mtl = _getMtl(o.descritivo);
+    const aux = _isAux(o.descritivo);
+    if (m2 > 0 && !aux) sec.totalM2 += m2;
+    if (mtl > 0 && !aux && (catBase === "RODAPÉ" || catBase === "RODAPE")) sec.totalMtl += mtl;
+    sec.vendaTotal += valor;
+    if (!aux) sec.produtos.push({ ambiente: amb, modelo, valor, m2 });
+    totalVendaBruto += valor;
+    if (!auxRegex.test(catU)) {
+      descSim += valor * (descPercSim / 100);
+      descItem += valor * ((Number(o.desconto_perc) || 0) / 100);
+    }
+
+    // PORTA: extrai insumos especiais via dimensao_obs
+    if (catBase === "PORTA" && !aux) {
+      let f = null;
+      if (dimRows && catU) {
+        const cand = dimRows.filter(re => {
+          if (!re.dimensao_obs || re.dimensao_obs.length < 5) return false;
+          const tp = (re.tipo_porta || "").toUpperCase();
+          const ep = (re.especie_nome || "").toUpperCase();
+          if (!tp || !ep) return false;
+          const tpFirst = tp.split(/\s+/)[0];
+          if (!catU.includes(tpFirst)) return false;
+          const tpSuffix = (tp.match(/\b(WC|INTERNO|INTERNA|EXTERNA|BANHO)\b/) || [])[1] || "";
+          const catSuffix = (catU.match(/\b(WC|INTERNO|INTERNA|EXTERNA|BANHO)\b/) || [])[1] || "";
+          if (catSuffix && tpSuffix && catSuffix !== tpSuffix) return false;
+          return true;
+        });
+        const scored = cand.map(re => {
+          const tp = (re.tipo_porta || "").toUpperCase();
+          const ep = (re.especie_nome || "").toUpperCase();
+          const tpLast = tp.match(/\s+(WC|INTERNO|INTERNA|EXTERNA|BANHO)/);
+          const tpSuffix = tpLast ? tpLast[1] : "";
+          let score = (re.dimensao_obs || "").length;
+          if (tpSuffix && catU.includes(tpSuffix)) score += 100000;
+          if (ep && catU.includes(ep)) score += 200000;
+          const subBrands = ["CIR", "GERIS", "ITALY LINE", "DN150", "RO82TOP", "3D"];
+          for (const sb of subBrands) if (tp.includes(sb) && catU.includes(sb)) score += 300000;
+          if (descU.includes("BANHEIR") || descU.includes("WC") || descU.includes("LAVABO")) {
+            if (tpSuffix === "WC") score += 400000;
+          }
+          return { re, score };
+        });
+        scored.sort((a, b) => b.score - a.score);
+        if (scored.length) f = scored[0].re;
+      }
+      if (f && f.dimensao_obs) {
+        const raw = f.dimensao_obs;
+        const sep = raw.includes("~") ? /~/ : /,\s*/;
+        for (const re of raw.split(sep)) {
+          let nome, q, unid;
+          if (re.includes("|")) {
+            const parts = re.split("|");
+            nome = (parts[0] || "").trim();
+            q = parseFloat(parts[1]) || 1;
+            unid = (parts[2] || "UN").trim();
+          } else {
+            const br = re.match(/\[(\d+(?:\.\d+)?)\s*(UNI|UN|UNID|BARRAS|BARRA|UND)?\s*(POR\s*PORTA)?\s*\]/i);
+            const pa = re.match(/\((\d+(?:\.\d+)?)\s*un\)/i);
+            q = br ? parseFloat(br[1]) : pa ? parseFloat(pa[1]) : 1;
+            nome = re.replace(/\[[^\]]*\]/g, "").replace(/\(\d+(?:\.\d+)?\s*un\)/i, "").trim();
+            unid = "UN";
+          }
+          if (!nome) continue;
+          let kNorm = nome.toUpperCase().replace(/–/g, "-").replace(/\s+/g, " ").trim();
+          if (kNorm === "BUCHA 80MM") kNorm = "BUCHA 08MM";
+          kNorm = kNorm.replace(/PORRTA/g, "PORTA");
+          if (kNorm.length < 5 || kNorm === "LACA" || kNorm.startsWith("+") || kNorm.startsWith("ATÉ ") || kNorm.startsWith("ATE ")) continue;
+          const k = kNorm;
+          let pr = pricesMap.get(k);
+          if (!pr) {
+            const stripped = k.replace(/\s*\[.*$/, "").replace(/\s*–\s*.*$/, "").trim();
+            pr = pricesMap.get(stripped);
+          }
+          if (!pr && k.startsWith("LAMINA NATURAL ")) pr = pricesMap.get("LAMINA NATURAL CARVALHO EUROPEU");
+          if (!pr && k.startsWith("MADEIRA MACIÇA")) pr = pricesMap.get("MADEIRA MACIÇA TAUARI (0.02X0.20X3.00)");
+          if (!pr) {
+            for (const [pk, pv] of pricesMap) {
+              const pkN = pk.replace(/–/g, "-").replace(/\s+/g, " ").trim();
+              if (pkN === k) { pr = pv; break; }
+            }
+          }
+          if (!pr) {
+            for (const [pk, pv] of pricesMap) {
+              const pkN = pk.replace(/–/g, "-").replace(/\s+/g, " ").trim();
+              if (pkN.length > 12 && (k.includes(pkN) || pkN.includes(k))) { pr = pv; break; }
+            }
+          }
+          const c = pr ? pr.preco : 0;
+          if (pr && pr.unid_med) unid = pr.unid_med;
+          if (sec.insumos.has(k)) {
+            const e = sec.insumos.get(k);
+            e.q += q;
+            e.c = c;
+            e.t = e.q * e.c;
+          } else {
+            sec.insumos.set(k, { p: nome, u: unid, q, c, t: q * c });
+          }
+        }
+      }
+      // ── Régua (insumo) cadastrada no produto ──
+      const ax = f && f.atributos_extras ? f.atributos_extras : null;
+      const reguaName = ax && (ax.regua || ax.Regua) ? String(ax.regua || ax.Regua).trim() : "";
+      const qtdReguaM2 = ax ? parseFloat(ax.qtd_regua_m2 || ax.qtd_regua || 0) || 0 : 0;
+      if (reguaName && qtdReguaM2 > 0) {
+        // Quantas portas neste item (parse "1 Porta", "02 portas", etc.)
+        const mQ = (o.descritivo || "").match(/^\s*(\d+)\s*porta/im);
+        const nPortas = mQ ? parseInt(mQ[1], 10) : 1;
+        // Preço da régua: tenta orcamento_tabela_precos por dimensao_label match
+        const reguaNorm = reguaName.toUpperCase().replace(/\s+/g, " ").trim();
+        const reguaRow = dimRows.find(re => {
+          const dl = (re.dimensao_label || "").toUpperCase().replace(/\s+/g, " ").trim();
+          return dl === reguaNorm;
+        });
+        const precoRegua = reguaRow ? (Number(reguaRow.preco) || 0) : 0;
+        const qtdTotal = nPortas * qtdReguaM2;
+        const kRegua = ("RÉGUA " + reguaName + " (PORTA)").toUpperCase();
+        if (sec.insumos.has(kRegua)) {
+          const e = sec.insumos.get(kRegua);
+          e.q += qtdTotal;
+          e.t = e.q * e.c;
+        } else {
+          sec.insumos.set(kRegua, { p: reguaName + " (régua p/ porta)", u: "M²", q: qtdTotal, c: precoRegua, t: qtdTotal * precoRegua });
+        }
+      }
+    }
+  }
+  const totalVenda = totalVendaBruto - descSim - descItem;
+
+  // Não-PORTA: aplica grade de insumos × m² (sobrescreve insumos)
+  for (const [cat, sec] of sections) {
+    if (cat === "PORTA") continue;
+    const bloco = CAT2BLOCO[cat];
+    if (!bloco) continue;
+    const grade = gradeByBloco.get(bloco) || [];
+    const qty = (cat === "RODAPÉ" || cat === "RODAPE") ? sec.totalMtl : sec.totalM2;
+    if (qty <= 0 || grade.length === 0) continue;
+    sec.insumos = new Map();
+    for (const ins of grade) {
+      const qpu = Number(ins.qtd_por_unidade) || 0;
+      const cu = Number(ins.custo_unit) || 0;
+      const regra = ins.regra || "m2";
+      const div = Number(ins.divisor) || 0;
+      let qtd;
+      if (regra === "fixo") qtd = qpu;
+      else if (regra === "cada_n_m2" && div > 0) qtd = Math.ceil(qty / div) * qpu;
+      else qtd = qpu * qty;
+      sec.insumos.set(ins.codigo, {
+        codigo: ins.codigo,
+        p: ins.descricao,
+        u: ins.und || "UN",
+        q: qtd, c: cu, t: qtd * cu,
+        obs: ins.obs || "",
+      });
+    }
+    continue; // pula o bloco antigo abaixo
+  }
+  for (const [cat, sec] of sections) {
+    if (cat !== "PORTA") continue;
+    // Conta portas + agrega por bloco_label
+    const portasPorBloco = new Map();
+    for (const p of sec.produtos) {
+      const mU = (p.ambiente || "").toUpperCase() + " " + (p.modelo || "").toUpperCase();
+      // Detecta marca
+      let marca = "";
+      if (mU.includes("CIR")) marca = "CIR";
+      else if (mU.includes("GERIS")) marca = "GERIS";
+      else if (mU.includes("DN150")) marca = "PORTA CORRER DN150";
+      else if (mU.includes("SS-200") || mU.includes("SS200")) marca = "PORTA CORRER SS-200 (ROMETAL)";
+      // Detecta posição
+      let pos = "";
+      if (mU.match(/\bWC\b/) || mU.includes("BANHO") || mU.includes("BANHEIR") || mU.includes("LAVABO")) pos = "WC";
+      else if (mU.includes("EXTERN")) pos = "EXTERNO";
+      else if (mU.includes("INTERN")) pos = "INTERNO";
+      else pos = "EXTERNO";
+      let blocoLabel = null;
+      if (marca === "PORTA CORRER DN150" || marca === "PORTA CORRER SS-200 (ROMETAL)") blocoLabel = marca;
+      else if (marca === "CIR" || marca === "GERIS") blocoLabel = "PORTA " + marca + " " + pos;
+      if (!blocoLabel) continue;
+      // Extrai N portas do ambiente (ex: "2 Portas")
+      const mQ = (p.ambiente || "").match(/^\s*(\d+)\s*porta/i);
+      const nPortas = mQ ? parseInt(mQ[1], 10) : 1;
+      portasPorBloco.set(blocoLabel, (portasPorBloco.get(blocoLabel) || 0) + nPortas);
+    }
+    // Mapeia bloco_label → bloco_id via gradeByBloco
+    const bloco2id = new Map();
+    for (const [bid, items] of gradeByBloco) {
+      if (items.length && items[0].bloco_label) bloco2id.set(items[0].bloco_label, bid);
+    }
+    sec.insumos = new Map();
+    for (const [bLabel, nP] of portasPorBloco) {
+      const bid = bloco2id.get(bLabel);
+      const grade = gradeByBloco.get(bid) || [];
+      for (const ins of grade) {
+        const qpu = Number(ins.qtd_por_unidade) || 0;
+        const cu = Number(ins.custo_unit) || 0;
+        const qtd = qpu * nP; // PORTA: por unidade de porta
+        const key = ins.codigo;
+        if (sec.insumos.has(key)) {
+          const e = sec.insumos.get(key);
+          e.q += qtd;
+          e.t = e.q * e.c;
+        } else {
+          sec.insumos.set(key, {
+            codigo: ins.codigo,
+            p: ins.descricao,
+            u: ins.und || "UN",
+            q: qtd, c: cu, t: qtd * cu,
+            obs: ins.obs || "",
+          });
+        }
+      }
+    }
+    continue;
+  }
+
+  let totalFab = 0;
+  for (const sec of sections.values()) {
+    for (const e of sec.insumos.values()) totalFab += e.t;
+  }
+
+  // ── Mão de Obra (defaults sobre m² agregado por categoria) ──
+  const mdoByCat = new Map();
+  let totalMdo = 0;
+  for (const cat of Object.keys(MDO_DEFAULTS)) {
+    const sec = sections.get(cat);
+    if (!sec) continue;
+    const qty = (cat === "RODAPÉ" || cat === "RODAPE") ? sec.totalMtl : sec.totalM2;
+    if (qty <= 0) continue;
+    for (const servico of MDO_DEFAULTS[cat]) {
+      const p = _findMdoPreco(instalRows, cat, servico);
+      if (!p) continue;
+      const vu = Number(p.valor_unitario) || 0;
+      const total = qty * vu;
+      const catKey = _normCat(p.categoria);
+      if (!mdoByCat.has(catKey)) mdoByCat.set(catKey, []);
+      mdoByCat.get(catKey).push({ servico: p.servico, unidade: p.unidade, qtd: qty, vu, total });
+      totalMdo += total;
+    }
+  }
+
+  const custoTotal = totalFab + totalMdo;
+  const margem = totalVenda - custoTotal;
+  const margemPerc = totalVenda > 0 ? (margem / totalVenda * 100) : 0;
+  console.log("[CustoOrcamento] insumos:", totalFab, "MDO:", totalMdo, "venda:", totalVenda);
+
+  // ── Persiste meta (não-bloqueante) ──
+  try {
+    const mdoArr = [];
+    for (const [, rows] of mdoByCat) {
+      for (const r of rows) mdoArr.push({ ...r, valor_unit: r.vu });
+    }
+    const newMeta = {
+      ...(sim.meta || {}),
+      mao_de_obra: mdoArr,
+      mao_de_obra_total: totalMdo,
+      insumos_total: totalFab,
+      custo_total: custoTotal,
+      venda_total: totalVenda,
+      custo_updated_at: new Date().toISOString(),
+    };
+    await supabase.from("simulacao_projetos").update({ meta: newMeta }).eq("id", sim.id);
+    if (typeof onSaved === "function") { try { onSaved({ meta: newMeta }); } catch (_e) {} }
+  } catch (e) {
+    console.error("[CustoOrcamento] erro ao persistir meta:", e);
+  }
+
+  // ── MARCENARIA: lê meta.ferragens + meta.madeiras de cada item e renderiza no insumos da seção ──
+  const marcSec = sections.get("MARCENARIA");
+  if (marcSec) {
+    for (const o of itens) {
+      const catU = String(o.categoria || "").toUpperCase();
+      if (!catU.startsWith("MARCENARIA")) continue;
+      const meta = o.meta || {};
+      // Ferragens selecionadas (id + qty)
+      for (const sel of (meta.ferragens || [])) {
+        const f = marcFerMap.get(sel.id);
+        if (!f) continue;
+        const nome = f.nome;
+        const q = Number(sel.qty) || 0;
+        if (q <= 0) continue;
+        const key = "F::" + sel.id;
+        if (marcSec.insumos.has(key)) {
+          marcSec.insumos.get(key).q += q;
+        } else {
+          marcSec.insumos.set(key, { p: nome, u: "un", q, c: 0, t: 0, codigo: f.fornecedor || "" });
+        }
+      }
+      // Madeiras (MDF/Compensado) selecionadas
+      for (const sel of (meta.madeiras || [])) {
+        const m = marcMadMap.get(sel.id);
+        if (!m) continue;
+        const nome = m.nome;
+        const q = Number(sel.qty) || 0;
+        if (q <= 0) continue;
+        const u = m.unidade || "M²";
+        const key = "M::" + sel.id;
+        if (marcSec.insumos.has(key)) {
+          marcSec.insumos.get(key).q += q;
+        } else {
+          marcSec.insumos.set(key, { p: nome, u, q, c: 0, t: 0, codigo: m.fornecedor || "" });
+        }
+      }
+    }
+  }
+
+  // ── Monta HTML — SEÇÕES por categoria ──
+  let html = "";
+  for (const cat of ORDER) {
+    if (!sections.has(cat)) continue;
+    const sec = sections.get(cat);
+    if (sec.produtos.length === 0 && sec.vendaTotal === 0) continue;
+    const secVenda = sec.vendaTotal;
+    const secCusto = Array.from(sec.insumos.values()).reduce((s, e) => s + e.t, 0);
+    const secMdo = (mdoByCat.get(cat) || []).reduce((s, r) => s + r.total, 0);
+    const secCustoTotal = secCusto + secMdo;
+    const secMargem = secVenda - secCustoTotal;
+    const secMargemP = secVenda > 0 ? (secMargem / secVenda * 100) : 0;
+    const showCodigo = Array.from(sec.insumos.values()).some(e => e.codigo);
+
+    html += `<div class="catbox"><div class="cathead">${cat} <span class="catmeta">${sec.produtos.length} ${sec.produtos.length === 1 ? "item" : "itens"}${sec.totalM2 > 0 ? ` · ${sec.totalM2.toFixed(2)}m²` : ""}${sec.totalMtl > 0 ? ` · ${sec.totalMtl.toFixed(2)}ml` : ""}</span></div>`;
+
+    // Tabela de produtos (orçamento)
+    html += '<table class="prods"><thead><tr><th>#</th><th>Ambiente</th><th>Modelo</th><th>Valor</th></tr></thead><tbody>';
+    let zp = 1;
+    if (sec.produtos.length === 0) {
+      html += '<tr><td colspan="4" class="empty">— Sem itens visíveis —</td></tr>';
+    } else {
+      for (const p of sec.produtos) {
+        html += `<tr><td>${zp++}</td><td>${p.ambiente}</td><td>${p.modelo}</td><td>${_brl(p.valor)}</td></tr>`;
+      }
+    }
+    html += '</tbody></table>';
+
+    // Tabela de insumos (custo de fabricação)
+    html += '<div class="subhead">Insumos (Custo de Fabricação)</div>';
+    if (showCodigo) {
+      html += '<table><thead><tr><th>#</th><th>Código</th><th>Descrição</th><th>UND</th><th>Qtde.</th><th>Custo Unit.</th><th>Total</th></tr></thead><tbody>';
+      if (sec.insumos.size === 0) {
+        html += '<tr><td colspan="7" class="empty">—</td></tr>';
+      } else {
+        let z = 1;
+        for (const e of sec.insumos.values()) {
+          const qf = (typeof e.q === "number") ? (Number.isInteger(e.q) ? e.q : e.q.toFixed(2)) : e.q;
+          html += `<tr><td>${z++}</td><td>${e.codigo || ""}</td><td>${e.p}</td><td>${e.u}</td><td>${qf}</td><td>${_brl(e.c)}</td><td>${_brl(e.t)}</td></tr>`;
+        }
+      }
+      html += '</tbody></table>';
+    } else {
+      html += '<table><thead><tr><th>#</th><th>Produto</th><th>UND</th><th>Qtde.</th><th>Custo Unit.</th><th>Total</th></tr></thead><tbody>';
+      if (sec.insumos.size === 0) {
+        html += '<tr><td colspan="6" class="empty">—</td></tr>';
+      } else {
+        let z = 1;
+        for (const e of sec.insumos.values()) {
+          html += `<tr><td>${z++}</td><td>${e.p}</td><td>${e.u}</td><td>${e.q}</td><td>${_brl(e.c)}</td><td>${_brl(e.t)}</td></tr>`;
+        }
+      }
+      html += '</tbody></table>';
+    }
+
+    // Subtotais da categoria — só insumos (MDO calculada em background pra card)
+    html += `<div class="secfoot"><span><strong>Insumos:</strong> ${_brl(secCusto)}</span></div>`;
+    html += '</div>';
+  }
+
+  const numero = sim.numero || "—";
+  const data = new Date().toLocaleDateString("pt-BR");
+
+  const full = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ficha de Insumos Nº ${numero}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:8pt Arial, Helvetica, sans-serif;background:#fff;color:#1a1a1a}
+.pg{width:210mm;min-height:297mm;margin:0 auto;padding:20pt 24pt}
+.hd{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:10pt;margin-bottom:12pt}
+.lo{font:700 20pt sans-serif;letter-spacing:2pt}
+.em{text-align:right;font-size:7pt;line-height:1.4}
+.inf{display:grid;grid-template-columns:1fr 1fr;gap:4pt 16pt;margin-bottom:12pt;font-size:7.5pt;border:1px solid #ccc;padding:8pt}
+table{width:100%;border-collapse:collapse;font-size:7.5pt;margin-bottom:6pt}
+th{background:#1a1a1a;color:#fff;padding:5pt 6pt;text-align:left;font-size:7pt}
+th:nth-child(n+3){text-align:right}
+td{padding:4pt 6pt;border-bottom:1px solid #e0e0e0}
+td:nth-child(n+3){text-align:right}
+td.empty{text-align:center;color:#888;padding:12pt}
+table.prods th:nth-child(n+4),table.prods td:nth-child(n+4){text-align:right}
+table.prods th:nth-child(-n+3),table.prods td:nth-child(-n+3){text-align:left}
+.catbox{margin-top:12pt;border:1px solid #d4d4d4;border-radius:4pt;padding:8pt;background:#fafafa}
+.cathead{font:700 11pt sans-serif;margin-bottom:6pt;padding-bottom:4pt;border-bottom:2px solid #333;color:#111}
+.catmeta{font:400 7.5pt sans-serif;color:#666;float:right}
+.subhead{font:700 8pt sans-serif;margin:8pt 0 4pt;color:#555;text-transform:uppercase;letter-spacing:0.5pt}
+.secfoot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8pt;margin-top:6pt;padding:6pt 8pt;background:#f0eded;border:1px solid #d0d0d0;border-radius:3pt;font-size:8pt}
+.secfoot span strong{color:#444;font-weight:700;margin-right:3pt}
+.secfoot em{font-style:normal;color:#888}
+.ftv{margin-top:14pt;border-top:3px solid #000;padding-top:12pt;display:grid;grid-template-columns:1fr;gap:8pt}
+.ftv .b{padding:8pt;border-radius:4pt;text-align:center}
+.fb{background:#fef2f2;border:2px solid #fca5a5}
+.fm{background:#fff7ed;border:2px solid #fed7aa}
+.fc{background:#fce7f3;border:2px solid #fbcfe8}
+.fv{background:#f0fdf4;border:2px solid #bbf7d0}
+.fg{background:#eff6ff;border:2px solid #bfdbfe}
+.ftv b{display:block;font-size:7pt;text-transform:uppercase;margin-bottom:3pt;letter-spacing:0.5pt;color:#444}
+.ftv span{font:700 12pt sans-serif;display:block}
+.ftv .pct{font:600 8pt sans-serif;color:#666;margin-top:2pt;display:block}
+.ft{margin-top:30pt;display:flex;justify-content:space-between}
+.sg{border-top:1px solid #000;width:45%;padding-top:6pt;font-size:7pt;text-align:center}
+.actions{position:fixed;top:10px;right:10px;display:flex;gap:6px;z-index:99}
+.actions button{padding:7pt 14pt;border:none;border-radius:4pt;cursor:pointer;font-weight:700;font-size:9pt}
+.btn-print{background:#1a1a1a;color:#fff}
+.btn-close{background:#dc2626;color:#fff}
+@media screen{body{background:#666;padding:0}.pg{background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.4);margin:20px auto}}
+@media print{.actions{display:none}.pg{padding:14pt 18pt}}
+</style></head><body>
+<div class="actions">
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+  <button class="btn-close" onclick="window.close()">✕ Fechar</button>
+</div>
+<div class="pg">
+<div class="hd"><div class="lo">PARKET</div><div class="em">MUNDIAL EXPORT ASSESSORIA COMERCIO EXTERIOR<br>IMPORTACAO E EXPORTACAO LTDA<br>CNPJ: 29.872.616/0001-34</div></div>
+<div style="font:700 11pt sans-serif;margin-bottom:8pt">FICHA DE INSUMOS Nº ${numero}</div>
+<div class="inf"><div><b>Cliente:</b> ${sim.cliente || "—"}</div><div><b>Data:</b> ${data}</div><div><b>Endereço:</b> ${sim.endereco || "—"}</div><div><b>Vendedor:</b> ${sim.vendedor || "—"}</div></div>
+${html || '<div style="text-align:center;color:#888;padding:24pt">Nenhum produto no orçamento</div>'}
+<div class="ftv">
+  <div class="b fb"><b>Total de Insumos</b><span>${_brl(totalFab)}</span></div>
+</div>
+<div class="ft"><div class="sg">Assinatura conferente</div><div class="sg">Assinatura conferente Mundial</div></div>
+</div>
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) {
+    alert("Permita pop-ups para visualizar a ficha de Custo de Orçamento.");
+    return;
+  }
+  w.document.write(full);
+  w.document.close();
+  w.focus();
+}
+
+if (typeof window !== "undefined") {
+  window.__pkt_openCustoOrcamento = openCustoOrcamento;
+}
+
+export { openCustoOrcamento };
+export default openCustoOrcamento;

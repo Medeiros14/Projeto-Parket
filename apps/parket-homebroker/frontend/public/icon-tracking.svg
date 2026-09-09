@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fundo Preto Navona -->
+  <rect width="512" height="512" rx="96" fill="#050505"/>
+  <!-- Borda Chai -->
+  <rect x="6" y="6" width="500" height="500" rx="92" fill="none" stroke="#968473" stroke-width="3" stroke-opacity="0.6"/>
+  <!-- P em Cinzel — Bege Travertino -->
+  <text x="256" y="338" text-anchor="middle"
+        font-family="Cinzel, Georgia, serif"
+        font-size="280" font-weight="500"
+        letter-spacing="8"
+        fill="#D8D3C7">P</text>
+  <!-- TRACKING uppercase em chai -->
+  <text x="256" y="430" text-anchor="middle"
+        font-family="Cinzel, Georgia, serif"
+        font-size="36" font-weight="500"
+        letter-spacing="14"
+        fill="#968473">TRACKING</text>
+</svg>

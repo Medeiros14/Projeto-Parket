@@ -1,0 +1,18 @@
+{
+  "appId": "works.parket.base",
+  "appName": "Parket Base",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "https",
+    "url": "https://base.parket.works/leitor/",
+    "cleartext": false
+  },
+  "plugins": {
+    "Camera": { "permissions": ["camera"] }
+  }
+}

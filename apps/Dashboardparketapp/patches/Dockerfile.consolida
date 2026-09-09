@@ -1,0 +1,9 @@
+FROM parket-dashboard:golden-complete
+COPY propostaGenerator-PGSTRUCT25.js /usr/share/nginx/html/assets/propostaGenerator-PGSTRUCT25.js
+COPY orcamento-simulador-tab-MARCFIX40.js /usr/share/nginx/html/assets/orcamento-simulador-tab-MARCFIX40.js
+RUN find /usr/share/nginx/html -type f \( -name "*.html" -o -name "*.js" \) -exec sed -i 's|propostaGenerator-PGSTRUCT2[0-4]\.js|propostaGenerator-PGSTRUCT25.js|g; s|orcamento-simulador-tab-MARCFIX3[5-9]\.js|orcamento-simulador-tab-MARCFIX40.js|g' {} +
+RUN sed -i "s|'/assets/propostaGenerator-PGSTRUCT2[0-4].js'|'/assets/propostaGenerator-PGSTRUCT25.js'|g; s|'/assets/orcamento-simulador-tab-MARCFIX3[5-9].js'|'/assets/orcamento-simulador-tab-MARCFIX40.js'|g" /usr/share/nginx/html/index.html
+RUN sed -i 's|<script src="/catalogos.js" defer></script>||g' /usr/share/nginx/html/index.html && rm -f /usr/share/nginx/html/catalogos.js
+RUN sed -i "s|var CODE_VERSION = '[^']*'|var CODE_VERSION = '20260617-consolida-pg25-mf40-nocat'|" /usr/share/nginx/html/index.html
+EXPOSE 80
+CMD ["nginx","-g","daemon off;"]

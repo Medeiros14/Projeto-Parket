@@ -1,0 +1,4 @@
+FROM parket-dashboard:golden
+COPY orcamento-simulador-tab-MARCFIX2.js /usr/share/nginx/html/assets/orcamento-simulador-tab-MARCFIX2.js
+COPY catalogos.js /usr/share/nginx/html/catalogos.js
+RUN sed -i "s|CODE_VERSION\s*=\s*'[^']*'|CODE_VERSION = '20260608-pisos7pct-v4'|" /usr/share/nginx/html/index.html

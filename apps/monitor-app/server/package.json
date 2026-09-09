@@ -1,0 +1,14 @@
+{
+  "name": "parket-monitor-server",
+  "version": "1.0.0",
+  "description": "Monitor Parket: checker de disponibilidade + API + pagina de status (monitor.parket.works)",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}

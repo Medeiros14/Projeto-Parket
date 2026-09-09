@@ -1,0 +1,7 @@
+FROM parket-dashboard:golden-squash-20260617-1344
+COPY propostaGenerator-PGSTRUCT25.js /usr/share/nginx/html/assets/propostaGenerator-PGSTRUCT25.js
+RUN find /usr/share/nginx/html -type f \( -name "*.html" -o -name "*.js" \) -exec sed -i 's|propostaGenerator-PGSTRUCT24\.js|propostaGenerator-PGSTRUCT25.js|g' {} +
+RUN sed -i "s|'/assets/propostaGenerator-PGSTRUCT24.js'|'/assets/propostaGenerator-PGSTRUCT25.js'|g" /usr/share/nginx/html/index.html
+RUN sed -i "s|var CODE_VERSION = '[^']*'|var CODE_VERSION = '20260617-pg25-logistica-fit'|" /usr/share/nginx/html/index.html
+EXPOSE 80
+CMD ["nginx","-g","daemon off;"]

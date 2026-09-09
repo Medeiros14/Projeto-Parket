@@ -1,0 +1,1053 @@
+/**
+ * Tela de Aprovação Douglas — lista cards do setor Orçamento parados na
+ * coluna "Análise Douglas". Pra cada um: cliente, vendedor, orçamentista,
+ * link da proposta + botão Ver PDF, e botões Aprovar / Rejeitar (motivo).
+ *
+ * Aprovar → backend move card pra "Proposta Pronta" + trigger no banco
+ * sobe o card Comercial pai pra "Apresentação / Proposta", e dispara
+ * mensagem no grupo "Parket — Orçamentos".
+ * Rejeitar → backend move card pra "Refazer" + grava motivo + dispara grupo.
+ *
+ * Restrito a douglas@parket.com.br e admins (role admin/superadmin).
+ */
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { Loader2, RefreshCw, AlertTriangle } from "lucide-react";
+import { useFetch } from "../../lib/api";
+import type { AppUser } from "../../lib/auth";
+
+const WAVOIP_API = "https://core.parket.works";
+const SB_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+const WA_URL = "https://conect.parket.works";
+const WA_KEY = "4eab105201410d6865b86dca76ee9fa3";
+const WA_INSTANCE = "Parket";
+const WA_GROUP = "120363425314205066@g.us"; // Parket — Orçamentos
+
+async function lookupOrcamentistaPhone(nomeCompleto: string | null | undefined): Promise<string | null> {
+  if (!nomeCompleto) return null;
+  const firstName = String(nomeCompleto).trim().split(/\s+/)[0].toLowerCase();
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/orcamento_notify_phones?nome_key=eq.${encodeURIComponent(firstName)}&ativo=eq.true&select=telefone&limit=1`,
+      { headers: { apikey: SB_KEY } }
+    );
+    const rows = await r.json();
+    if (Array.isArray(rows) && rows[0] && rows[0].telefone) return String(rows[0].telefone);
+  } catch (e) { console.warn("[lookup-phone]", e); }
+  return null;
+}
+
+async function waNotifyGroup(text: string, mentionPhone: string | null) {
+  try {
+    const body: any = { number: WA_GROUP };
+    if (mentionPhone) {
+      body.text = "@" + mentionPhone + " " + text;
+      body.mentioned = [mentionPhone];
+    } else {
+      body.text = text;
+    }
+    await fetch(`${WA_URL}/message/sendText/${WA_INSTANCE}`, {
+      method: "POST",
+      headers: { apikey: WA_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) { console.warn("[wa-notify-group]", e); }
+}
+
+async function postarComentarioChat(opts: {
+  cardId: string; texto: string; tipo: "comentario" | "rejeicao";
+  user: AppUser | null; cliente: string;
+}) {
+  const { cardId, texto, tipo, user, cliente } = opts;
+  const email = (user?.email || "douglas@parket.com.br").toLowerCase();
+  const nome = user?.nome || "Douglas (CEO)";
+  const prefix = tipo === "rejeicao" ? "[REJEIÇÃO CEO]" : "[COMENTÁRIO CEO]";
+  const body = {
+    context_id: cardId,
+    context_type: "kanban_card",
+    topic: cliente ? cliente.toLowerCase().trim() : null,
+    user_name: "🟡 CEO — " + nome,
+    user_email: email,
+    avatar: "👑",
+    msg: `${prefix}\n${texto}`,
+  };
+  try {
+    await fetch(`${SB_URL}/rest/v1/card_chat_messages`, {
+      method: "POST",
+      headers: {
+        apikey: SB_KEY,
+        Authorization: "Bearer " + SB_KEY,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (e) { console.warn("[postarComentarioChat]", e); }
+}
+
+async function fetchChatCounts(cardIds: string[]): Promise<{ counts: Record<string, number>; latest: Record<string, { created_at: string; user_email: string | null }> }> {
+  const counts: Record<string, number> = {};
+  const latest: Record<string, { created_at: string; user_email: string | null }> = {};
+  if (!cardIds.length) return { counts, latest };
+  try {
+    await Promise.all(cardIds.map((id) =>
+      Promise.all([
+        fetch(`${SB_URL}/rest/v1/card_chat_messages?context_id=eq.${id}&select=id`, {
+          headers: { apikey: SB_KEY, Prefer: "count=exact" },
+        }).then((r) => {
+          const cr = r.headers.get("content-range") || "";
+          const m = cr.match(/\/(\d+)$/);
+          counts[id] = m ? parseInt(m[1], 10) : 0;
+        }).catch(() => { counts[id] = 0; }),
+        fetch(`${SB_URL}/rest/v1/card_chat_messages?context_id=eq.${id}&select=created_at,user_email&order=created_at.desc&limit=1`, {
+          headers: { apikey: SB_KEY },
+        }).then((r) => r.json()).then((rows) => {
+          if (Array.isArray(rows) && rows[0]) latest[id] = { created_at: rows[0].created_at, user_email: rows[0].user_email };
+        }).catch(() => {}),
+      ])
+    ));
+  } catch (e) { console.warn("[fetchChatCounts]", e); }
+  return { counts, latest };
+}
+
+function getLastSeenChat(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem("__pkt_chat_last_seen") || "{}"); } catch { return {}; }
+}
+function markChatRead(cardId: string) {
+  try {
+    const seen = getLastSeenChat();
+    seen[cardId] = new Date().toISOString();
+    localStorage.setItem("__pkt_chat_last_seen", JSON.stringify(seen));
+  } catch {}
+}
+
+type AprovacaoItem = {
+  card: { id: string; title: string; obra: string | null; column_id: string; details: any; created_at: string; updated_at: string };
+  card_comercial: { id: string; title: string; column_id: string; responsavel: string | null } | null;
+  simulacao: { id: string; numero: string | null; cliente: string; vendedor: string | null; orcamentista: string | null; status: string } | null;
+  vendedor: string | null;
+  orcamentista: string;
+  cliente: string;
+  proposta_link: string | null;
+  proposta_pdf_url: string | null;
+  historico: Array<{ id: string; decisao: string; motivo: string | null; aprovado_por_email: string; aprovado_por_nome: string | null; decidido_em: string }>;
+};
+
+export function isAprovador(u: AppUser | null): boolean {
+  if (!u) return false;
+  if ((u.email || "").toLowerCase() === "douglas@parket.com.br") return true;
+  return u.role === "admin" || u.role === "superadmin" || u.role === "dept_leader";
+}
+
+function tempoDesde(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return "agora";
+  const m = Math.floor(ms / 60_000);
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+export function OrcamentoAprovacaoPage({ appUser }: { appUser: AppUser | null }) {
+  return <AprovacaoFila appUser={appUser} showHeader />;
+}
+
+export function AprovacaoFila({ appUser, showHeader = false }: { appUser: AppUser | null; showHeader?: boolean }) {
+  const autorizado = isAprovador(appUser);
+  const lista = useFetch<{ items: AprovacaoItem[]; total: number }>(
+    () => autorizado
+      ? fetch(`${WAVOIP_API}/api/orcamento/aprovacao/pendentes`).then((r) => r.json())
+      : Promise.resolve({ items: [], total: 0 }),
+    [autorizado]
+  );
+
+  const [busy, setBusy] = useState<string | null>(null);
+  const [rejeitarOpen, setRejeitarOpen] = useState<AprovacaoItem | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [propostaOpen, setPropostaOpen] = useState<AprovacaoItem | null>(null);
+  const [comentarioOpen, setComentarioOpen] = useState<AprovacaoItem | null>(null);
+  const [comentarioTxt, setComentarioTxt] = useState("");
+  const [conversaOpen, setConversaOpen] = useState<AprovacaoItem | null>(null);
+  const [conversaMsgs, setConversaMsgs] = useState<Array<{ id: string; user_name: string | null; user_email: string | null; avatar: string | null; msg: string; created_at: string }>>([]);
+  const [chatCounts, setChatCounts] = useState<Record<string, number>>({});
+  const [chatLatest, setChatLatest] = useState<Record<string, { created_at: string; user_email: string | null }>>({});
+
+  // Histórico de decisões + análises (últimos 30 dias)
+  type HistEvento = {
+    tipo: "aprovado" | "reprovado" | "analise";
+    cliente: string;
+    orcamentista: string | null;
+    vendedor: string | null;
+    motivo: string | null;
+    quem: string;
+    quando: string; // ISO
+    card_id: string;
+  };
+  const [historico, setHistorico] = useState<HistEvento[]>([]);
+  const [secOpen, setSecOpen] = useState<Record<string, boolean>>({ pendentes: true });
+
+  const carregarHistorico = useCallback(async () => {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const [decRes, chatRes] = await Promise.all([
+        fetch(`${SB_URL}/rest/v1/orcamento_aprovacoes?decidido_em=gte.${since}&select=card_id,cliente,vendedor,orcamentista,decisao,motivo,aprovado_por_email,aprovado_por_nome,decidido_em&order=decidido_em.desc&limit=400`, {
+          headers: { apikey: SB_KEY },
+        }).then((r) => r.json()),
+        fetch(`${SB_URL}/rest/v1/card_chat_messages?created_at=gte.${since}&msg=like.%5BCOMENT%C3%81RIO%20CEO%5D%25&select=context_id,user_name,user_email,msg,created_at&order=created_at.desc&limit=400`, {
+          headers: { apikey: SB_KEY },
+        }).then((r) => r.json()),
+      ]);
+
+      // Mapa card_id → { cliente, vendedor, orcamentista } pra completar dados de comentários
+      // (card_chat_messages não guarda esses campos; orcamento_aprovacoes guarda).
+      type CardInfo = { cliente?: string | null; vendedor?: string | null; orcamentista?: string | null };
+      const cardInfo: Record<string, CardInfo> = {};
+      if (Array.isArray(decRes)) {
+        decRes.forEach((d: any) => {
+          if (!d.card_id) return;
+          const cur = cardInfo[d.card_id] || {};
+          cardInfo[d.card_id] = {
+            cliente: cur.cliente || d.cliente || null,
+            vendedor: cur.vendedor || d.vendedor || null,
+            orcamentista: cur.orcamentista || d.orcamentista || null,
+          };
+        });
+      }
+      // Pra qualquer card_id em comentários que não temos cliente/vendedor/orcamentista, busca no kanban_cards.details
+      const idsFaltando = Array.isArray(chatRes)
+        ? Array.from(new Set(chatRes.map((c: any) => c.context_id).filter((id: any) => {
+            if (!id) return false;
+            const ci = cardInfo[id];
+            return !ci || !ci.cliente || !ci.vendedor || !ci.orcamentista;
+          })))
+        : [];
+      // Tb adiciona ids de decisões cujo dado pode estar incompleto (raro mas seguro)
+      if (Array.isArray(decRes)) {
+        decRes.forEach((d: any) => {
+          const ci = cardInfo[d.card_id];
+          if (!ci || !ci.cliente || !ci.vendedor || !ci.orcamentista) {
+            if (d.card_id && !idsFaltando.includes(d.card_id)) idsFaltando.push(d.card_id);
+          }
+        });
+      }
+      if (idsFaltando.length > 0) {
+        try {
+          const cardsRes = await fetch(
+            `${SB_URL}/rest/v1/kanban_cards?id=in.(${idsFaltando.join(",")})&select=id,title,details`,
+            { headers: { apikey: SB_KEY } }
+          ).then((r) => r.json());
+          if (Array.isArray(cardsRes)) {
+            cardsRes.forEach((k: any) => {
+              const det = k.details || {};
+              const cur = cardInfo[k.id] || {};
+              cardInfo[k.id] = {
+                cliente: cur.cliente || det.cliente || k.title || null,
+                vendedor: cur.vendedor || det.vendedor || null,
+                orcamentista: cur.orcamentista || det.orcamentista || null,
+              };
+            });
+          }
+        } catch (e) { console.warn("[carregarHistorico/cardInfo]", e); }
+      }
+
+      // Helper: prefere nome a email. Se o valor parece email, usa fallback.
+      const semEmail = (val: string | null | undefined, fallback: string | null | undefined): string | null => {
+        const v = (val || "").trim();
+        if (v && !v.includes("@")) return v;
+        const f = (fallback || "").trim();
+        if (f && !f.includes("@")) return f;
+        return v || f || null;
+      };
+
+      const evs: HistEvento[] = [];
+      if (Array.isArray(decRes)) {
+        decRes.forEach((d: any) => {
+          const ci = cardInfo[d.card_id] || {};
+          evs.push({
+            tipo: d.decisao === "aprovado" ? "aprovado" : "reprovado",
+            cliente: semEmail(d.cliente, ci.cliente) || "—",
+            orcamentista: semEmail(d.orcamentista, ci.orcamentista),
+            vendedor: semEmail(d.vendedor, ci.vendedor),
+            motivo: d.motivo || null,
+            quem: d.aprovado_por_nome || (d.aprovado_por_email || "").split("@")[0],
+            quando: d.decidido_em,
+            card_id: d.card_id,
+          });
+        });
+      }
+      if (Array.isArray(chatRes)) {
+        chatRes.forEach((c: any) => {
+          const corpo = String(c.msg || "").replace(/^\[COMENT[ÁA]RIO CEO\]\s*\n?/, "").trim();
+          const ci = cardInfo[c.context_id] || {};
+          evs.push({
+            tipo: "analise",
+            cliente: semEmail(ci.cliente, c.topic) || "—",
+            orcamentista: semEmail(ci.orcamentista, null),
+            vendedor: semEmail(ci.vendedor, null),
+            motivo: corpo,
+            quem: c.user_name || (c.user_email || "").split("@")[0],
+            quando: c.created_at,
+            card_id: c.context_id,
+          });
+        });
+      }
+      evs.sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime());
+      setHistorico(evs);
+    } catch (e) { console.warn("[carregarHistorico]", e); }
+  }, []);
+
+  useEffect(() => {
+    if (!autorizado) return;
+    carregarHistorico();
+    const t = setInterval(carregarHistorico, 60_000);
+    return () => clearInterval(t);
+  }, [autorizado, carregarHistorico]);
+
+  // Agrupa eventos por dia (chave: YYYY-MM-DD na timezone local)
+  const historicoPorDia = useMemo(() => {
+    const out: Record<string, HistEvento[]> = {};
+    historico.forEach((ev) => {
+      const d = new Date(ev.quando);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      if (!out[key]) out[key] = [];
+      out[key].push(ev);
+    });
+    return out;
+  }, [historico]);
+
+  const diasOrdenados = useMemo(() => Object.keys(historicoPorDia).sort().reverse(), [historicoPorDia]);
+
+  function rotuloDia(key: string): string {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const ontem = new Date(hoje); ontem.setDate(ontem.getDate()-1);
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    if (key === fmt(hoje)) return "HOJE";
+    if (key === fmt(ontem)) return "ONTEM";
+    const [y,m,dd] = key.split("-");
+    return `${dd}/${m}/${y}`;
+  }
+
+  function toggleSec(k: string) {
+    setSecOpen((p) => ({ ...p, [k]: !p[k] }));
+  }
+
+  // Carrega dados completos de 1 card (clicado no histórico) e abre o overlay da proposta.
+  // Para "Em Análise" (ainda em analise-orc ou analise-douglas), permite Aprovar/Reprovar.
+  async function abrirDetalheHistorico(cardId: string) {
+    try {
+      setBusy(cardId);
+      const r = await fetch(`${WAVOIP_API}/api/orcamento/aprovacao/card/${cardId}`);
+      if (!r.ok) {
+        setToast({ type: "err", text: "Card não encontrado." });
+        return;
+      }
+      const item: AprovacaoItem = await r.json();
+      if (item.proposta_link) {
+        setPropostaOpen(item);
+      } else {
+        // sem proposta, abre só o chat
+        await abrirConversa(item);
+      }
+    } catch (e: any) {
+      setToast({ type: "err", text: String(e?.message || e) });
+    } finally {
+      setBusy(null);
+      setTimeout(() => setToast(null), 4000);
+    }
+  }
+
+  async function abrirConversa(item: AprovacaoItem) {
+    setConversaOpen(item);
+    setConversaMsgs([]);
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/card_chat_messages?context_id=eq.${item.card.id}&select=id,user_name,user_email,avatar,msg,created_at&order=created_at.asc`, {
+        headers: { apikey: SB_KEY },
+      });
+      const rows = await r.json();
+      setConversaMsgs(Array.isArray(rows) ? rows : []);
+      markChatRead(item.card.id);
+      // dispara re-render do badge
+      setChatLatest((prev) => ({ ...prev }));
+    } catch (e) { console.warn("[abrirConversa]", e); }
+  }
+
+  const refreshChatCounts = useCallback(async (items: AprovacaoItem[]) => {
+    const ids = items.map((i) => i.card.id).filter(Boolean);
+    const cc = await fetchChatCounts(ids);
+    setChatCounts(cc.counts);
+    setChatLatest(cc.latest);
+  }, []);
+
+  const hasUnreadFor = useCallback((cardId: string): boolean => {
+    const lt = chatLatest[cardId];
+    if (!lt || !lt.created_at) return false;
+    const me = (appUser?.email || "").toLowerCase();
+    if (lt.user_email && me && String(lt.user_email).toLowerCase() === me) return false;
+    const seen = getLastSeenChat();
+    const lastReadIso = seen[cardId] || "1970-01-01T00:00:00Z";
+    return new Date(lt.created_at) > new Date(lastReadIso);
+  }, [chatLatest, appUser]);
+
+  // Auto-refresh a cada 30s — PAUSA enquanto Douglas está vendo uma proposta
+  // ou no modal de rejeição (pra não trocar a lista debaixo dele e fechar/mudar
+  // o conteúdo que ele tá lendo).
+  useEffect(() => {
+    if (!autorizado) return;
+    if (propostaOpen || rejeitarOpen || comentarioOpen) return;  // pausa enquanto algo aberto
+    const t = setInterval(() => lista.reload(), 30_000);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autorizado, propostaOpen, rejeitarOpen, comentarioOpen]);
+
+  const items = lista.data?.items || [];
+  const ordenados = useMemo(() => {
+    // Filtra: se a última msg do chat for do próprio CEO (eu) — saiu da fila pra "Em Análise".
+    // Se for de outro (orçamentista respondeu) — volta pra fila com Resposta NOVA.
+    const me = (appUser?.email || "").toLowerCase();
+    return [...items]
+      .filter((i) => {
+        const lt = chatLatest[i.card.id];
+        if (!lt || !lt.user_email) return true;
+        return String(lt.user_email).toLowerCase() !== me;
+      })
+      .sort((a, b) =>
+        new Date(a.card.updated_at || a.card.created_at).getTime() -
+        new Date(b.card.updated_at || b.card.created_at).getTime()
+      );
+  }, [items, chatLatest, appUser]);
+
+  // Carrega chat counts quando a lista muda; poll 12s pra detectar respostas do orçamentista
+  useEffect(() => {
+    if (!autorizado || items.length === 0) return;
+    refreshChatCounts(items);
+    const t = setInterval(() => refreshChatCounts(items), 12_000);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autorizado, items.map((i) => i.card.id).join(",")]);
+
+  async function callDecisao(item: AprovacaoItem, decisao: "aprovar" | "rejeitar", motivoTxt?: string) {
+    setBusy(item.card.id);
+    try {
+      const r = await fetch(`${WAVOIP_API}/api/orcamento/aprovacao/${item.card.id}/${decisao}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: appUser?.email,
+          nome: appUser?.nome,
+          motivo: motivoTxt,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        setToast({ type: "err", text: j.detail || `HTTP ${r.status}` });
+      } else {
+        setToast({ type: "ok", text: decisao === "aprovar" ? "Proposta aprovada e enviada" : "Proposta devolvida pra refazer" });
+        // Se rejeição: registra no chat do card com [REJEIÇÃO CEO]
+        if (decisao === "rejeitar" && motivoTxt) {
+          await postarComentarioChat({
+            cardId: item.card.id, texto: motivoTxt, tipo: "rejeicao",
+            user: appUser, cliente: item.cliente,
+          });
+        }
+        // Notifica grupo Parket — Orçamentos com @ no orçamentista
+        try {
+          const orc = item.orcamentista || "—";
+          const vd = item.vendedor || "—";
+          const orcPhone = await lookupOrcamentistaPhone(orc);
+          if (decisao === "aprovar") {
+            await waNotifyGroup(
+              `✅ *CEO APROVOU* — ${item.cliente}\n\nOrçamentista: ${orc}\nVendedor: ${vd}\n\nProposta liberada para apresentação.`,
+              orcPhone
+            );
+          } else {
+            await waNotifyGroup(
+              `❌ *CEO REJEITOU* — ${item.cliente}\n\nOrçamentista: ${orc}\nVendedor: ${vd}\n\n*Motivo:*\n${motivoTxt || "—"}\n\nReabrir a sim e ajustar.`,
+              orcPhone
+            );
+          }
+        } catch (we) { console.warn("[wa-decisao]", we); }
+        markChatRead(item.card.id);
+        lista.reload();
+        setRejeitarOpen(null);
+        setPropostaOpen(null);
+        setMotivo("");
+      }
+    } catch (e: any) {
+      setToast({ type: "err", text: String(e?.message || e) });
+    } finally {
+      setBusy(null);
+      setTimeout(() => setToast(null), 4000);
+    }
+  }
+
+  async function enviarComentario(item: AprovacaoItem, texto: string) {
+    if (!texto.trim()) return;
+    setBusy(item.card.id);
+    try {
+      // 1) grava no chat do card com prefixo [COMENTÁRIO CEO]
+      await postarComentarioChat({
+        cardId: item.card.id, texto, tipo: "comentario",
+        user: appUser, cliente: item.cliente,
+      });
+      // 2) MOVE o card pra 'analise-orc' (sai da fila Douglas, volta pro orçamentista)
+      try {
+        const r = await fetch(`${WAVOIP_API}/api/orcamento/aprovacao/${item.card.id}/comentar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: appUser?.email, nome: appUser?.nome }),
+        });
+        if (!r.ok) console.warn("[mover-card-comentar]", r.status, await r.text().catch(() => ""));
+      } catch (me) { console.warn("[mover-card-comentar]", me); }
+      // 3) Notifica grupo Parket — Orçamentos com @ no orçamentista
+      try {
+        const orc = item.orcamentista || "—";
+        const orcPhone = await lookupOrcamentistaPhone(orc);
+        await waNotifyGroup(
+          `💬 *COMENTÁRIO do CEO* — ${item.cliente}\n\nOrçamentista: ${orc}\n\n*Mensagem:*\n${texto}\n\nCard movido pra "Em Análise" — responder pelo chat do card no Space.`,
+          orcPhone
+        );
+      } catch (we) { console.warn("[wa-comentario]", we); }
+      markChatRead(item.card.id);
+      setChatCounts((prev) => ({ ...prev, [item.card.id]: (prev[item.card.id] || 0) + 1 }));
+      setToast({ type: "ok", text: "Comentário enviado — card movido pra Em Análise" });
+      setComentarioOpen(null);
+      setComentarioTxt("");
+      // recarrega histórico imediato pra item aparecer na sub-seção HOJE
+      lista.reload();
+      carregarHistorico();
+    } catch (e: any) {
+      setToast({ type: "err", text: String(e?.message || e) });
+    } finally {
+      setBusy(null);
+      setTimeout(() => setToast(null), 4000);
+    }
+  }
+
+  if (!autorizado) {
+    return (
+      <div style={{ padding: 48, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)", fontSize: 13, gap: 12, background: "#0A0A0A", minHeight: "100%" }}>
+        <AlertTriangle size={24} color="#F59E0B" />
+        <div>Apenas Douglas e admins podem aprovar propostas.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "#0A0A0A", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
+      {/* Header — idêntico ao CEO Dashboard */}
+      {showHeader && (
+        <div style={{ background: "#0A0A0A", borderBottom: "1px solid rgba(212,168,83,0.3)", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: "0.6rem", color: "#D4A853", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700 }}>Análise Douglas</div>
+            <h2 style={{ margin: "2px 0 0", fontSize: "1.15rem", color: "#fafafa", fontWeight: 700 }}>Fila de Aprovação</h2>
+          </div>
+          <button
+            onClick={() => lista.reload()}
+            style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "7px 14px", borderRadius: 6, cursor: "pointer", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <RefreshCw size={11} /> Atualizar
+          </button>
+        </div>
+      )}
+
+      {/* Lista — cards limpos + seções por dia */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px 40px", maxWidth: 1100, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+        {lista.loading && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "rgba(255,255,255,0.55)", fontSize: 12, padding: "48px 0" }}>
+            <Loader2 size={14} className="animate-spin" /> Carregando fila de aprovação…
+          </div>
+        )}
+
+        {/* ═══ PENDENTES ═══ */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, paddingLeft: 2 }}>
+            <span style={{ width: 4, height: 18, background: "#D4A853", borderRadius: 2 }} />
+            <h3 style={{ margin: 0, fontSize: 12, color: "#D4A853", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 700 }}>
+              Solicitações para Análise
+            </h3>
+            <span style={{ background: "rgba(212,168,83,0.15)", color: "#D4A853", fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 10 }}>{ordenados.length}</span>
+          </div>
+
+          {ordenados.length === 0 && !lista.loading && (
+            <div style={{ background: "#0E0E0E", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 12, padding: "24px 18px", textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+              Fila zerada — nada pendente no momento.
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {ordenados.map((item) => {
+              const since = tempoDesde(item.card.updated_at || item.card.created_at);
+              const isBusy = busy === item.card.id;
+              const chatCount = chatCounts[item.card.id] || 0;
+              const unread = chatCount > 0 && hasUnreadFor(item.card.id);
+              return (
+                <div
+                  key={item.card.id}
+                  style={{
+                    background: "#111",
+                    border: `1px solid ${unread ? "rgba(239,68,68,0.35)" : "rgba(255,255,255,0.08)"}`,
+                    borderLeft: `3px solid ${unread ? "#EF4444" : "#D4A853"}`,
+                    borderRadius: 10,
+                    padding: "14px 16px",
+                    transition: "border-color 120ms",
+                  }}
+                >
+                  {/* Linha 1: cliente + chips */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", letterSpacing: 0.1 }}>
+                        {item.cliente || "—"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
+                        {item.card.obra && (
+                          <span style={{ fontSize: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", padding: "2px 7px", borderRadius: 4, color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>{item.card.obra}</span>
+                        )}
+                        <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)" }}>Há {since}</span>
+                        {item.historico.length > 0 && (
+                          <span style={{ fontSize: 10, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", padding: "2px 7px", borderRadius: 4, color: "#F59E0B", fontWeight: 700 }}>
+                            {item.historico.length}ª análise
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      {item.proposta_link && (
+                        <button
+                          onClick={() => setPropostaOpen(item)}
+                          style={{ padding: "6px 12px", borderRadius: 6, background: "rgba(212,168,83,0.18)", border: "1px solid rgba(212,168,83,0.45)", color: "#D4A853", cursor: "pointer", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}
+                        >Ver Proposta</button>
+                      )}
+                      {chatCount > 0 && (unread ? (
+                        <button
+                          onClick={() => abrirConversa(item)} title="Orçamentista respondeu"
+                          style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(239,68,68,0.22)", border: "1.5px solid #EF4444", color: "#fff", cursor: "pointer", fontSize: 10, fontWeight: 700, animation: "pktApprovPulse 1.4s ease-in-out infinite", boxShadow: "0 0 0 0 rgba(239,68,68,0.6)", whiteSpace: "nowrap" }}
+                        >💬 NOVA <span style={{ background: "#fff", color: "#EF4444", padding: "0 6px", borderRadius: 8, marginLeft: 4, fontSize: 9, fontWeight: 800 }}>{chatCount}</span></button>
+                      ) : (
+                        <button
+                          onClick={() => abrirConversa(item)} title="Ver conversa"
+                          style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.4)", color: "#C7A8FF", cursor: "pointer", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}
+                        >💬 <span style={{ background: "#A855F7", color: "#fff", padding: "0 5px", borderRadius: 8, marginLeft: 3, fontSize: 9 }}>{chatCount}</span></button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Linha 2: vendedor / orcamentista + botões de decisão */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 18, fontSize: 11, color: "rgba(255,255,255,0.55)", flexWrap: "wrap" }}>
+                      <span><span style={{ color: "rgba(255,255,255,0.4)" }}>Orçamentista </span><b style={{ color: "#fff", fontWeight: 600 }}>{item.orcamentista || "—"}</b></span>
+                      {item.vendedor && (
+                        <span><span style={{ color: "rgba(255,255,255,0.4)" }}>Vendedor </span><b style={{ color: "#fff", fontWeight: 600 }}>{item.vendedor}</b></span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button
+                        disabled={isBusy}
+                        onClick={() => { setComentarioOpen(item); setComentarioTxt(""); }}
+                        style={{ padding: "8px 14px", borderRadius: 6, background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.45)", color: "#7BA6F0", cursor: isBusy ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: isBusy ? 0.5 : 1 }}
+                      >💬 Comentário</button>
+                      <button
+                        disabled={isBusy}
+                        onClick={() => setRejeitarOpen(item)}
+                        style={{ padding: "8px 14px", borderRadius: 6, background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.45)", color: "#F87171", cursor: isBusy ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: isBusy ? 0.5 : 1 }}
+                      >✕ Reprovar</button>
+                      <button
+                        disabled={isBusy}
+                        onClick={() => {
+                          if (!confirm("Aprovar essa proposta?\n\nO card vai pra Proposta Pronta e o Comercial sobe pra Apresentação/Proposta.")) return;
+                          callDecisao(item, "aprovar");
+                        }}
+                        style={{ padding: "8px 14px", borderRadius: 6, background: "rgba(16,185,129,0.2)", border: "1px solid rgba(16,185,129,0.5)", color: "#34D399", cursor: isBusy ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: isBusy ? 0.5 : 1 }}
+                      >{isBusy ? "…" : "✓ Aprovar"}</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ═══ HISTÓRICO POR DIA ═══ */}
+        {diasOrdenados.map((diaKey) => {
+          const evs = historicoPorDia[diaKey];
+          const aprovados = evs.filter((e) => e.tipo === "aprovado");
+          const reprovados = evs.filter((e) => e.tipo === "reprovado");
+          const analises = evs.filter((e) => e.tipo === "analise");
+          const rotulo = rotuloDia(diaKey);
+          const isHoje = rotulo === "HOJE";
+          const aberto = isHoje ? secOpen[diaKey] !== false : !!secOpen[diaKey];
+          const corDia = isHoje ? "#10B981" : "#6B7280";
+          return (
+            <div key={diaKey} style={{ marginBottom: 24 }}>
+              {/* Header do dia — clicável pra colapsar */}
+              <button
+                onClick={() => toggleSec(diaKey)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 14px",
+                  background: isHoje ? "rgba(16,185,129,0.06)" : "transparent",
+                  border: `1px solid ${isHoje ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.06)"}`,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  color: "#fff",
+                  marginBottom: aberto ? 10 : 0,
+                  transition: "margin-bottom 120ms",
+                }}
+              >
+                <span style={{ fontSize: 9, color: corDia, transform: aberto ? "rotate(90deg)" : "rotate(0)", transition: "transform 120ms", display: "inline-block" }}>▶</span>
+                <span style={{ fontSize: 12, color: corDia, textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 700 }}>{rotulo}</span>
+                <span style={{ flex: 1 }} />
+                <span style={{ display: "inline-flex", gap: 12, fontSize: 10.5, fontWeight: 700 }}>
+                  {aprovados.length > 0 && <span style={{ color: "#34D399" }}>✓ {aprovados.length}</span>}
+                  {reprovados.length > 0 && <span style={{ color: "#F87171" }}>✕ {reprovados.length}</span>}
+                  {analises.length > 0 && <span style={{ color: "#7BA6F0" }}>💬 {analises.length}</span>}
+                  {evs.length === 0 && <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic", fontWeight: 400 }}>vazio</span>}
+                </span>
+              </button>
+
+              {aberto && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingLeft: 4 }}>
+                  <SubSecaoStatus titulo="Aprovado" cor="#10B981" iconeBg="#34D399" icone="✓" eventos={aprovados} onClick={abrirDetalheHistorico} />
+                  <SubSecaoStatus titulo="Reprovado" cor="#EF4444" iconeBg="#F87171" icone="✕" eventos={reprovados} onClick={abrirDetalheHistorico} />
+                  <SubSecaoStatus titulo="Em Análise" cor="#3B82F6" iconeBg="#7BA6F0" icone="💬" eventos={analises} onClick={abrirDetalheHistorico} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {!lista.loading && ordenados.length === 0 && diasOrdenados.length === 0 && (
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.55)", padding: 60 }}>
+            <div style={{ fontSize: "2.4rem", marginBottom: 10 }}>✓</div>
+            <div style={{ fontSize: "1rem", fontWeight: 600 }}>Tudo limpo</div>
+            <div style={{ fontSize: "0.8rem", marginTop: 4 }}>Sem pendentes nem histórico recente.</div>
+          </div>
+        )}
+      </div>
+
+      {/* keyframes pra animação do botão Resposta NOVA */}
+      <style>{`
+        @keyframes pktApprovPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); transform: scale(1); }
+          50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); transform: scale(1.04); }
+        }
+      `}</style>
+
+      {/* Overlay proposta full-screen — idêntico ao CEO Dashboard */}
+      {propostaOpen && propostaOpen.proposta_link && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 999999, display: "flex", flexDirection: "column", fontFamily: "system-ui, sans-serif", color: "#fff" }}>
+          <div style={{ background: "#0A0A0A", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>{propostaOpen.cliente}</div>
+            </div>
+            <a
+              href={propostaOpen.proposta_link} target="_blank" rel="noreferrer" title="Abrir em nova aba"
+              style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: 11, fontWeight: 700 }}
+            >↗</a>
+            <button
+              onClick={() => setPropostaOpen(null)} title="Voltar à lista"
+              style={{ padding: "6px 10px", borderRadius: 6, background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+            >← Voltar</button>
+          </div>
+          <iframe src={propostaOpen.proposta_link} style={{ flex: 1, width: "100%", border: 0, background: "#fff" }} title="Proposta" />
+          <div style={{ background: "#0A0A0A", borderTop: "2px solid rgba(255,255,255,0.1)", padding: "12px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 200, fontSize: 11, color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span>Vendedor: <b style={{ color: "#fff" }}>{propostaOpen.vendedor || "—"}</b></span>
+              <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+              <span>Orçamentista: <b style={{ color: "#fff" }}>{propostaOpen.orcamentista || "—"}</b></span>
+              {propostaOpen.historico.length > 0 && (
+                <>
+                  <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+                  <span style={{ color: "#F59E0B", fontWeight: 600 }}>{propostaOpen.historico.length}ª análise</span>
+                </>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+              <button
+                disabled={busy === propostaOpen.card.id}
+                onClick={() => { setComentarioOpen(propostaOpen); setComentarioTxt(""); }}
+                style={{ padding: "8px 18px", borderRadius: 6, background: "rgba(59,130,246,0.2)", border: "1px solid rgba(59,130,246,0.55)", color: "#3B82F6", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}
+              >💬 Comentário</button>
+              <button
+                disabled={busy === propostaOpen.card.id}
+                onClick={() => setRejeitarOpen(propostaOpen)}
+                style={{ padding: "8px 18px", borderRadius: 6, background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.55)", color: "#EF4444", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}
+              >✕ Reprovar</button>
+              <button
+                disabled={busy === propostaOpen.card.id}
+                onClick={async () => {
+                  if (!confirm("Aprovar essa proposta?\n\nO card vai pra Proposta Pronta e o Comercial sobe pra Apresentação/Proposta.")) return;
+                  await callDecisao(propostaOpen, "aprovar");
+                }}
+                style={{ padding: "8px 18px", borderRadius: 6, background: "rgba(16,185,129,0.25)", border: "1px solid rgba(16,185,129,0.6)", color: "#10B981", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}
+              >
+                {busy === propostaOpen.card.id ? "…" : "✓ Aprovar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Conversa — lista mensagens do chat do card */}
+      {conversaOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 999998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => setConversaOpen(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#141414", border: "1px solid #2a2a2a", borderRadius: 10, width: "min(620px, 100%)", maxHeight: "82vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 12px 48px rgba(0,0,0,0.5)" }}
+          >
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid #222", display: "flex", justifyContent: "space-between", alignItems: "center", background: "linear-gradient(180deg,#1a1a1a,#111)" }}>
+              <div>
+                <div style={{ fontSize: 9, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>Chat do Card</div>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, marginTop: 2 }}>{conversaOpen.cliente}</div>
+              </div>
+              <button
+                onClick={() => setConversaOpen(null)}
+                style={{ background: "transparent", color: "#888", border: "1px solid #333", padding: "4px 9px", borderRadius: 4, cursor: "pointer", fontSize: 13 }}
+              >✕</button>
+            </div>
+            <div style={{ padding: "14px 16px", overflowY: "auto", color: "#ccc", fontSize: 12, lineHeight: 1.5, display: "flex", flexDirection: "column", gap: 8 }}>
+              {conversaMsgs.length === 0 ? (
+                <div style={{ textAlign: "center", color: "#888", padding: "30px 0" }}>Sem mensagens ainda.</div>
+              ) : conversaMsgs.map((m) => {
+                const meEmail = (appUser?.email || "").toLowerCase();
+                const isMe = (m.user_email || "").toLowerCase() === meEmail;
+                return (
+                  <div key={m.id} style={{ padding: "10px 12px", background: isMe ? "rgba(212,168,83,0.08)" : "#0f0f0f", border: "1px solid #222", borderRadius: 6, borderLeft: `3px solid ${isMe ? "#D4A853" : "#A855F7"}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                      <span style={{ color: "#fff", fontWeight: 600 }}>
+                        {m.avatar ? <span style={{ marginRight: 4 }}>{m.avatar}</span> : null}
+                        {m.user_name || m.user_email || "Sistema"}
+                      </span>
+                      <span style={{ color: "#888", fontSize: 11 }}>{new Date(m.created_at).toLocaleString("pt-BR")}</span>
+                    </div>
+                    <div style={{ color: "#ddd", whiteSpace: "pre-wrap" }}>{m.msg}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding: "12px 16px", borderTop: "1px solid #222", display: "flex", justifyContent: "flex-end", gap: 8, background: "#0d0d0d" }}>
+              <button
+                onClick={() => { const it = conversaOpen; setConversaOpen(null); setComentarioOpen(it); setComentarioTxt(""); }}
+                style={{ padding: "8px 14px", borderRadius: 6, background: "rgba(59,130,246,0.18)", border: "1px solid rgba(59,130,246,0.55)", color: "#3B82F6", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}
+              >💬 Responder com Comentário</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Comentário — estilo CEO Dashboard (border azul) */}
+      {comentarioOpen && (
+        <ModalComentarioRejeicao
+          tipo="comentario"
+          item={comentarioOpen}
+          texto={comentarioTxt}
+          setTexto={setComentarioTxt}
+          busy={!!busy}
+          onCancel={() => { setComentarioOpen(null); setComentarioTxt(""); }}
+          onOk={() => enviarComentario(comentarioOpen, comentarioTxt.trim())}
+        />
+      )}
+
+      {/* Modal Rejeição — estilo CEO Dashboard (border vermelho) */}
+      {rejeitarOpen && (
+        <ModalComentarioRejeicao
+          tipo="rejeicao"
+          item={rejeitarOpen}
+          texto={motivo}
+          setTexto={setMotivo}
+          busy={!!busy}
+          onCancel={() => { setRejeitarOpen(null); setMotivo(""); }}
+          onOk={() => callDecisao(rejeitarOpen, "rejeitar", motivo.trim())}
+        />
+      )}
+
+      {/* Toast — canto inferior direito */}
+      {toast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999999, padding: "12px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, boxShadow: "0 12px 32px rgba(0,0,0,0.6)", background: toast.type === "ok" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)", border: `1px solid ${toast.type === "ok" ? "rgba(16,185,129,0.4)" : "rgba(239,68,68,0.4)"}`, color: toast.type === "ok" ? "#10B981" : "#EF4444" }}>
+          {toast.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Sub-seção por status (Aprovado / Reprovado / Em Análise) dentro de cada dia
+// ════════════════════════════════════════════════════════════════════
+type HistEventoLite = {
+  tipo: "aprovado" | "reprovado" | "analise";
+  cliente: string;
+  orcamentista: string | null;
+  vendedor: string | null;
+  motivo: string | null;
+  quem: string;
+  quando: string;
+  card_id: string;
+};
+function SubSecaoStatus({ titulo, cor, iconeBg, icone, eventos, onClick }: {
+  titulo: string; cor: string; iconeBg?: string; icone: string; eventos: HistEventoLite[];
+  onClick?: (cardId: string) => void;
+}) {
+  if (eventos.length === 0) return null;
+  const corHero = iconeBg || cor;
+  return (
+    <div style={{ background: "#0E0E0E", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+      {/* Header da sub-seção */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: `${cor}10`, borderBottom: `1px solid ${cor}25` }}>
+        <span style={{ width: 22, height: 22, borderRadius: 5, background: `${corHero}28`, color: corHero, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{icone}</span>
+        <span style={{ fontSize: 11, color: corHero, textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 700 }}>{titulo}</span>
+        <span style={{ background: `${corHero}1E`, color: corHero, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9 }}>{eventos.length}</span>
+      </div>
+      {/* Itens */}
+      <div>
+        {eventos.map((ev, idx) => {
+          const hora = new Date(ev.quando).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          const clickable = !!onClick && !!ev.card_id;
+          return (
+            <div
+              key={titulo + ":" + idx}
+              onClick={clickable ? () => onClick!(ev.card_id) : undefined}
+              onMouseEnter={clickable ? (e) => { e.currentTarget.style.background = "rgba(255,255,255,0.025)"; } : undefined}
+              onMouseLeave={clickable ? (e) => { e.currentTarget.style.background = "transparent"; } : undefined}
+              style={{
+                display: "flex",
+                gap: 14,
+                padding: "12px 14px",
+                borderTop: idx > 0 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                cursor: clickable ? "pointer" : "default",
+                transition: "background 100ms",
+                alignItems: "flex-start",
+              }}
+              title={clickable ? "Ver proposta e detalhes" : undefined}
+            >
+              {/* Coluna esquerda: cliente + meta + motivo */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, color: "#fff", fontWeight: 700, letterSpacing: 0.1 }}>{ev.cliente}</div>
+                <div style={{ display: "flex", gap: 14, fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 4, flexWrap: "wrap" }}>
+                  <span><span style={{ color: "rgba(255,255,255,0.4)" }}>Orç: </span><b style={{ color: "#fff", fontWeight: 600 }}>{ev.orcamentista || "—"}</b></span>
+                  <span><span style={{ color: "rgba(255,255,255,0.4)" }}>Vend: </span><b style={{ color: "#fff", fontWeight: 600 }}>{ev.vendedor || "—"}</b></span>
+                </div>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
+                  por <b style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>{ev.quem}</b>
+                </div>
+                {ev.motivo && (
+                  <div style={{ fontSize: 12, color: "#d9d9d9", marginTop: 8, padding: "8px 10px", background: "rgba(255,255,255,0.025)", borderRadius: 6, borderLeft: `2.5px solid ${cor}`, whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
+                    {ev.motivo}
+                  </div>
+                )}
+              </div>
+              {/* Coluna direita: hora + arrow */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontVariantNumeric: "tabular-nums" }}>{hora}</span>
+                {clickable && <span style={{ fontSize: 10, color: corHero, opacity: 0.7 }}>↗ abrir</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Seção colapsável — header com título + contagem, body com children
+// ════════════════════════════════════════════════════════════════════
+function SecaoColapsavel({ aberto, onToggle, titulo, contagem, cor, extra, children }: {
+  chave: string;
+  aberto: boolean;
+  onToggle: () => void;
+  titulo: string;
+  contagem?: number;
+  cor: string;
+  extra?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ background: "#0A0A0A", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, marginBottom: 12, overflow: "hidden" }}>
+      <button
+        onClick={onToggle}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", background: "transparent", border: 0, color: "#fff", cursor: "pointer", textAlign: "left" }}
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 11, color: aberto ? cor : "#888", transform: aberto ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 120ms", display: "inline-block" }}>▶</span>
+          <span style={{ fontSize: 11, color: cor, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700 }}>{titulo}</span>
+          {typeof contagem === "number" && (
+            <span style={{ background: `${cor}22`, color: cor, fontSize: 10, fontWeight: 700, padding: "1px 8px", borderRadius: 10, marginLeft: 4 }}>{contagem}</span>
+          )}
+        </span>
+        {extra}
+      </button>
+      {aberto && <div style={{ paddingBottom: 6 }}>{children}</div>}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Modal de Comentário / Rejeição — mesmo template, cores diferentes
+// ════════════════════════════════════════════════════════════════════
+function ModalComentarioRejeicao({ tipo, item, texto, setTexto, busy, onCancel, onOk }: {
+  tipo: "comentario" | "rejeicao";
+  item: AprovacaoItem;
+  texto: string;
+  setTexto: (v: string) => void;
+  busy: boolean;
+  onCancel: () => void;
+  onOk: () => void;
+}) {
+  const isRej = tipo === "rejeicao";
+  const cor = isRej ? "#EF4444" : "#3B82F6";
+  const corBg = isRej ? "rgba(239,68,68,0.18)" : "rgba(59,130,246,0.18)";
+  const titulo = isRej ? "Justificar Rejeição" : "Comentário pro Orçamentista";
+  const subtitulo = isRej
+    ? "Descreva por que essa proposta não foi aprovada — o orçamentista vai ver no chat do card."
+    : "Faça uma pergunta ou comente. Vai pro chat do card + grupo WhatsApp Orçamentos com @ do orçamentista.";
+  const placeholder = isRej
+    ? "Ex.: Margem muito apertada na linha de instalação. Revisar e refazer."
+    : "Ex.: Esse preço de m² está alinhado com o orçamento original?";
+  const btnLabel = isRej ? "✕ Confirmar Rejeição" : "💬 Enviar Pergunta";
+
+  return (
+    <div
+      onClick={() => !busy && onCancel()}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "system-ui, sans-serif" }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: "#0A0A0A", border: `1px solid ${cor}`, borderRadius: 12, width: "100%", maxWidth: 560, padding: "24px 24px 18px", color: "#fff", boxShadow: "0 20px 60px rgba(0,0,0,0.7)" }}
+      >
+        <div style={{ fontSize: 11, color: cor, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 6 }}>
+          {item.cliente || "Card"}
+        </div>
+        <h3 style={{ margin: "0 0 4px", fontSize: "1.1rem", fontWeight: 700 }}>{titulo}</h3>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 14, lineHeight: 1.5 }}>{subtitulo}</div>
+        <textarea
+          autoFocus
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder={placeholder}
+          rows={6}
+          style={{ width: "100%", background: "#000", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: 12, color: "#fff", fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box" }}
+        />
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
+          <button
+            disabled={busy}
+            onClick={onCancel}
+            style={{ padding: "8px 16px", borderRadius: 6, background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+          >Cancelar</button>
+          <button
+            disabled={!texto.trim() || busy}
+            onClick={onOk}
+            style={{ padding: "8px 18px", borderRadius: 6, background: corBg, border: `1px solid ${cor}`, color: cor, cursor: "pointer", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: !texto.trim() || busy ? 0.5 : 1 }}
+          >{busy ? "…" : btnLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}

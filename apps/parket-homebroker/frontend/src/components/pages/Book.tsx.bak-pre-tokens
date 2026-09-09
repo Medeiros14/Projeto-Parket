@@ -1,0 +1,1277 @@
+/**
+ * Book — lista densa estilo book de ofertas de home broker.
+ * Linha = lead. Sticky header. Realtime: última mensagem + tempo atualizam ao vivo.
+ * 2 variações: SDR (funil-entrada) e Vendas (funil-comercial).
+ */
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { Search, Loader2, Flame, ArrowDown, ArrowUp, RefreshCw, Clock, Bot, ChevronLeft, ChevronRight, CalendarDays, LayoutList, Columns, UserPlus, RotateCcw, ChevronDown, Check, X } from "lucide-react";
+import { CriarAgendamentoModal } from "./Agendamentos";
+import { NovoLeadModal } from "./NovoLeadModal";
+import { useReconnect } from "../../lib/use-reconnect";
+import { api, useFetch, resolveSlug, subscribeCards, DEPT_ENTRADA, DEPT_COMERCIAL, type KanbanCard } from "../../lib/api";
+import { fmtIntCompact, fmtBRLCompact, fmtRelative, fmtDateTime, parseValueText, initials } from "../../lib/format";
+import { supabase } from "../../lib/supabase";
+import type { AppUser } from "../../lib/auth";
+
+type BookKind = "sdr" | "vendas";
+
+type Row = {
+  card: KanbanCard & { details?: any };
+  slug: string;
+  nivelLead: "quente" | "morno" | "frio" | "sem";
+  nivelFonte: "ia" | "heuristica";  // origem da classificação
+  metragem: number;       // m²
+  valorMesa: number;      // R$ estimado
+  valorOrigem: "informado" | "calculado" | "sem";
+  produtos: string[];     // categorias detectadas: piso, deck, forro...
+  cidade: string;
+  ultimaMsg: { text: string; at: string; direction: string } | null;
+  aguardandoResposta: boolean;  // última msg foi do cliente E não respondemos
+  msUltimaMsg: number | null;
+};
+
+function parseMetragem(det: any): number {
+  if (!det) return 0;
+  // 1) Campos estruturados (preferência se existirem)
+  const raw = det.metragem_estimada ?? det.area_m2 ?? det.metragem ?? det.metros ?? det.m2 ?? "";
+  if (typeof raw === "number" && raw > 0) return raw;
+  if (raw) {
+    const n = Number(String(raw).replace(/[^\d,.]/g, "").replace(",", "."));
+    if (n > 0) return n;
+  }
+  // 2) Fallback: extrai do overview_ia/resumo (texto livre da IA)
+  //    Ex: "QUANTIDADE: Casa tem 250m²" / "Aproximadamente 70m²"
+  const txt = String(det.overview_ia || det.resumo_qualificacao || det.qualificacao_inicial || "");
+  if (!txt) return 0;
+  const m = txt.match(/(\d[\d.,]*)\s*m[²2]/i);
+  if (m) {
+    const n = Number(m[1].replace(/\./g, "").replace(",", "."));
+    if (n > 0 && n < 100000) return n;
+  }
+  return 0;
+}
+
+/** Extrai cidade do overview_ia ou de campo estruturado. */
+function parseCidade(det: any): string {
+  if (!det) return "";
+  const c = String(det.cidade || det.city || "").trim();
+  if (c) return c;
+  const txt = String(det.overview_ia || det.resumo_qualificacao || "");
+  // "CIDADE: Teresina - PI" / "CIDADE: Recife - PE"
+  const m = txt.match(/CIDADE\s*:?\s*([^\n•·]+?)(?:\s*[-–]\s*[A-Z]{2})?\s*[\n•·]/i);
+  if (m) return m[1].trim();
+  return "";
+}
+
+/** Extrai investimento/valor do overview_ia (texto livre). */
+function parseValorOverview(det: any): number {
+  if (!det) return 0;
+  const txt = String(det.overview_ia || det.resumo_qualificacao || "");
+  // "INVESTIMENTO: R$ 250.000,00" / "Orçamento ~ 100mil"
+  const m = txt.match(/INVESTIMENTO\s*:?\s*([^\n•·]+)/i);
+  if (!m) return 0;
+  const s = m[1].toLowerCase();
+  if (s.includes("não informado") || s.includes("nao informado") || s.includes("—")) return 0;
+  // Tenta extrair número com k/mil/milhão
+  const num = s.match(/r?\$?\s*([\d.,]+)\s*(mil|milh|k|m)?/i);
+  if (!num) return 0;
+  let v = Number(num[1].replace(/\./g, "").replace(",", "."));
+  if (!v) return 0;
+  const sufixo = (num[2] || "").toLowerCase();
+  if (sufixo === "k" || sufixo.startsWith("mil")) v *= 1000;
+  else if (sufixo === "m" || sufixo.startsWith("milh")) v *= 1000000;
+  return v;
+}
+
+/** Detecta categorias de produto (piso/deck/forro/painel/marcenaria/...) no texto livre. */
+const CATS = ["piso", "deck", "painel", "forro", "porta", "marcenaria", "revestimento", "rodape", "rodapé", "escada", "brise", "sauna"] as const;
+function detectarProdutos(card: any): string[] {
+  const det = card.details || {};
+  // Inclui overview_ia/resumo (texto livre da IA) — onde a categoria geralmente fica
+  // (Ex.: "PRODUTO: Painel e Piso")
+  const blob = [
+    det.produto_interesse, det.relacao_obra, det.preferencia_madeira,
+    det.overview_ia, det.resumo_qualificacao, det.qualificacao_inicial,
+    card.title, card.subtitle,
+  ].filter(Boolean).join(" ").toLowerCase();
+  const found = new Set<string>();
+  CATS.forEach((c) => { if (blob.includes(c)) found.add(c.replace("rodapé", "rodape")); });
+  return [...found];
+}
+
+/** Calcula o valor estimado na mesa: metragem × média do(s) produto(s).
+ *  Se já há valor informado (card.value ou details.investimento), prioriza ele. */
+function calcularValorMesa(card: any, metragem: number, produtos: string[], precos: Map<string, number>): { valor: number; origem: Row["valorOrigem"] } {
+  const det = card.details || {};
+  const informado = parseValueText(card.value) ||
+    parseValueText(det.investimento) || parseValueText(det.orcamento) ||
+    parseValueText(det.budget) || parseValueText(det.valor) ||
+    parseValorOverview(det);
+  if (informado > 0) return { valor: informado, origem: "informado" };
+  if (metragem <= 0 || produtos.length === 0 || precos.size === 0) return { valor: 0, origem: "sem" };
+  // Soma do médio de cada categoria (cada categoria contribui com metragem × média)
+  let total = 0;
+  produtos.forEach((p) => {
+    const m = precos.get(p);
+    if (m) total += metragem * m;
+  });
+  return { valor: total, origem: total > 0 ? "calculado" : "sem" };
+}
+
+/** Heurística TEMPORÁRIA quente/morno/frio (substituída pela IA na Fase 3).
+ *  Considera: valor na mesa, etapa, tempo desde última msg, tags. */
+function classificarNivel(args: {
+  valor: number; slug: string; ultimaMsgAt: string | null; tags: string[]; det: any; aguardando: boolean;
+}): { nivel: Row["nivelLead"]; fonte: "ia" | "heuristica" } {
+  // Se a IA já classificou (campo details.nivel_lead ou tag forte), respeita
+  const det = args.det || {};
+  const iaNivel = String(det.nivel_lead || det.qualificacao || "").toLowerCase();
+  if (iaNivel.includes("quente")) return { nivel: "quente", fonte: "ia" };
+  if (iaNivel.includes("morno"))  return { nivel: "morno",  fonte: "ia" };
+  if (iaNivel.includes("frio"))   return { nivel: "frio",   fonte: "ia" };
+  const tagsLower = (args.tags || []).map((t) => String(t).toLowerCase()).join("|");
+  if (/quente|hot|urgent/.test(tagsLower)) return { nivel: "quente", fonte: "heuristica" };
+  if (/frio|cold/.test(tagsLower))         return { nivel: "frio",   fonte: "heuristica" };
+
+  // Heurística: etapa "em-negociacao"/"apresentacao-proposta" + valor alto = quente
+  const stage = args.slug || "";
+  const stageHot = /em-negociac|apresentacao-proposta|ganho|qualificado/.test(stage);
+  const stageCold = /perda|nao-qualif|follow-up-3/.test(stage);
+  const valorAlto = args.valor >= 200000;
+  const valorMedio = args.valor >= 50000;
+
+  // Quanto tempo sem responder
+  const daysSilent = args.ultimaMsgAt
+    ? (Date.now() - new Date(args.ultimaMsgAt).getTime()) / 86400000
+    : 999;
+
+  if (stageCold || daysSilent > 14) return { nivel: "frio", fonte: "heuristica" };
+  if (stageHot && (valorAlto || args.aguardando)) return { nivel: "quente", fonte: "heuristica" };
+  if (valorAlto && daysSilent < 3) return { nivel: "quente", fonte: "heuristica" };
+  if (stageHot || valorMedio) return { nivel: "morno", fonte: "heuristica" };
+  return { nivel: "frio", fonte: "heuristica" };
+}
+
+/** Tags qualificatórias do Pipeline — substituem os filtros antigos de nível/aguardando/valor.
+ *  Vendedor aplica em cards pra classificar. Filtro do Pipeline mostra chips agrupados. */
+export const PIPELINE_TAG_GROUPS: { titulo: string; tags: string[] }[] = [
+  { titulo: "Urgência", tags: ["Fixar", "Fogo 1", "Fogo 3", "Gelo", "Pistola", "Relógio"] },
+  { titulo: "Ação", tags: ["Showroom", "Envio de amostra"] },
+  { titulo: "Perfil", tags: ["Arquitetura", "Engenharia", "Recorrente", "Gerenciadora"] },
+  { titulo: "Origem", tags: ["Captação Obra", "Instagram", "Google", "Indicação", "Evento", "Ligação"] },
+  { titulo: "Tipo", tags: ["Mapa de Concorrência", "Reforma", "Somente Material", "Especulação"] },
+];
+
+export const PIPELINE_TAGS_FLAT = PIPELINE_TAG_GROUPS.flatMap((g) => g.tags);
+
+/** Tooltip por tag — quando a tag tem nuance no significado, exibe ao hover. */
+export const PIPELINE_TAG_TOOLTIP: Record<string, string> = {
+  "Fogo 3": "Pode fechar a qualquer momento",
+  "Pistola": "Guerra de Preço / Leilão",
+  "Relógio": "Sem time de fechamento",
+};
+
+/** Ícone/emoji por tag — usado nas tags de urgência (e algumas de origem)
+ *  pra dar leitura imediata em vez de só texto. */
+export const PIPELINE_TAG_ICON: Record<string, string> = {
+  // Urgência
+  "Fixar": "📌",
+  "Fogo 1": "🔥",
+  "Fogo 3": "🔥🔥🔥",
+  "Gelo": "🧊",
+  "Pistola": "🔫",
+  "Relógio": "⏰",
+};
+
+// Cor visual por grupo (fallback quando tag não tem cor própria)
+export const PIPELINE_TAG_COLOR: Record<string, string> = {
+  Urgência:  "text-hb-red border-hb-red/40 hover:bg-hb-red/10",
+  Ação:      "text-hb-accent border-hb-accent/40 hover:bg-hb-accent/10",
+  Perfil:    "text-hb-cream border-hb-cream/40 hover:bg-hb-cream/10",
+  Origem:    "text-hb-blue border-hb-blue/40 hover:bg-hb-blue/10",
+  Tipo:      "text-hb-amber border-hb-amber/40 hover:bg-hb-amber/10",
+};
+
+/** Cor por tag — usada nos chips renderizados (CardDetail + Pipeline filtros).
+ *  Urgência tem cores fortes (vibram visualmente); resto usa tons do grupo. */
+export const PIPELINE_TAG_STYLE: Record<string, { bg: string; text: string; border: string }> = {
+  // Urgência — cores vibrantes
+  "Fixar":   { bg: "rgba(212,168,83,0.18)",  text: "#E8C97A", border: "#D4A853" }, // gold pin
+  "Fogo 1":  { bg: "rgba(245,158,11,0.20)",  text: "#FFB84D", border: "#F59E0B" }, // orange
+  "Fogo 3":  { bg: "rgba(239,68,68,0.25)",   text: "#FF8080", border: "#EF4444" }, // red
+  "Gelo":    { bg: "rgba(145,156,157,0.25)", text: "#B8C7CC", border: "#919C9D" }, // morning blue
+  "Pistola": { bg: "rgba(96,84,77,0.40)",    text: "#C8BDB1", border: "#60544D" }, // walnut
+  "Relógio": { bg: "rgba(134,131,101,0.30)", text: "#D5CDBC", border: "#868365" }, // shadow
+
+  // Ação — accent chai
+  "Showroom":          { bg: "rgba(150,132,115,0.20)", text: "#C8BDB1", border: "#968473" },
+  "Envio de amostra":  { bg: "rgba(150,132,115,0.20)", text: "#C8BDB1", border: "#968473" },
+
+  // Perfil — wood/cream
+  "Arquitetura":  { bg: "rgba(214,201,180,0.15)", text: "#E0D4BF", border: "#D6C9B4" },
+  "Engenharia":   { bg: "rgba(214,201,180,0.15)", text: "#E0D4BF", border: "#D6C9B4" },
+  "Recorrente":   { bg: "rgba(214,201,180,0.15)", text: "#E0D4BF", border: "#D6C9B4" },
+  "Gerenciadora": { bg: "rgba(214,201,180,0.15)", text: "#E0D4BF", border: "#D6C9B4" },
+
+  // Origem — navy/morning-blue
+  "Captação Obra": { bg: "rgba(69,87,99,0.25)", text: "#A9BAC2", border: "#455763" },
+  "Instagram":     { bg: "rgba(69,87,99,0.25)", text: "#A9BAC2", border: "#455763" },
+  "Google":        { bg: "rgba(69,87,99,0.25)", text: "#A9BAC2", border: "#455763" },
+  "Indicação":     { bg: "rgba(69,87,99,0.25)", text: "#A9BAC2", border: "#455763" },
+  "Evento":        { bg: "rgba(69,87,99,0.25)", text: "#A9BAC2", border: "#455763" },
+  "Ligação":       { bg: "rgba(69,87,99,0.25)", text: "#A9BAC2", border: "#455763" },
+
+  // Tipo — olive/shadow
+  "Mapa de Concorrência": { bg: "rgba(134,131,101,0.22)", text: "#E5DCC3", border: "#868365" },
+  "Reforma":               { bg: "rgba(134,131,101,0.22)", text: "#E5DCC3", border: "#868365" },
+  "Somente Material":      { bg: "rgba(134,131,101,0.22)", text: "#E5DCC3", border: "#868365" },
+  "Especulação":           { bg: "rgba(134,131,101,0.22)", text: "#E5DCC3", border: "#868365" },
+};
+
+/** Helper: estilo (cor) de uma tag — devolve estilo definido ou um fallback neutro. */
+export function tagStyleOf(tag: string) {
+  return PIPELINE_TAG_STYLE[tag] || { bg: "rgba(216,211,199,0.06)", text: "#919C9D", border: "rgba(216,211,199,0.20)" };
+}
+
+export function tagGroupOf(tag: string): string {
+  const g = PIPELINE_TAG_GROUPS.find((g) => g.tags.includes(tag));
+  return g?.titulo || "Tipo";
+}
+
+// Paleta brand: walnut/olive/navy/shadow no lugar de cores funcionais puras.
+// Mantém ícone 🔥 pra quente garantir identificação rápida.
+const NIVEL_META: Record<Row["nivelLead"], { color: string; bg: string; label: string }> = {
+  quente: { color: "#C8BDB1", bg: "rgba(96,84,77,0.45)",   label: "🔥 QUENTE" }, // Cream sobre Walnut
+  morno:  { color: "#D5CDBC", bg: "rgba(100,93,59,0.35)",  label: "MORNO" },     // Oat sobre Olive
+  frio:   { color: "#919C9D", bg: "rgba(69,87,99,0.30)",   label: "FRIO" },      // MorningBlue sobre Navy
+  sem:    { color: "#868365", bg: "rgba(134,131,101,0.10)", label: "—" },        // Shadow
+};
+
+type SortKey = "updated_at" | "valor_mesa" | "metragem" | "ultima_msg";
+
+export function BookPage({ kind, appUser }: { kind: BookKind; appUser?: AppUser | null }) {
+  const deptId = kind === "sdr" ? DEPT_ENTRADA : DEPT_COMERCIAL;
+  const cards = useFetch(() => api.cardsWithDetails(deptId, 800), [deptId]);
+  const cols = useFetch(() => api.columns(), []);
+  const precos = useFetch(() => api.precosMediosPorCategoria(), []);
+  const [lastMsgs, setLastMsgs] = useState<Map<string, { text: string; at: string; direction: string; phone: string | null }>>(new Map());
+  const [search, setSearch] = useState("");
+  const [respFilter, setRespFilter] = useState<string>("");
+  const [slugFilter, setSlugFilter] = useState<string>("");
+  const [nivelFilter, setNivelFilter] = useState<Row["nivelLead"] | "">("");
+  const [aguardandoFilter, setAguardandoFilter] = useState(false);
+  const [valorMin, setValorMin] = useState<number | "">("");
+  const [valorMax, setValorMax] = useState<number | "">("");
+  // Filtro por tags qualificatórias — só pra Pipeline (kind="vendas"). ANY-match.
+  const [tagsFilter, setTagsFilter] = useState<string[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>("updated_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [pulses, setPulses] = useState<Map<string, "up" | "down">>(new Map());
+  // Prazo da demanda de orçamento mais recente por card (carregado em batch).
+  const [prazoMap, setPrazoMap] = useState<Map<string, { prazo_data: string | null; status: string; aceito_em: string | null }>>(new Map());
+  const [page, setPage] = useState(0);
+  const [agendarFor, setAgendarFor] = useState<{ cardId: string; cliente: string; vendedor: string } | null>(null);
+  const [novoLeadOpen, setNovoLeadOpen] = useState(false);
+  const PAGE_SIZE = 100;
+
+  // Modo de visualização: lista densa (book) ou kanban (mesmas colunas do Funil).
+  // Persistido por kind pra cada book (sdr/vendas) lembrar a preferência separadamente.
+  const VIEW_KEY = `hb-book-view-${kind}`;
+  const [viewMode, setViewMode] = useState<"lista" | "kanban">(
+    () => (localStorage.getItem(VIEW_KEY) as "lista" | "kanban") || "lista"
+  );
+  useEffect(() => { try { localStorage.setItem(VIEW_KEY, viewMode); } catch {} }, [viewMode, VIEW_KEY]);
+
+  // Drag-and-drop entre colunas do kanban
+  const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  async function moveCardToColumn(cardId: string, col: { slug: string; dept_id: string }) {
+    if (!cardId) return;
+    const r = await supabase.from("kanban_cards")
+      .update({ column_id: col.slug, dept_id: col.dept_id, updated_at: new Date().toISOString() })
+      .eq("id", cardId);
+    if (r.error) { alert("Falha ao mover card: " + r.error.message); return; }
+    cards.reload();
+  }
+
+  // Carrega últimas mensagens dos cards do funil
+  useEffect(() => {
+    if (!cards.data) return;
+    const ids = cards.data.map((c) => c.id);
+    api.lastMessagesByCards(ids).then(setLastMsgs).catch((e) => console.error("[Book] last msgs:", e));
+    // Carrega prazo da demanda mais recente por card (pra badge nos cards em coluna de orçamento)
+    api.prazoDemandaPorCards(ids).then(setPrazoMap).catch(() => {});
+  }, [cards.data]);
+
+  // Reconnect — quando volta a aba, refaz fetch das últimas msgs + reload dos cards
+  useReconnect(() => {
+    cards.reload();
+    if (cards.data) {
+      const ids = cards.data.map((c) => c.id);
+      api.lastMessagesByCards(ids).then(setLastMsgs).catch(() => {});
+    }
+  });
+
+  // Realtime — nova mensagem atualiza a "última msg" e pisca a linha
+  // OPTIMIZADO: msgs de cards FORA do funil ativo são ignoradas no client
+  // (a Parket tem ~200 msgs/h, mas só ~30% são do dept atual).
+  // Acumula updates em ref e flusha em batch a cada 1s pra reduzir re-renders.
+  const pendingMsgs = useRef<Map<string, { text: string; at: string; direction: string; phone: string | null }>>(new Map());
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Set vivo de cardIds — usa ref pra evitar recriar o channel a cada fetch
+  const cardIdsSetRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    cardIdsSetRef.current = new Set((cards.data || []).map((c) => c.id));
+  }, [cards.data]);
+
+  useEffect(() => {
+
+    const flush = () => {
+      flushTimer.current = null;
+      if (pendingMsgs.current.size === 0) return;
+      const batch = pendingMsgs.current;
+      pendingMsgs.current = new Map();
+      setLastMsgs((prev) => {
+        const n = new Map(prev);
+        batch.forEach((v, k) => {
+          const cur = n.get(k);
+          if (!cur || cur.at < v.at) n.set(k, v);
+        });
+        return n;
+      });
+    };
+
+    const ch = supabase
+      .channel(`hb-book-${kind}-msgs`)
+      .on("postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "whatsapp_messages" },
+        (payload: any) => {
+          const r = payload.new || {};
+          if (!r.card_id || !r.timestamp) return;
+          // Filtro O(1): ignora msgs de cards FORA do funil ativo
+          if (!cardIdsSetRef.current.has(r.card_id)) return;
+          // Acumula no ref (sem setState ainda) → flush em batch
+          const cur = pendingMsgs.current.get(r.card_id);
+          if (!cur || cur.at < r.timestamp) {
+            pendingMsgs.current.set(r.card_id, {
+              text: r.message_text || "", at: r.timestamp,
+              direction: r.direction || "in", phone: r.phone,
+            });
+          }
+          if (!flushTimer.current) flushTimer.current = setTimeout(flush, 1000);
+          // Pisca a linha (verde recebida, dourado enviada) — direto, não acumula
+          setPulses((m) => { const n = new Map(m); n.set(r.card_id, r.direction === "in" ? "up" : "down"); return n; });
+          setTimeout(() => setPulses((m) => { const n = new Map(m); n.delete(r.card_id); return n; }), 2400);
+        })
+      .subscribe();
+    return () => {
+      if (flushTimer.current) clearTimeout(flushTimer.current);
+      supabase.removeChannel(ch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind]);
+
+  // Realtime de cards (mudanças de coluna, atualização)
+  // DEBOUNCE: max 1 reload a cada 30s. Pausa se user está digitando em form
+  // pra não fazer perder dados (ex: preencher SolicitarOrcamentoModal).
+  useEffect(() => {
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+    const isUserTyping = () => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (el.isContentEditable) return true;
+      if (document.querySelector('[role="dialog"], [data-modal-open="true"]')) return true;
+      return false;
+    };
+    const doReload = () => {
+      if (isUserTyping()) {
+        // Tenta de novo em 5s — espera user parar
+        reloadTimer = setTimeout(doReload, 5000);
+        return;
+      }
+      reloadTimer = null;
+      cards.reload();
+    };
+    const scheduleReload = () => {
+      if (reloadTimer) return; // já agendado
+      reloadTimer = setTimeout(doReload, 30000);
+    };
+    const unsub = subscribeCards(scheduleReload);
+    return () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      unsub();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const colsForView = useMemo(() => (cols.data || []).filter((c) => c.dept_id === deptId), [cols.data, deptId]);
+
+  const rows: Row[] = useMemo(() => {
+    const list = cards.data || [];
+    const colsAll = cols.data || [];
+    const tabelaPrecos = precos.data || new Map();
+    return list.map((c) => {
+      const slug = resolveSlug(c.column_id, colsAll);
+      const det = c.details || {};
+      const last = lastMsgs.get(c.id);
+      const metragem = parseMetragem(det);
+      const produtos = detectarProdutos(c);
+      const { valor: valorMesa, origem: valorOrigem } = calcularValorMesa(c, metragem, produtos, tabelaPrecos);
+      const aguardando = !!last && last.direction === "in";
+      const { nivel: nivelLead, fonte: nivelFonte } = classificarNivel({
+        valor: valorMesa, slug, ultimaMsgAt: last?.at || null,
+        tags: c.tags || [], det, aguardando,
+      });
+      return {
+        card: c, slug, nivelLead, nivelFonte,
+        metragem, valorMesa, valorOrigem, produtos,
+        cidade: parseCidade(det),
+        ultimaMsg: last ? { text: last.text, at: last.at, direction: last.direction } : null,
+        aguardandoResposta: aguardando,
+        msUltimaMsg: last ? new Date(last.at).getTime() : null,
+      };
+    });
+  }, [cards.data, cols.data, lastMsgs, precos.data]);
+
+  // Visibilidade por papel: non-admin SÓ vê seus próprios cards (responsavel = nome).
+  // Admin/superadmin (canSeeAll=true) vê tudo. Match insensível a caixa/spaces.
+  const onlyMine = !!appUser && !appUser.canSeeAll;
+  const myNameNorm = (appUser?.nome || "").trim().toLowerCase();
+
+  const filtered = useMemo(() => {
+    let arr = rows;
+    // Visibilidade: vendedor/SDR vê só os cards atribuídos a ele
+    if (onlyMine && myNameNorm) {
+      arr = arr.filter((r) => (r.card.responsavel || "").trim().toLowerCase() === myNameNorm);
+    }
+    // Leads perdidos / não qualificados saem do book — só aparecem se o user
+    // explicitamente filtrar por essa etapa.
+    if (!slugFilter) arr = arr.filter((r) => !/perda|nao-qualif/i.test(r.slug || ""));
+    if (slugFilter) arr = arr.filter((r) => r.slug === slugFilter);
+    if (respFilter) arr = arr.filter((r) => (r.card.responsavel || "") === respFilter);
+    // Filtro de tags (ANY-match): card precisa ter pelo menos 1 das tags marcadas
+    if (tagsFilter.length > 0) {
+      const want = new Set(tagsFilter.map((t) => t.toLowerCase()));
+      arr = arr.filter((r) => (r.card.tags || []).some((t) => want.has(String(t).toLowerCase())));
+    }
+    if (nivelFilter) arr = arr.filter((r) => r.nivelLead === nivelFilter);
+    if (aguardandoFilter) arr = arr.filter((r) => r.aguardandoResposta);
+    if (valorMin !== "" && valorMin > 0) arr = arr.filter((r) => r.valorMesa >= (valorMin as number));
+    if (valorMax !== "" && valorMax > 0) arr = arr.filter((r) => r.valorMesa > 0 && r.valorMesa <= (valorMax as number));
+    if (search.trim()) {
+      const s = search.trim().toLowerCase();
+      arr = arr.filter((r) =>
+        (r.card.title || "").toLowerCase().includes(s) ||
+        (r.card.responsavel || "").toLowerCase().includes(s) ||
+        r.produtos.some((p) => p.includes(s)) ||
+        r.cidade.toLowerCase().includes(s) ||
+        (r.ultimaMsg?.text || "").toLowerCase().includes(s)
+      );
+    }
+    // Sort: SEMPRE quem está aguardando resposta vai pro topo (prioridade),
+    // depois o critério escolhido pelo user.
+    arr = [...arr].sort((a, b) => {
+      // 1) Aguardando resposta sobe (independente da coluna ordenada)
+      if (a.aguardandoResposta !== b.aguardandoResposta) {
+        return a.aguardandoResposta ? -1 : 1;
+      }
+      // 2) Dentro do mesmo grupo (aguardando ou não), aplica o sort
+      let av = 0, bv = 0;
+      if (sortKey === "updated_at") {
+        av = new Date(a.card.updated_at || a.card.created_at || 0).getTime();
+        bv = new Date(b.card.updated_at || b.card.created_at || 0).getTime();
+      } else if (sortKey === "valor_mesa") { av = a.valorMesa; bv = b.valorMesa; }
+      else if (sortKey === "metragem")    { av = a.metragem;  bv = b.metragem; }
+      else if (sortKey === "ultima_msg") {
+        av = a.ultimaMsg ? new Date(a.ultimaMsg.at).getTime() : 0;
+        bv = b.ultimaMsg ? new Date(b.ultimaMsg.at).getTime() : 0;
+      }
+      return sortDir === "desc" ? bv - av : av - bv;
+    });
+    return arr;
+  }, [rows, slugFilter, respFilter, nivelFilter, aguardandoFilter, valorMin, valorMax, search, sortKey, sortDir, onlyMine, myNameNorm, tagsFilter]);
+
+  // Reset paginação quando filtros mudam
+  useEffect(() => { setPage(0); }, [slugFilter, respFilter, nivelFilter, aguardandoFilter, valorMin, valorMax, search, sortKey, sortDir, kind]);
+
+  // Slice paginado
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedRows = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page]);
+
+  const responsaveis = useMemo(() => {
+    const s = new Set<string>();
+    rows.forEach((r) => { if (r.card.responsavel) s.add(r.card.responsavel); });
+    return [...s].sort();
+  }, [rows]);
+
+  const headerTitle = kind === "sdr" ? "Book SDR · Funil de Entrada" : "Pipeline · Funil Comercial";
+  const headerSubtitle = kind === "sdr"
+    ? "Leads novos sendo triados e qualificados pela equipe SDR — atualizado ao vivo"
+    : "Oportunidades qualificadas em curso pelos vendedores — atualizado ao vivo";
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir(sortDir === "desc" ? "asc" : "desc");
+    else { setSortKey(k); setSortDir("desc"); }
+  };
+
+  // KPI agregado do top
+  const totalValor = filtered.reduce((s, r) => s + r.valorMesa, 0);
+  const totalMetragem = filtered.reduce((s, r) => s + r.metragem, 0);
+  const aguardando = filtered.filter((r) => r.aguardandoResposta).length;
+  const quentes = filtered.filter((r) => r.nivelLead === "quente").length;
+
+  if (cards.loading) return (
+    <div className="p-12 flex items-center justify-center text-hb-textDim text-sm">
+      <Loader2 size={16} className="animate-spin mr-2" /> Carregando book…
+    </div>
+  );
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header denso estilo terminal financeiro */}
+      <div className="border-b border-hb-border bg-hb-panel px-4 py-2.5 sticky top-0 z-20">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <div className="text-sm font-bold uppercase tracking-wider text-hb-gold">{headerTitle}</div>
+            <div className="text-[10px] text-hb-textDim mt-0.5">{headerSubtitle}</div>
+          </div>
+          <div className="flex items-center gap-3 text-[10px] tabular text-hb-textDim">
+            <div><span className="text-hb-textDim">ofertas</span> <span className="text-hb-text font-bold">{fmtIntCompact(filtered.length)}</span></div>
+            {quentes > 0 && <div><span className="text-hb-red">🔥</span> <span className="text-hb-red font-bold">{quentes}</span></div>}
+            {aguardando > 0 && <div className="text-hb-amber font-bold">⏳ {aguardando} aguardando</div>}
+            {totalValor > 0 && <div><span className="text-hb-textDim">vol. na mesa</span> <span className="text-hb-gold font-bold">{fmtBRLCompact(totalValor)}</span></div>}
+            {totalMetragem > 0 && <div><span className="text-hb-textDim">área total</span> <span className="text-hb-text font-bold">{fmtIntCompact(totalMetragem)} m²</span></div>}
+            <span className="text-hb-green animate-blink">●</span> AO VIVO
+
+            {/* Botão Adicionar Lead — abre modal sincronizado com Space (comercial-entrada) */}
+            <button
+              onClick={() => setNovoLeadOpen(true)}
+              title="Cadastrar novo lead — aparece automaticamente no kanban Comercial do Space"
+              className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 text-[9px] uppercase bg-hb-accent text-hb-bg hover:opacity-90 transition"
+              style={{ letterSpacing: "0.16em", fontWeight: 600 }}
+            >
+              <UserPlus size={10} /> Adicionar Lead
+            </button>
+
+            {/* Toggle Lista / Kanban — segue SO Parket: cantos retos, uppercase, Cinzel via .light-tracking */}
+            <div className="flex border border-hb-border ml-2" role="tablist" aria-label="Modo de visualização">
+              <button
+                onClick={() => setViewMode("lista")}
+                aria-pressed={viewMode === "lista"}
+                title="Visualização em lista densa"
+                className={`px-2 py-1 inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.18em] transition ${
+                  viewMode === "lista" ? "bg-hb-accent/15 text-hb-accent" : "text-hb-textDim hover:text-hb-text"
+                }`}
+              >
+                <LayoutList size={10} /> Lista
+              </button>
+              <button
+                onClick={() => setViewMode("kanban")}
+                aria-pressed={viewMode === "kanban"}
+                title="Visualização em kanban por etapa do funil"
+                className={`px-2 py-1 inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.18em] border-l border-hb-border transition ${
+                  viewMode === "kanban" ? "bg-hb-accent/15 text-hb-accent" : "text-hb-textDim hover:text-hb-text"
+                }`}
+              >
+                <Columns size={10} /> Kanban
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <div className="relative max-w-md flex-1 min-w-[180px]">
+            <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-hb-textDim" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar nome, cidade, produto, mensagem…"
+              className="w-full bg-hb-bg border border-hb-border rounded pl-7 pr-3 py-1.5 text-xs outline-none focus:border-hb-accent" />
+          </div>
+          {/* Pipeline (vendas) → só busca + filtro por tags. Outros books mantêm filtros antigos. */}
+          {kind !== "vendas" && (
+            <>
+              <select value={slugFilter} onChange={(e) => setSlugFilter(e.target.value)}
+                className="bg-hb-bg border border-hb-border rounded px-2 py-1.5 text-xs outline-none focus:border-hb-accent">
+                <option value="">Todas etapas</option>
+                {colsForView.map((c) => <option key={c.id} value={c.slug}>{c.title}</option>)}
+              </select>
+              {!onlyMine && (
+                <select value={respFilter} onChange={(e) => setRespFilter(e.target.value)}
+                  className="bg-hb-bg border border-hb-border rounded px-2 py-1.5 text-xs outline-none focus:border-hb-accent">
+                  <option value="">Todos {kind === "sdr" ? "SDRs" : "vendedores"}</option>
+                  {responsaveis.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              )}
+              <div className="flex gap-1">
+                {(["quente", "morno", "frio"] as const).map((n) => (
+                  <button key={n} onClick={() => setNivelFilter(nivelFilter === n ? "" : n)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold border transition`}
+                    style={{
+                      color: nivelFilter === n ? NIVEL_META[n].color : NIVEL_META[n].color,
+                      background: nivelFilter === n ? NIVEL_META[n].bg : "transparent",
+                      borderColor: NIVEL_META[n].color + "60",
+                    }}>
+                    {NIVEL_META[n].label}
+                  </button>
+                ))}
+                <button onClick={() => setAguardandoFilter(!aguardandoFilter)}
+                  className={`px-2 py-1 rounded text-[10px] font-bold border transition flex items-center gap-1 ${
+                    aguardandoFilter ? "bg-hb-amber/20 border-hb-amber/60 text-hb-amber" : "border-hb-amber/40 text-hb-amber"
+                  }`}>
+                  <Clock size={9} /> AGUARDANDO RESPOSTA
+                </button>
+              </div>
+            </>
+          )}
+          <button onClick={() => cards.reload()} title="Recarregar" className="text-hb-textDim hover:text-hb-text p-1">
+            <RefreshCw size={12} />
+          </button>
+          {kind === "vendas" && (
+            <TagsSelectorPopover
+              value={tagsFilter}
+              onChange={setTagsFilter}
+              label="🏷 Filtrar por tags"
+            />
+          )}
+        </div>
+
+        {/* Pipeline — chips das tags selecionadas (com remove) abaixo do filtro */}
+        {kind === "vendas" && tagsFilter.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 mt-2">
+            {tagsFilter.map((t) => (
+              <TagChip key={t} tag={t} onRemove={() => setTagsFilter((arr) => arr.filter((x) => x !== t))} />
+            ))}
+          </div>
+        )}
+
+        {/* Linha 2 — filtros de valor (escondido no Pipeline) */}
+        {kind !== "vendas" && (
+        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-hb-textDim font-semibold">Valor mesa</span>
+          <div className="flex items-center gap-1 text-[11px]">
+            <span className="text-hb-textDim">de</span>
+            <input
+              type="number" inputMode="numeric" placeholder="—" min={0} step={1000}
+              value={valorMin} onChange={(e) => setValorMin(e.target.value === "" ? "" : Number(e.target.value))}
+              className="w-24 bg-hb-bg border border-hb-border rounded px-2 py-1 text-xs outline-none focus:border-hb-accent tabular text-right" />
+            <span className="text-hb-textDim">até</span>
+            <input
+              type="number" inputMode="numeric" placeholder="—" min={0} step={1000}
+              value={valorMax} onChange={(e) => setValorMax(e.target.value === "" ? "" : Number(e.target.value))}
+              className="w-24 bg-hb-bg border border-hb-border rounded px-2 py-1 text-xs outline-none focus:border-hb-accent tabular text-right" />
+          </div>
+          <div className="flex gap-1">
+            {[
+              { label: "< 50k", min: 0, max: 50_000 },
+              { label: "50k–200k", min: 50_000, max: 200_000 },
+              { label: "200k–500k", min: 200_000, max: 500_000 },
+              { label: "> 500k", min: 500_000, max: 0 },
+              { label: "> 1 MM", min: 1_000_000, max: 0 },
+            ].map((p) => {
+              const active = valorMin === (p.min || "") && (valorMax === (p.max || "") || (p.max === 0 && valorMax === ""));
+              return (
+                <button key={p.label} onClick={() => {
+                  if (active) { setValorMin(""); setValorMax(""); }
+                  else { setValorMin(p.min || ""); setValorMax(p.max || ""); }
+                }}
+                  className={`px-2 py-1 rounded text-[10px] font-semibold border transition ${
+                    active ? "bg-hb-gold/20 border-hb-gold text-hb-gold" : "border-hb-border text-hb-textDim hover:text-hb-text"
+                  }`}>
+                  {p.label}
+                </button>
+              );
+            })}
+            {(valorMin !== "" || valorMax !== "") && (
+              <button onClick={() => { setValorMin(""); setValorMax(""); }}
+                className="px-2 py-1 rounded text-[10px] font-semibold text-hb-red hover:bg-hb-red/10 border border-hb-red/30">
+                Limpar
+              </button>
+            )}
+          </div>
+        </div>
+        )}
+      </div>
+
+      {/* Tabela book — sticky header + virtual scroll natural */}
+      {viewMode === "lista" && (
+      <div className="flex-1 overflow-auto">
+        <table className="w-full text-xs tabular">
+          <thead className="bg-hb-panelLight border-b border-hb-border sticky top-0 z-10">
+            <tr className="text-[9px] uppercase tracking-wider text-hb-textDim">
+              <th className="text-left px-3 py-2 font-bold w-16">Nível</th>
+              <th className="text-left px-3 py-2 font-bold">Cliente</th>
+              <th className="text-left px-3 py-2 font-bold w-32">Cidade</th>
+              <SortableTh active={sortKey === "metragem"} dir={sortDir} onClick={() => toggleSort("metragem")} className="text-right w-20">Metragem</SortableTh>
+              <SortableTh active={sortKey === "valor_mesa"} dir={sortDir} onClick={() => toggleSort("valor_mesa")} className="text-right w-28">Valor mesa</SortableTh>
+              <th className="text-left px-3 py-2 font-bold w-32">Produto</th>
+              <th className="text-left px-3 py-2 font-bold w-32">{kind === "sdr" ? "SDR" : "Vendedor"}</th>
+              <th className="text-left px-3 py-2 font-bold w-32">Status</th>
+              <SortableTh active={sortKey === "ultima_msg"} dir={sortDir} onClick={() => toggleSort("ultima_msg")} className="text-right w-20">Última</SortableTh>
+              <SortableTh active={sortKey === "updated_at"} dir={sortDir} onClick={() => toggleSort("updated_at")} className="text-right w-20">Movido</SortableTh>
+              <th className="text-left px-3 py-2 font-bold w-32">Etapa</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr><td colSpan={11} className="text-center py-12 text-hb-textDim text-[11px]">
+                Nenhum lead nesse filtro.
+              </td></tr>
+            )}
+            {pagedRows.map((r) => {
+              const meta = NIVEL_META[r.nivelLead];
+              const pulse = pulses.get(r.card.id);
+              const colObj = colsForView.find((co) => co.slug === r.slug);
+              const stale = r.ultimaMsg ? Date.now() - new Date(r.ultimaMsg.at).getTime() > 24 * 3600 * 1000 : false;
+              return (
+                <tr key={r.card.id} className={`border-b border-hb-border hover:bg-hb-panelLight/40 transition ${
+                  pulse === "up" ? "animate-pulse-up" : pulse === "down" ? "animate-pulse-down" : ""
+                }`}>
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-bold tabular px-1.5 py-0.5 rounded"
+                        style={{ color: meta.color, background: meta.bg }}>{meta.label}</span>
+                      {r.nivelFonte === "ia" && <span title="Classificado pela IA"><Bot size={9} className="text-hb-blue" /></span>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Link to={`/card/${r.card.id}`} className="flex items-center gap-1.5 hover:text-hb-accent flex-1 min-w-0">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-hb-accent/15 text-hb-accent text-[8px] font-bold border border-hb-accent/30 shrink-0">
+                          {initials(r.card.title || "?")}
+                        </span>
+                        <span className="font-semibold text-hb-text truncate max-w-[160px]">{r.card.title || r.card.id.slice(0, 8)}</span>
+                        {r.nivelLead === "quente" && <Flame size={10} className="text-hb-red shrink-0" />}
+                      </Link>
+                      <button
+                        onClick={() => setAgendarFor({ cardId: r.card.id, cliente: r.card.title || "", vendedor: r.card.responsavel || "" })}
+                        title="Agendar reunião"
+                        className="p-0.5 rounded hover:bg-hb-accent/20 text-hb-textDim hover:text-hb-accent shrink-0"
+                      >
+                        <CalendarDays size={11} />
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-3 py-1.5 text-hb-textDim truncate max-w-[120px]">{r.cidade || "—"}</td>
+                  <td className="px-3 py-1.5 text-right text-hb-text font-semibold">
+                    {r.metragem > 0 ? <span>{fmtIntCompact(r.metragem)} <span className="text-hb-textDim text-[9px]">m²</span></span> : <span className="text-hb-textDim">—</span>}
+                  </td>
+                  <td className="px-3 py-1.5 text-right font-semibold"
+                    title={r.valorOrigem === "calculado" ? `Calculado: ${r.metragem}m² × média ${r.produtos.join("+")}` : r.valorOrigem === "informado" ? "Valor informado pelo cliente" : ""}>
+                    {r.valorMesa > 0 ? (
+                      <span className="text-hb-gold inline-flex items-center gap-1">
+                        {r.valorOrigem === "calculado" && <span className="text-[8px] text-hb-textDim font-normal">~</span>}
+                        {fmtBRLCompact(r.valorMesa)}
+                      </span>
+                    ) : <span className="text-hb-textDim">—</span>}
+                  </td>
+                  <td className="px-3 py-1.5 text-hb-textDim truncate max-w-[120px]" title={r.produtos.join(", ")}>
+                    {r.produtos.length > 0 ? r.produtos.slice(0, 3).join("+") : "—"}
+                  </td>
+                  <td className="px-3 py-1.5 text-hb-textDim truncate max-w-[120px]">{r.card.responsavel || "—"}</td>
+                  <td className="px-3 py-1.5">
+                    {r.aguardandoResposta ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="relative inline-flex h-2 w-2 shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-hb-green opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-hb-green"></span>
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-hb-green">AO VIVO</span>
+                      </span>
+                    ) : r.ultimaMsg ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-hb-textDim">
+                        <span className="text-hb-accent">→</span> respondido
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-hb-textDim opacity-50">sem contato</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 text-right text-[10px]" title={r.ultimaMsg ? fmtDateTime(r.ultimaMsg.at) : ""}>
+                    <span className={stale ? "text-hb-amber" : "text-hb-textDim"}>{r.ultimaMsg ? fmtRelative(r.ultimaMsg.at) : "—"}</span>
+                  </td>
+                  <td className="px-3 py-1.5 text-right text-[10px] text-hb-textDim" title={fmtDateTime(r.card.updated_at)}>
+                    {fmtRelative(r.card.updated_at)}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border"
+                      style={{ color: colObj?.color || "#888", borderColor: (colObj?.color || "#888") + "40" }}>
+                      {colObj?.title || r.slug}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      )}
+
+      {/* Kanban — agrupa rows filtrados pelas colunas do funil (mesma ordem do Space).
+          Reaproveita NIVEL_META, valorMesa, metragem, AO VIVO da Row enriquecida. */}
+      {viewMode === "kanban" && (
+        <div className="flex-1 overflow-auto p-3">
+          <div className="flex gap-2.5 h-full pb-2" style={{ minWidth: "max-content" }}>
+            {colsForView.map((col) => {
+              const cs = filtered.filter((r) => r.slug === col.slug);
+              const valorCol = cs.reduce((s, r) => s + r.valorMesa, 0);
+              const aguardandoCol = cs.filter((r) => r.aguardandoResposta).length;
+              return (
+                <div
+                  key={col.id}
+                  className={`shrink-0 flex flex-col bg-hb-panel border transition ${
+                    dragOverCol === col.id ? "border-hb-accent ring-1 ring-hb-accent/40" : "border-hb-border"
+                  }`}
+                  style={{ width: 260, maxHeight: "100%" }}
+                  onDragOver={(e) => { if (draggingCardId) { e.preventDefault(); setDragOverCol(col.id); } }}
+                  onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOverCol(null); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const cardId = e.dataTransfer.getData("text/card-id") || draggingCardId || "";
+                    setDragOverCol(null);
+                    setDraggingCardId(null);
+                    moveCardToColumn(cardId, { slug: col.slug, dept_id: col.dept_id });
+                  }}
+                >
+                  {/* Header da coluna no padrão SO Parket — barrinha vertical + UPPERCASE + badge count */}
+                  <div className="px-3 py-2.5 border-b border-hb-border">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="block w-[3px] h-[10px] shrink-0"
+                          style={{ background: col.color || "rgba(216,211,199,0.4)" }}
+                        />
+                        <span
+                          className="text-[9px] uppercase truncate"
+                          style={{ letterSpacing: "0.18em", color: col.color || undefined, fontWeight: 600 }}
+                          title={col.title}
+                        >
+                          {col.title}
+                        </span>
+                      </div>
+                      <span
+                        className="px-1.5 py-0.5 text-[9px] tabular border border-hb-cream/30 text-hb-cream"
+                        style={{ background: "rgba(200,189,177,0.10)" }}
+                      >
+                        {cs.length}
+                      </span>
+                    </div>
+                    {(valorCol > 0 || aguardandoCol > 0) && (
+                      <div className="flex items-center gap-2 mt-1.5 text-[9px] tabular text-hb-textDim">
+                        {valorCol > 0 && <span className="text-hb-gold">{fmtBRLCompact(valorCol)}</span>}
+                        {aguardandoCol > 0 && <span className="text-hb-amber">⏳ {aguardandoCol}</span>}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Lista vertical de cards da coluna */}
+                  <div className="flex-1 overflow-y-auto p-1.5 space-y-1.5">
+                    {cs.length === 0 && (
+                      <div className="text-[9px] text-hb-textDim text-center py-6 uppercase tracking-[0.18em]">
+                        Vazio
+                      </div>
+                    )}
+                    {cs.slice(0, 80).map((r) => {
+                      const meta = NIVEL_META[r.nivelLead];
+                      const pulse = pulses.get(r.card.id);
+                      const stale = r.ultimaMsg ? Date.now() - new Date(r.ultimaMsg.at).getTime() > 24 * 3600 * 1000 : false;
+                      // Botão "Requalificação" só nas colunas onde faz sentido — Novas Oportunidades
+                      // (manda o card de volta pro funil SDR pra re-triagem).
+                      const podeRequalificar = col.slug === "novas-oportunidades";
+                      return (
+                        <div
+                          key={r.card.id}
+                          className={`relative group ${draggingCardId === r.card.id ? "opacity-40" : ""}`}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("text/card-id", r.card.id);
+                            e.dataTransfer.effectAllowed = "move";
+                            setDraggingCardId(r.card.id);
+                          }}
+                          onDragEnd={() => { setDraggingCardId(null); setDragOverCol(null); }}
+                        >
+                          {podeRequalificar && (
+                            <button
+                              onClick={async (e) => {
+                                e.preventDefault(); e.stopPropagation();
+                                if (!confirm(`Mandar "${r.card.title || "este lead"}" de volta pra SDR (Em Qualificação)?`)) return;
+                                try { await api.requalificarLead(r.card.id); cards.reload(); }
+                                catch (err: any) { alert("Falha: " + (err?.message || err)); }
+                              }}
+                              title="Requalificação — manda de volta pro funil SDR pra re-qualificar"
+                              className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition px-1.5 py-0.5 text-[8px] uppercase bg-hb-walnut/80 border border-hb-walnut text-hb-cream hover:bg-hb-walnut inline-flex items-center gap-1"
+                              style={{ letterSpacing: "0.12em" }}
+                            >
+                              <RotateCcw size={9} /> Requalif.
+                            </button>
+                          )}
+                          <Link
+                            to={`/card/${r.card.id}`}
+                            draggable={false}
+                            className={`block bg-hb-bg border border-hb-border hover:border-hb-accent/60 transition p-2 ${
+                              pulse === "up" ? "animate-pulse-up" : pulse === "down" ? "animate-pulse-down" : ""
+                            }`}
+                          >
+                          {/* Top — nível + título + flame + aguardando */}
+                          <div className="flex items-start gap-1.5">
+                            <span
+                              className="text-[8px] font-bold tabular px-1 py-0.5 shrink-0"
+                              style={{ color: meta.color, background: meta.bg }}
+                              title={`Nível ${r.nivelLead}${r.nivelFonte === "ia" ? " (IA)" : ""}`}
+                            >
+                              {meta.label}
+                            </span>
+                            <span className="flex-1 min-w-0 text-[11px] font-semibold text-hb-text truncate" title={r.card.title || ""}>
+                              {r.card.title || r.card.id.slice(0, 8)}
+                            </span>
+                            {r.nivelFonte === "ia" && <Bot size={9} className="text-hb-blue shrink-0 mt-0.5" />}
+                            {r.nivelLead === "quente" && <Flame size={10} className="text-hb-red shrink-0 mt-0.5" />}
+                          </div>
+
+                          {/* Cidade · responsável */}
+                          {(r.cidade || r.card.responsavel) && (
+                            <div className="mt-1 text-[9px] text-hb-textDim truncate flex items-center gap-1">
+                              {r.card.responsavel && (
+                                <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-hb-accent/15 text-hb-accent text-[7px] font-bold border border-hb-accent/30 shrink-0">
+                                  {initials(r.card.responsavel)}
+                                </span>
+                              )}
+                              <span className="truncate">
+                                {r.cidade}{r.cidade && r.card.responsavel ? " · " : ""}{r.card.responsavel || ""}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Métricas — metragem · valor mesa */}
+                          {(r.metragem > 0 || r.valorMesa > 0) && (
+                            <div className="mt-1.5 flex items-center justify-between text-[9px] tabular">
+                              <span className="text-hb-text font-semibold">
+                                {r.metragem > 0 ? <>{fmtIntCompact(r.metragem)} <span className="text-hb-textDim">m²</span></> : ""}
+                              </span>
+                              {r.valorMesa > 0 && (
+                                <span
+                                  className="text-hb-gold font-semibold inline-flex items-center gap-0.5"
+                                  title={r.valorOrigem === "calculado" ? `Calculado: ${r.metragem}m² × média ${r.produtos.join("+")}` : r.valorOrigem === "informado" ? "Valor informado pelo cliente" : ""}
+                                >
+                                  {r.valorOrigem === "calculado" && <span className="text-[7px] text-hb-textDim font-normal">~</span>}
+                                  {fmtBRLCompact(r.valorMesa)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Produto (tags) — só quando detectado */}
+                          {r.produtos.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-0.5">
+                              {r.produtos.slice(0, 3).map((p) => (
+                                <span
+                                  key={p}
+                                  className="text-[7px] uppercase text-hb-textDim border border-hb-cream/25 px-1 py-0.5"
+                                  style={{ letterSpacing: "0.10em", background: "rgba(200,189,177,0.06)" }}
+                                >
+                                  {p}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Badge: Prazo do orçamento (se houver demanda) */}
+                          {(() => {
+                            const dem = prazoMap.get(r.card.id);
+                            if (!dem || !dem.prazo_data) return null;
+                            const prazoData = new Date(dem.prazo_data + "T00:00:00");
+                            const atrasada = !["concluido","recusado"].includes(dem.status) && prazoData < new Date();
+                            const concluido = dem.status === "concluido";
+                            const corClasse = concluido
+                              ? "text-hb-green border-hb-green/40 bg-hb-green/10"
+                              : atrasada
+                                ? "text-hb-red border-hb-red/40 bg-hb-red/10 font-bold"
+                                : "text-hb-accent border-hb-accent/40 bg-hb-accent/10";
+                            return (
+                              <div className={`mt-1 inline-flex items-center gap-1 text-[8px] uppercase px-1 py-0.5 border ${corClasse}`}
+                                style={{ letterSpacing: "0.10em" }}
+                                title={`Demanda: ${dem.status}${dem.aceito_em ? ` · aceito em ${dem.aceito_em.slice(0,10)}` : ""}`}>
+                                📅 Prazo {prazoData.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                                {atrasada && " (atrasada)"}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Footer — AO VIVO / respondido + tempo da última msg */}
+                          <div className="mt-1.5 flex items-center justify-between text-[9px]">
+                            {r.aguardandoResposta ? (
+                              <span className="inline-flex items-center gap-1">
+                                <span className="relative inline-flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-hb-green opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-hb-green" />
+                                </span>
+                                <span className="uppercase tracking-[0.14em] text-hb-green font-bold">AO VIVO</span>
+                              </span>
+                            ) : r.ultimaMsg ? (
+                              <span className="text-hb-textDim">→ respondido</span>
+                            ) : (
+                              <span className="text-hb-textDim opacity-50">sem contato</span>
+                            )}
+                            {r.ultimaMsg && (
+                              <span className={stale ? "text-hb-amber" : "text-hb-textDim"} title={fmtDateTime(r.ultimaMsg.at)}>
+                                {fmtRelative(r.ultimaMsg.at)}
+                              </span>
+                            )}
+                          </div>
+                          </Link>
+                        </div>
+                      );
+                    })}
+                    {cs.length > 80 && (
+                      <div className="text-[9px] text-hb-textDim text-center pt-1 uppercase tracking-[0.14em]">
+                        +{cs.length - 80} mais…
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Paginação — 100 por página */}
+      {viewMode === "lista" && filtered.length > PAGE_SIZE && (
+        <div className="border-t border-hb-border bg-hb-panel px-4 py-2 flex items-center justify-between text-[11px]">
+          <div className="text-hb-textDim tabular">
+            Mostrando <span className="text-hb-text font-bold">{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)}</span> de <span className="text-hb-text font-bold">{fmtIntCompact(filtered.length)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(0)} disabled={page === 0}
+              className="px-2 py-1 rounded border border-hb-border text-hb-textDim hover:text-hb-text disabled:opacity-30 disabled:cursor-not-allowed">«</button>
+            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+              className="px-2 py-1 rounded border border-hb-border text-hb-textDim hover:text-hb-text disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center gap-1">
+              <ChevronLeft size={11} /> Anterior
+            </button>
+            {/* Números de página (max 7 visíveis) */}
+            <div className="flex gap-0.5 mx-1">
+              {Array.from({ length: totalPages }, (_, i) => i).filter((i) => {
+                if (totalPages <= 7) return true;
+                if (i === 0 || i === totalPages - 1) return true;
+                return Math.abs(i - page) <= 2;
+              }).map((i, idx, arr) => {
+                const showEllipsis = idx > 0 && i - arr[idx - 1] > 1;
+                return (
+                  <span key={i} className="flex items-center gap-0.5">
+                    {showEllipsis && <span className="px-1 text-hb-textDim">…</span>}
+                    <button onClick={() => setPage(i)}
+                      className={`min-w-[24px] px-1.5 py-1 rounded text-[10px] font-bold transition ${
+                        page === i ? "bg-hb-accent text-hb-bg" : "border border-hb-border text-hb-textDim hover:text-hb-text"
+                      }`}>{i + 1}</button>
+                  </span>
+                );
+              })}
+            </div>
+            <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+              className="px-2 py-1 rounded border border-hb-border text-hb-textDim hover:text-hb-text disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center gap-1">
+              Próximo <ChevronRight size={11} />
+            </button>
+            <button onClick={() => setPage(totalPages - 1)} disabled={page >= totalPages - 1}
+              className="px-2 py-1 rounded border border-hb-border text-hb-textDim hover:text-hb-text disabled:opacity-30 disabled:cursor-not-allowed">»</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de agendamento — chamado pelo ícone 📅 em cada linha */}
+      {agendarFor && (
+        <CriarAgendamentoModal
+          vendedores={responsaveis}
+          cardIdInit={agendarFor.cardId}
+          clienteInit={agendarFor.cliente}
+          vendedorInit={agendarFor.vendedor}
+          onClose={() => setAgendarFor(null)}
+          onCreated={() => setAgendarFor(null)}
+        />
+      )}
+
+      {/* Modal de novo lead — inserção sincronizada com Space (comercial-entrada/leads-entrada).
+          Após criar, o realtime do subscribeCards já refaz o fetch e o card aparece na lista. */}
+      {novoLeadOpen && (
+        <NovoLeadModal
+          appUser={appUser || null}
+          onClose={() => setNovoLeadOpen(false)}
+          onCreated={() => { /* realtime do dept comercial-entrada já dispara reload */ }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SortableTh({ children, active, dir, onClick, className }: { children: any; active: boolean; dir: "asc" | "desc"; onClick: () => void; className?: string }) {
+  return (
+    <th className={`px-3 py-2 font-bold cursor-pointer hover:text-hb-text select-none ${className || ""}`} onClick={onClick}>
+      <span className="inline-flex items-center gap-1">
+        {children}
+        {active && (dir === "desc" ? <ArrowDown size={9} /> : <ArrowUp size={9} />)}
+      </span>
+    </th>
+  );
+}
+
+/** TagChip — chip colorido de uma tag.
+ *  Se a tag tem ícone (urgência), mostra SÓ o ícone (compacto, visual rápido).
+ *  Tooltip mostra o nome completo da tag pra clareza.
+ *  Tem botão X opcional pra remover. */
+export function TagChip({ tag, onRemove, size = "sm" }: {
+  tag: string;
+  onRemove?: () => void;
+  size?: "sm" | "md";
+}) {
+  const st = tagStyleOf(tag);
+  const icon = PIPELINE_TAG_ICON[tag];
+  const tooltip = PIPELINE_TAG_TOOLTIP[tag];
+  const isMd = size === "md";
+  const iconOnly = !!icon; // tags com ícone (urgência) escondem o texto
+  return (
+    <span
+      className={`inline-flex items-center gap-1 border ${
+        iconOnly
+          ? (isMd ? "px-1.5 py-0.5" : "px-1 py-0.5")
+          : (isMd ? "px-2 py-1 text-[10px]" : "px-1.5 py-0.5 text-[9px]")
+      }`}
+      style={{
+        background: st.bg, color: st.text, borderColor: st.border,
+        letterSpacing: iconOnly ? 0 : "0.12em",
+        fontWeight: 600,
+        textTransform: iconOnly ? "none" : "uppercase",
+      }}
+      title={tooltip ? `${tag} — ${tooltip}` : tag}
+    >
+      {iconOnly ? (
+        <span style={{ fontSize: isMd ? "14px" : "12px", letterSpacing: 0, fontWeight: 400 }}>{icon}</span>
+      ) : (
+        <span>{tag}</span>
+      )}
+      {onRemove && (
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+          className="ml-0.5 opacity-60 hover:opacity-100 transition"
+          title="Remover tag"
+          style={{ color: st.text }}
+        >
+          <X size={isMd ? 10 : 8} />
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** TagsSelector — dropdown estilo "lista de seleção" pra selecionar tags do Pipeline.
+ *  Grupos colapsados verticalmente, checkboxes por linha, urgência mostra ícone/emoji.
+ *  Botão fechado mostra contador. Reutilizado em filtro (Pipeline) e editor (CardDetail). */
+export function TagsSelectorPopover({
+  value, onChange, label = "Tags", buttonClass, align = "left",
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  label?: string;
+  buttonClass?: string;
+  align?: "left" | "right";
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  // Fecha ao clicar fora
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const set = new Set(value.map((t) => t.toLowerCase()));
+  const toggle = (tag: string) => {
+    const lower = tag.toLowerCase();
+    if (set.has(lower)) onChange(value.filter((t) => t.toLowerCase() !== lower));
+    else onChange([...value, tag]);
+  };
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={buttonClass || `inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] uppercase border transition ${
+          value.length > 0
+            ? "bg-hb-accent/15 border-hb-accent/60 text-hb-accent"
+            : "border-hb-border text-hb-textDim hover:text-hb-text"
+        }`}
+        style={{ letterSpacing: "0.14em", fontWeight: 600 }}
+        title={value.length > 0 ? `${value.length} tag(s) selecionada(s)` : "Selecionar tags"}
+      >
+        {label}{value.length > 0 ? ` (${value.length})` : ""}
+        <ChevronDown size={10} className={open ? "rotate-180 transition" : "transition"} />
+      </button>
+      {open && (
+        <div
+          className={`absolute z-30 mt-1 w-72 max-h-[420px] overflow-y-auto bg-hb-panel border border-hb-border shadow-xl ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+        >
+          {PIPELINE_TAG_GROUPS.map((g) => (
+            <div key={g.titulo} className="border-b border-hb-border last:border-b-0">
+              <div className="px-3 py-1.5 bg-hb-panelLight/40 text-[9px] uppercase text-hb-textDim flex items-center gap-1.5"
+                style={{ letterSpacing: "0.18em", fontWeight: 600 }}>
+                <span className="block w-[2px] h-[8px] bg-hb-cream/40" /> {g.titulo}
+              </div>
+              <div className="py-0.5">
+                {g.tags.map((tag) => {
+                  const checked = set.has(tag.toLowerCase());
+                  const icon = PIPELINE_TAG_ICON[tag];
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggle(tag)}
+                      className={`w-full flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-hb-panelLight/40 transition text-left ${
+                        checked ? "bg-hb-accent/10" : ""
+                      }`}
+                      title={PIPELINE_TAG_TOOLTIP[tag] || ""}
+                    >
+                      <span
+                        className={`inline-flex items-center justify-center w-3.5 h-3.5 border shrink-0 ${
+                          checked ? "bg-hb-accent border-hb-accent text-hb-bg" : "border-hb-border"
+                        }`}
+                      >
+                        {checked && <Check size={9} />}
+                      </span>
+                      {icon && <span className="text-[11px] leading-none w-12 text-center shrink-0">{icon}</span>}
+                      <span className={`text-[11px] flex-1 ${checked ? "text-hb-text font-semibold" : "text-hb-text"}`}>
+                        {tag}
+                      </span>
+                      {PIPELINE_TAG_TOOLTIP[tag] && (
+                        <span className="text-[8px] text-hb-textDim italic truncate max-w-[100px]">
+                          {PIPELINE_TAG_TOOLTIP[tag]}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {value.length > 0 && (
+            <div className="sticky bottom-0 bg-hb-panel border-t border-hb-border px-3 py-1.5">
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="w-full text-[9px] uppercase text-hb-red hover:bg-hb-red/10 py-1 border border-hb-red/30"
+                style={{ letterSpacing: "0.14em" }}
+              >
+                Limpar todas ({value.length})
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

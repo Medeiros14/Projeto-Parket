@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Parket Skills — Conheça o Space</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0A0A0A; --card:#111111; --panel:#0E0E0E;
+  --border:rgba(255,255,255,0.06); --border-strong:rgba(255,255,255,0.12);
+  --accent:#B8AA9A; --gold:#D4A853;
+  --text:#FFFFFF; --text-med:rgba(255,255,255,0.6); --text-dim:rgba(255,255,255,0.4);
+  --blue:#3B82F6; --green:#10B981; --yellow:#F59E0B; --red:#EF4444;
+}
+html,body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;font-size:0.7rem;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;outline:none;width:100%}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.12)}
+
+.nav{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:40}
+.logo{display:flex;align-items:center;gap:10px;cursor:pointer}
+.logo-mark{font:800 18px Inter;letter-spacing:0.15em;color:var(--accent)}
+.logo-sub{font:600 0.5rem Inter;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.12em}
+.nav-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:6px;font:600 0.6rem Inter;letter-spacing:0.02em;cursor:pointer;transition:all 0.15s;border:1px solid transparent}
+.btn-primary{background:rgba(184,170,154,0.10);border-color:rgba(184,170,154,0.40);color:var(--accent)}
+.btn-primary:hover{background:rgba(184,170,154,0.20)}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--text-med)}
+.btn-ghost:hover{border-color:var(--border-strong);color:var(--text)}
+.btn-danger{background:rgba(239,68,68,0.10);border-color:rgba(239,68,68,0.40);color:var(--red)}
+
+.wrap{max-width:1280px;margin:0 auto;padding:32px 24px 64px}
+.section{margin-bottom:48px}
+.section-head{margin-bottom:18px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.section-title{font:700 0.7rem Inter;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)}
+.section-subtitle{color:var(--text-med);font:400 0.62rem Inter;margin-left:6px}
+
+.hero{padding:48px 24px 28px;text-align:center;border-bottom:1px solid var(--border);background:linear-gradient(180deg, rgba(184,170,154,0.04), transparent 80%)}
+.hero h1{font:800 32px Inter;letter-spacing:-0.02em;margin-bottom:8px;background:linear-gradient(180deg,#fff 0%,#bbb 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{color:var(--text-med);font:400 14px Inter;max-width:580px;margin:0 auto}
+.hero-pill{display:inline-block;background:rgba(212,168,83,0.10);border:1px solid rgba(212,168,83,0.30);color:var(--gold);padding:3px 10px;border-radius:99px;font:700 0.5rem Inter;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.card-setor{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;gap:8px;min-height:160px;position:relative;overflow:hidden}
+.card-setor::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--cor,var(--accent));opacity:0;transition:opacity 0.2s}
+.card-setor:hover{border-color:var(--cor,var(--accent));transform:translateY(-2px)}
+.card-setor:hover::before{opacity:1}
+.card-icon{font-size:30px;line-height:1}
+.card-titulo{font:700 0.85rem Inter;color:var(--text)}
+.card-descricao{font:400 0.62rem Inter;color:var(--text-med);line-height:1.5;flex:1}
+.card-meta{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:8px;border-top:1px solid var(--border)}
+.card-badge{font:700 0.5rem Inter;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)}
+.card-arrow{color:var(--text-dim);font-size:14px;transition:color 0.15s,transform 0.15s}
+.card-setor:hover .card-arrow{color:var(--cor,var(--accent));transform:translateX(2px)}
+
+.tut-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.tut-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:all 0.15s;display:flex;flex-direction:column}
+.tut-card:hover{border-color:rgba(184,170,154,0.40)}
+.tut-thumb{height:100px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:24px}
+.tut-thumb img{width:100%;height:100%;object-fit:cover}
+.tut-body{padding:10px 12px;flex:1;display:flex;flex-direction:column;gap:4px}
+.tut-tipo{font:700 0.45rem Inter;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold)}
+.tut-titulo{font:600 0.7rem Inter;color:var(--text);line-height:1.3}
+.tut-desc{font:400 0.55rem Inter;color:var(--text-dim);line-height:1.5;margin-top:auto}
+
+.setor-hero{padding:36px 24px 24px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,var(--setor-cor-bg) 0%,transparent 80%)}
+.setor-hero-inner{max-width:1280px;margin:0 auto}
+.setor-hero-icon{font-size:48px;line-height:1}
+.setor-hero-text h1{font:800 26px Inter;letter-spacing:-0.02em;color:#fff}
+.setor-hero-text p{color:var(--text-med);font:400 14px Inter;margin-top:4px;max-width:680px}
+.btn-back{color:var(--text-dim);margin-bottom:14px;font:600 0.6rem Inter;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+.btn-back:hover{color:var(--accent)}
+
+.feature-row{display:flex;gap:32px;align-items:flex-start;padding:36px 0;border-bottom:1px solid var(--border)}
+.feature-row:last-child{border-bottom:none}
+.feature-row.reverse{flex-direction:row-reverse}
+.feature-text{flex:1;min-width:0}
+.feature-text h3{font:700 1.05rem Inter;color:#fff;margin-bottom:6px}
+.feature-text p{font:400 0.78rem Inter;color:var(--text-med);line-height:1.6}
+.feature-tipo-tag{display:inline-block;padding:2px 8px;border-radius:99px;background:rgba(212,168,83,0.12);color:var(--gold);font:700 0.45rem Inter;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px}
+.feature-media{flex:1.4;min-width:0;position:relative}
+.feature-screenshot{width:100%;border-radius:10px;border:1px solid var(--border);display:block;background:#1a1a1a}
+.feature-video{width:100%;border-radius:10px;border:1px solid var(--border);display:block;background:#1a1a1a}
+
+.hotspot-wrap{position:relative;display:inline-block;width:100%}
+.hotspot{position:absolute;border:2px solid var(--gold);background:rgba(212,168,83,0.10);border-radius:6px;cursor:pointer;transition:all 0.15s;animation:pulse 2s ease-in-out infinite}
+.hotspot:hover{background:rgba(212,168,83,0.25);animation:none}
+.hotspot-label{position:absolute;background:#000;color:var(--gold);font:700 0.5rem Inter;border:1px solid var(--gold);border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;top:-9px;left:-9px}
+.hotspot-popup{position:absolute;background:var(--card);border:1px solid var(--border-strong);border-radius:8px;padding:10px 12px;min-width:200px;max-width:300px;z-index:10;box-shadow:0 12px 32px rgba(0,0,0,0.6)}
+.hotspot-popup-titulo{font:700 0.65rem Inter;color:var(--gold);margin-bottom:4px}
+.hotspot-popup-desc{font:400 0.6rem Inter;color:var(--text-med);line-height:1.5}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(212,168,83,0.6)}50%{box-shadow:0 0 0 8px rgba(212,168,83,0)}}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--card);border:1px solid var(--border-strong);border-radius:14px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:0 24px 64px rgba(0,0,0,0.6)}
+.modal h2{font:700 1rem Inter;color:#fff;margin-bottom:6px}
+.modal p{color:var(--text-med);font:400 0.7rem Inter;margin-bottom:14px;line-height:1.5}
+.modal-row{margin-bottom:10px}
+.modal-row label{display:block;font:600 0.5rem Inter;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:4px}
+.alert-error{padding:8px 10px;border-radius:6px;background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.30);color:var(--red);font:500 0.62rem Inter;margin-bottom:10px}
+
+.loading{padding:48px 24px;text-align:center;color:var(--text-dim);font:400 0.7rem Inter}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--text-dim);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.admin-table{width:100%;border-collapse:collapse;font:400 0.65rem Inter}
+.admin-table th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-dim);font:700 0.5rem Inter;text-transform:uppercase;letter-spacing:0.08em}
+.admin-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-med)}
+.admin-table tr:hover{background:rgba(255,255,255,0.02)}
+.admin-actions{display:flex;gap:4px}
+.admin-actions .btn{padding:3px 7px;font-size:0.5rem}
+
+@media (max-width: 768px){
+  .feature-row{flex-direction:column !important;gap:14px}
+  .hero h1{font-size:24px}
+  .wrap{padding:20px 14px 48px}
+}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="logo" onclick="navigate('/')">
+    <span class="logo-mark">PARKET</span>
+    <span class="logo-sub">SKILLS</span>
+  </div>
+  <div class="nav-actions" id="nav-actions"></div>
+</div>
+
+<div id="app">
+  <div class="loading"><span class="spinner"></span>Carregando…</div>
+</div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.lcTLB55lI2NCkzWPbVTtkmubA7-x1AryB4HOhRGSAKE";
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+window.__sb = sb;
+
+const STATE = { user: null, role: null, fullName: null };
+const app = document.getElementById("app");
+const navActions = document.getElementById("nav-actions");
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function checkAuth() {
+  const { data } = await sb.auth.getSession();
+  if (!data?.session) { STATE.user = null; return false; }
+  STATE.user = data.session.user;
+  try {
+    const { data: prof } = await sb.from("user_profiles").select("role,full_name").eq("id", STATE.user.id).maybeSingle();
+    STATE.role = prof?.role || null;
+    STATE.fullName = prof?.full_name || STATE.user.email;
+  } catch { STATE.role = null; }
+  return true;
+}
+
+function renderNavActions() {
+  if (!STATE.user) {
+    navActions.innerHTML = `<button class="btn btn-primary" onclick="window.location.hash='#/login'">Entrar</button>`;
+  } else {
+    const isAdmin = ["superadmin", "admin", "dept_leader"].includes(STATE.role);
+    navActions.innerHTML = `
+      <span style="font:500 0.6rem Inter;color:var(--text-dim)">${esc(STATE.fullName || STATE.user.email)}</span>
+      ${isAdmin ? `<button class="btn btn-ghost" onclick="window.location.hash='#/admin'">Editor</button>` : ""}
+      <button class="btn btn-ghost" onclick="signOut()">Sair</button>
+    `;
+  }
+}
+
+window.signOut = async () => {
+  await sb.auth.signOut();
+  STATE.user = null; STATE.role = null;
+  window.location.hash = ""; route();
+};
+
+async function renderLogin() {
+  app.innerHTML = `
+    <div class="modal-backdrop">
+      <form class="modal" id="login-form">
+        <div class="hero-pill">SKILLS · PARKET</div>
+        <h2>Entrar no Parket Skills</h2>
+        <p>Use as mesmas credenciais do Space. Acesso restrito ao time Parket.</p>
+        <div id="login-error"></div>
+        <div class="modal-row"><label>Email</label><input type="email" id="login-email" required placeholder="nome@parket.com.br" autofocus/></div>
+        <div class="modal-row"><label>Senha</label><input type="password" id="login-password" required minlength="6"/></div>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;margin-top:6px" id="login-btn">Entrar</button>
+        <p style="font-size:0.55rem;color:var(--text-dim);margin-top:14px;text-align:center">Sem acesso? Fale com o admin do Space.</p>
+      </form>
+    </div>
+  `;
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("login-btn");
+    const err = document.getElementById("login-error");
+    err.innerHTML = ""; btn.disabled = true; btn.textContent = "Entrando…";
+    const { error } = await sb.auth.signInWithPassword({
+      email: document.getElementById("login-email").value,
+      password: document.getElementById("login-password").value,
+    });
+    if (error) {
+      err.innerHTML = `<div class="alert-error">${esc(error.message)}</div>`;
+      btn.disabled = false; btn.textContent = "Entrar"; return;
+    }
+    await checkAuth(); renderNavActions();
+    window.location.hash = "#/"; route();
+  });
+}
+
+async function renderHome() {
+  app.innerHTML = `
+    <section class="hero">
+      <div class="hero-pill">Conheça a plataforma</div>
+      <h1>Conheça o Space</h1>
+      <p>Navegue pela estrutura do Space Parket setor por setor. Cada apresentação mostra as funcionalidades disponíveis com prints anotados.</p>
+    </section>
+    <div class="wrap">
+      <div class="section">
+        <div class="section-head">
+          <span class="section-title">Setores</span>
+          <span class="section-subtitle">11 setores · clique pra explorar</span>
+        </div>
+        <div class="grid" id="grid-setores"><div class="loading"><span class="spinner"></span>Carregando setores…</div></div>
+      </div>
+      <div class="section" id="section-tutoriais" style="display:none">
+        <div class="section-head">
+          <span class="section-title">Tutoriais Gerais</span>
+          <span class="section-subtitle">Vídeos e guias avulsos</span>
+        </div>
+        <div class="tut-grid" id="grid-tutoriais"></div>
+      </div>
+    </div>
+  `;
+  try {
+    const setores = await api("/api/setores");
+    const grid = document.getElementById("grid-setores");
+    if (setores.length === 0) {
+      grid.innerHTML = `<div class="loading">Nenhum setor cadastrado.</div>`;
+    } else {
+      grid.innerHTML = setores.map(s => `
+        <div class="card-setor" style="--cor:${s.cor || '#B8AA9A'}" onclick="navigate('/setor/${esc(s.setor)}')">
+          <div class="card-icon">${esc(s.icone || '📦')}</div>
+          <div class="card-titulo">${esc(s.titulo)}</div>
+          <div class="card-descricao">${esc(s.descricao_curta || '')}</div>
+          <div class="card-meta">
+            <span class="card-badge" style="color:${s.cor || 'var(--accent)'}">Setor #${s.ordem}</span>
+            <span class="card-arrow">→</span>
+          </div>
+        </div>
+      `).join("");
+    }
+    const tuts = await api("/api/tutoriais");
+    const intro = tuts.filter(t => t.tipo === "intro" || (t.setor === "geral" && t.tipo !== "feature"));
+    if (intro.length) {
+      document.getElementById("section-tutoriais").style.display = "";
+      document.getElementById("grid-tutoriais").innerHTML = intro.map(t => `
+        <div class="tut-card" onclick="openTutorial('${t.id}')">
+          <div class="tut-thumb">${t.thumbnail_url ? `<img src="${esc(t.thumbnail_url)}"/>` : (t.tipo === "video" ? "▶" : "📄")}</div>
+          <div class="tut-body">
+            <div class="tut-tipo">${esc(t.tipo)}${t.setor && t.setor !== "geral" ? " · " + esc(t.setor) : ""}</div>
+            <div class="tut-titulo">${esc(t.titulo)}</div>
+            ${t.descricao ? `<div class="tut-desc">${esc(t.descricao).slice(0, 100)}</div>` : ""}
+          </div>
+        </div>
+      `).join("");
+    }
+  } catch (e) {
+    document.getElementById("grid-setores").innerHTML = `<div class="loading" style="color:var(--red)">Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+async function renderSetor(slug) {
+  app.innerHTML = `<div class="loading"><span class="spinner"></span>Carregando setor…</div>`;
+  try {
+    const data = await api(`/api/setor/${encodeURIComponent(slug)}`);
+    if (data.error) {
+      app.innerHTML = `<div class="wrap"><button class="btn-back" onclick="navigate('/')">← Voltar</button><div class="loading">${esc(data.error)}</div></div>`;
+      return;
+    }
+    const s = data.setor;
+    const features = (data.features || []).filter(f => f.id !== s.id);
+    const setorBg = (s.cor || "#B8AA9A") + "10";
+    app.innerHTML = `
+      <section class="setor-hero" style="--setor-cor-bg:${setorBg}">
+        <div class="setor-hero-inner">
+          <button class="btn-back" onclick="navigate('/')">← Voltar pra Home</button>
+          <div style="display:flex;gap:16px;align-items:center">
+            <div class="setor-hero-icon">${esc(s.icone || '📦')}</div>
+            <div class="setor-hero-text">
+              <h1>${esc(s.titulo)}</h1>
+              <p>${esc(s.descricao_curta || s.descricao || '')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="wrap">
+        ${features.length === 0
+          ? `<div class="loading">Apresentação em construção. Em breve, conteúdo das funcionalidades aqui.<br/><br/>${["superadmin","admin","dept_leader"].includes(STATE.role) ? `<button class="btn btn-primary" onclick="navigate('/admin')" style="margin-top:8px">Adicionar conteúdo no editor</button>` : ""}</div>`
+          : features.map((f, i) => renderFeatureRow(f, i, s.cor)).join("")
+        }
+      </div>
+    `;
+    features.forEach(f => wireHotspots(f));
+  } catch (e) {
+    app.innerHTML = `<div class="wrap"><div class="loading" style="color:var(--red)">Erro: ${esc(e.message)}</div></div>`;
+  }
+}
+
+function renderFeatureRow(f, i, corSetor) {
+  const reverse = i % 2 === 1;
+  const screenshots = Array.isArray(f.screenshots) ? f.screenshots : [];
+  const firstShot = screenshots[0] || f.imagem_url;
+  const hasVideo = f.video_url;
+  const tagBg = (corSetor || '#D4A853') + '15';
+  const tagColor = corSetor || '#D4A853';
+  return `
+    <div class="feature-row ${reverse ? 'reverse' : ''}">
+      <div class="feature-text">
+        <div class="feature-tipo-tag" style="background:${tagBg};color:${tagColor}">${esc(f.categoria || f.tipo || 'Funcionalidade')}</div>
+        <h3>${esc(f.titulo)}</h3>
+        <p>${esc(f.descricao || '')}</p>
+        ${f.conteudo_html ? `<div style="margin-top:12px;color:var(--text-med);font-size:0.7rem;line-height:1.6">${f.conteudo_html}</div>` : ''}
+      </div>
+      <div class="feature-media">
+        ${hasVideo
+          ? `<video class="feature-video" controls src="${esc(f.video_url)}"></video>`
+          : firstShot
+            ? `<div class="hotspot-wrap" data-feature="${f.id}"><img class="feature-screenshot" src="${esc(firstShot)}"/></div>`
+            : `<div class="feature-screenshot" style="height:240px;display:flex;align-items:center;justify-content:center;color:var(--text-dim)">Sem screenshot</div>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+function wireHotspots(f) {
+  const wrap = document.querySelector(`.hotspot-wrap[data-feature="${f.id}"]`);
+  if (!wrap) return;
+  const hotspots = Array.isArray(f.hotspots) ? f.hotspots : [];
+  if (hotspots.length === 0) return;
+  hotspots.forEach((h, idx) => {
+    const div = document.createElement("div");
+    div.className = "hotspot";
+    div.style.left = (h.x_pct ?? 0) + "%";
+    div.style.top = (h.y_pct ?? 0) + "%";
+    div.style.width = (h.w_pct ?? 10) + "%";
+    div.style.height = (h.h_pct ?? 10) + "%";
+    div.innerHTML = `<span class="hotspot-label">${idx + 1}</span>`;
+    div.addEventListener("click", (e) => {
+      e.stopPropagation();
+      wrap.querySelectorAll(".hotspot-popup").forEach(p => p.remove());
+      const pop = document.createElement("div");
+      pop.className = "hotspot-popup";
+      pop.innerHTML = `
+        <div class="hotspot-popup-titulo">${esc(h.titulo || `Ponto ${idx + 1}`)}</div>
+        <div class="hotspot-popup-desc">${esc(h.descricao || '')}</div>
+      `;
+      pop.style.left = div.style.left;
+      pop.style.top = `calc(${div.style.top} + ${div.style.height} + 4px)`;
+      wrap.appendChild(pop);
+      setTimeout(() => {
+        const close = (ev) => { if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener("click", close); } };
+        document.addEventListener("click", close);
+      }, 0);
+    });
+    wrap.appendChild(div);
+  });
+}
+
+window.openTutorial = async (id) => {
+  app.innerHTML = `<div class="loading"><span class="spinner"></span>Carregando…</div>`;
+  try {
+    const t = await api(`/api/item/${id}`);
+    const screenshots = Array.isArray(t.screenshots) ? t.screenshots : [];
+    const firstShot = screenshots[0] || t.imagem_url;
+    app.innerHTML = `
+      <section class="setor-hero" style="--setor-cor-bg:rgba(212,168,83,0.05)">
+        <div class="setor-hero-inner">
+          <button class="btn-back" onclick="window.history.back()">← Voltar</button>
+          <div class="setor-hero-text"><h1>${esc(t.titulo)}</h1><p>${esc(t.descricao || '')}</p></div>
+        </div>
+      </section>
+      <div class="wrap">
+        ${t.video_url
+          ? `<video controls style="width:100%;border-radius:12px;border:1px solid var(--border);background:#1a1a1a" src="${esc(t.video_url)}"></video>`
+          : firstShot ? `<img src="${esc(firstShot)}" style="width:100%;border-radius:12px;border:1px solid var(--border)"/>` : ""}
+        ${t.conteudo_html ? `<div style="margin-top:24px;color:var(--text-med);font-size:0.78rem;line-height:1.7">${t.conteudo_html}</div>` : ""}
+      </div>
+    `;
+  } catch (e) {
+    app.innerHTML = `<div class="wrap"><div class="loading" style="color:var(--red)">Erro: ${esc(e.message)}</div></div>`;
+  }
+};
+
+async function renderAdmin() {
+  if (!STATE.user) { window.location.hash = "#/login"; return; }
+  const isAdmin = ["superadmin", "admin", "dept_leader"].includes(STATE.role);
+  if (!isAdmin) {
+    app.innerHTML = `<div class="wrap"><div class="loading" style="color:var(--red)">Acesso negado — apenas administradores.</div></div>`;
+    return;
+  }
+  app.innerHTML = `<div class="loading"><span class="spinner"></span>Carregando editor…</div>`;
+  try {
+    const setores = await api("/api/setores");
+    const tuts = await api("/api/tutoriais");
+    app.innerHTML = `
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-title">Editor — Setores</span>
+          <span class="section-subtitle">${setores.length} cadastrados</span>
+        </div>
+        <table class="admin-table">
+          <thead><tr><th>Ord</th><th>Ícone</th><th>Setor</th><th>Cor</th><th>Slug</th><th>Pub</th><th></th></tr></thead>
+          <tbody>
+            ${setores.map(s => `
+              <tr>
+                <td>${s.ordem}</td>
+                <td>${esc(s.icone)}</td>
+                <td>${esc(s.titulo)}</td>
+                <td><span style="display:inline-block;width:14px;height:14px;background:${s.cor};border-radius:3px;border:1px solid var(--border);vertical-align:middle"></span> ${esc(s.cor)}</td>
+                <td><code style="font-size:0.55rem">${esc(s.setor)}</code></td>
+                <td>${s.publicado ? "✓" : "—"}</td>
+                <td class="admin-actions"><button class="btn btn-ghost" onclick="editItem('${s.id}')">Editar</button></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+
+        <div class="section-head" style="margin-top:48px">
+          <span class="section-title">Funcionalidades & Tutoriais</span>
+          <span class="section-subtitle">${tuts.length} itens</span>
+          <button class="btn btn-primary" style="margin-left:auto" onclick="editItem(null)">+ Novo</button>
+        </div>
+        <table class="admin-table">
+          <thead><tr><th>Setor</th><th>Tipo</th><th>Título</th><th>Views</th><th>Pub</th><th></th></tr></thead>
+          <tbody>
+            ${tuts.map(t => `
+              <tr>
+                <td><code style="font-size:0.55rem">${esc(t.setor)}</code></td>
+                <td>${esc(t.tipo)}</td>
+                <td>${esc(t.titulo)}</td>
+                <td>${t.visualizacoes || 0}</td>
+                <td>${t.publicado ? "✓" : "—"}</td>
+                <td class="admin-actions">
+                  <button class="btn btn-ghost" onclick="editItem('${t.id}')">Editar</button>
+                  <button class="btn btn-danger" onclick="deleteItem('${t.id}', '${esc(t.titulo).replace(/'/g, "\\'")}')">Excluir</button>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    app.innerHTML = `<div class="wrap"><div class="loading" style="color:var(--red)">Erro: ${esc(e.message)}</div></div>`;
+  }
+}
+
+window.editItem = async (id) => {
+  let item = {};
+  if (id) { try { item = await api(`/api/item/${id}`); } catch { item = {}; } }
+  const isNew = !id;
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <form class="modal" id="item-form" style="max-width:680px">
+      <h2>${isNew ? "Novo item" : "Editar"}${item.titulo ? ` — ${esc(item.titulo)}` : ""}</h2>
+      <div id="item-error"></div>
+      <div class="modal-row"><label>Título *</label><input id="i-titulo" value="${esc(item.titulo || '')}" required/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="modal-row"><label>Tipo</label><select id="i-tipo">
+          <option value="feature" ${item.tipo === 'feature' ? 'selected' : ''}>Feature</option>
+          <option value="setor" ${item.tipo === 'setor' ? 'selected' : ''}>Setor</option>
+          <option value="intro" ${item.tipo === 'intro' ? 'selected' : ''}>Intro</option>
+          <option value="texto" ${item.tipo === 'texto' ? 'selected' : ''}>Texto</option>
+          <option value="video" ${item.tipo === 'video' ? 'selected' : ''}>Vídeo</option>
+          <option value="imagem" ${item.tipo === 'imagem' ? 'selected' : ''}>Imagem</option>
+        </select></div>
+        <div class="modal-row"><label>Setor</label><input id="i-setor" value="${esc(item.setor || '')}" placeholder="comercial, compras…"/></div>
+        <div class="modal-row"><label>Ordem</label><input id="i-ordem" type="number" value="${item.ordem ?? 0}"/></div>
+      </div>
+      <div class="modal-row"><label>Descrição curta</label><input id="i-desc" value="${esc(item.descricao || '')}"/></div>
+      <div class="modal-row"><label>Conteúdo (HTML opcional)</label><textarea id="i-html" rows="4">${esc(item.conteudo_html || '')}</textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="modal-row"><label>Video URL</label><input id="i-video" value="${esc(item.video_url || '')}"/></div>
+        <div class="modal-row"><label>Imagem URL</label><input id="i-imagem" value="${esc(item.imagem_url || '')}"/></div>
+      </div>
+      <div class="modal-row"><label>Screenshots (URLs, uma por linha)</label><textarea id="i-shots" rows="2">${esc((item.screenshots || []).join("\n"))}</textarea></div>
+      <div class="modal-row"><label>Hotspots JSON</label><textarea id="i-hot" rows="3" style="font-family:monospace;font-size:0.55rem">${esc(JSON.stringify(item.hotspots || [], null, 2))}</textarea></div>
+      <div class="modal-row"><label><input type="checkbox" id="i-pub" ${item.publicado !== false ? 'checked' : ''} style="width:auto;margin-right:4px"/> Publicado</label></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-backdrop').remove()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="item-save">${isNew ? "Criar" : "Salvar"}</button>
+      </div>
+    </form>
+  `;
+  document.body.appendChild(modal);
+  document.getElementById("item-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = document.getElementById("item-error"); err.innerHTML = "";
+    let hotspots = [];
+    try { hotspots = JSON.parse(document.getElementById("i-hot").value || "[]"); }
+    catch { err.innerHTML = `<div class="alert-error">Hotspots JSON inválido</div>`; return; }
+    const screenshots = document.getElementById("i-shots").value.split("\n").map(s => s.trim()).filter(Boolean);
+    const body = {
+      titulo: document.getElementById("i-titulo").value,
+      tipo: document.getElementById("i-tipo").value,
+      setor: document.getElementById("i-setor").value || null,
+      ordem: parseInt(document.getElementById("i-ordem").value) || 0,
+      descricao: document.getElementById("i-desc").value || null,
+      descricao_curta: document.getElementById("i-desc").value || null,
+      conteudo_html: document.getElementById("i-html").value || null,
+      video_url: document.getElementById("i-video").value || null,
+      imagem_url: document.getElementById("i-imagem").value || null,
+      screenshots, hotspots,
+      publicado: document.getElementById("i-pub").checked,
+    };
+    try {
+      if (id) await api(`/api/item/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      else await api("/api/item", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      modal.remove(); renderAdmin();
+    } catch (e) {
+      err.innerHTML = `<div class="alert-error">${esc(e.message)}</div>`;
+    }
+  });
+};
+
+window.deleteItem = async (id, titulo) => {
+  if (!confirm(`Excluir "${titulo}"?`)) return;
+  await api(`/api/item/${id}`, { method: "DELETE" });
+  renderAdmin();
+};
+
+window.navigate = (path) => { window.location.hash = "#" + path; };
+
+async function route() {
+  const hash = window.location.hash.replace(/^#/, "") || "/";
+  renderNavActions();
+  if (hash === "/login") return renderLogin();
+  if (!STATE.user) {
+    if (hash.startsWith("/setor/") || hash.startsWith("/admin")) return renderLogin();
+  }
+  if (hash === "/" || hash === "") return renderHome();
+  if (hash.startsWith("/setor/")) return renderSetor(hash.slice(7));
+  if (hash === "/admin") return renderAdmin();
+  if (hash.startsWith("/tutorial/")) return openTutorial(hash.slice(10));
+  app.innerHTML = `<div class="wrap"><div class="loading">Página não encontrada.<br/><br/><button class="btn btn-ghost" onclick="navigate('/')">Voltar pra Home</button></div></div>`;
+}
+
+window.addEventListener("hashchange", route);
+
+(async () => {
+  await checkAuth();
+  await route();
+  sb.auth.onAuthStateChange(async () => { await checkAuth(); renderNavActions(); });
+})();
+</script>
+</body>
+</html>

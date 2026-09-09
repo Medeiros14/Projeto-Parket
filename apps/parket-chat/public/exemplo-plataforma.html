@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Homebroker Parket — exemplo de plataforma com o widget</title>
+  <style>
+    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f4f2ee; }
+    header { background: #1d3557; color: #fff; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 18px; margin: 0; }
+    main { padding: 32px; max-width: 900px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .muted { color: #667; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏠 homebroker.parket.works — plataforma de exemplo</h1>
+    <span class="muted" style="color:#cdd">Esta página simula uma plataforma de setor da Parket</span>
+  </header>
+  <main>
+    <div class="card">
+      <h2>Pipeline de vendas</h2>
+      <p class="muted">Conteúdo fictício da plataforma. O chat da empresa é o ícone flutuante no canto
+      inferior direito — clique nele para abrir. Faça login com um usuário de teste
+      (ex.: <b>ana@parket.com.br</b> / senha <b>parket123</b>).</p>
+    </div>
+    <div class="card">
+      <h2>Como esta página embute o widget</h2>
+      <p class="muted">Via <code>&lt;script src="/app.js" data-parket-chat&gt;</code>. Em produção, a
+      plataforma também passa <code>data-token="JWT do SSO"</code> e o login é automático.
+      A alternativa por <code>&lt;iframe&gt;</code> está documentada no README.</p>
+    </div>
+  </main>
+
+  <!-- ===== Widget do Parket Chat (forma script + div) =====
+       Em produção: <script src="https://chat.parket.works/app.js" data-parket-chat
+                            data-api="https://chat.parket.works"
+                            data-token="<JWT emitido pelo SSO da plataforma>"></script> -->
+  <div id="parket-chat"></div>
+  <script src="/app.js" data-parket-chat data-dev-login></script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+/**
+ * Modal de detalhe do card pra Equipe & Demandas.
+ * Quando orçamentista clica no card da demanda, abre esse modal mostrando
+ * TODAS as informações que o comercial preencheu — abas Lead/Contato/Projeto/
+ * Pagamento/Levantamento/Mensagens, igual ao modal nativo do kanban.
+ */
+import { R as h } from "./index-DZtetJYP.js";
+
+const SB_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+const c = h.createElement;
+const TEXT = "#fafafa", DIM = "rgba(255,255,255,0.55)", MED = "rgba(255,255,255,0.75)";
+const PANEL = "rgba(255,255,255,0.04)", BORDER = "rgba(255,255,255,0.08)";
+const ACCENT = "#3B82F6", GREEN = "#10B981", PURPLE = "#8B5CF6";
+
+function _userToken() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith("sb-") || !k.endsWith("-auth-token")) continue;
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const tok = parsed && (parsed.access_token || (parsed.currentSession && parsed.currentSession.access_token));
+      if (tok) return tok;
+    }
+  } catch (e) {}
+  return SB_KEY;
+}
+async function sbGet(path) {
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${_userToken()}` },
+  });
+  if (!r.ok) throw new Error(`SB GET ${path}: ${r.status}`);
+  return r.json();
+}
+
+// Labels amigáveis pros campos do details (mesmo padrão do dept-layout)
+const FIELD_LABELS = {
+  // Lead/Contato
+  nome_completo: "Nome Completo",
+  celular: "Celular",
+  telefone_comercial: "Telefone Comercial",
+  pessoa_contato: "Pessoa de Contato",
+  contato_responsavel: "Responsável Contato",
+  email: "E-mail",
+  outro_email: "E-mail Adicional",
+  vendedor: "Vendedor",
+  vendedor_telefone: "Telefone Vendedor",
+  status_lead: "Status do Lead",
+  kommo_id: "ID Kommo",
+  funil_vendas: "Funil",
+  // Projeto
+  endereco: "Endereço",
+  endereco_obra: "Endereço da Obra",
+  cidade: "Cidade",
+  estado: "Estado",
+  area_m2: "Área (m²)",
+  metragem_estimada: "Metragem Estimada",
+  produto_interesse: "Produto de Interesse",
+  faixa_investimento: "Faixa de Investimento",
+  previsao_inicio: "Previsão de Início",
+  primeira_vistoria_data: "1ª Vistoria",
+  arquiteto: "Arquiteto",
+  arquitetura: "Escritório de Arquitetura",
+  // Qualificação
+  resumo_qualificacao: "Resumo Qualificação",
+  observacoes: "Observações",
+  // Pagamento
+  orc_valor_total: "Valor Total Orçamento",
+  orc_valor_material: "Valor Material",
+  orc_valor_mao_obra: "Valor Mão de Obra",
+  condicoes_pagamento: "Condições de Pagamento",
+  prazo_contratual: "Prazo Contratual",
+  prazo_dias_uteis: "Prazo (dias úteis)",
+  conta_corrente: "Conta Corrente",
+  numero_pedido: "Nº do Pedido",
+  // Outros
+  data_criada: "Data Criação",
+  data_proposta: "Data Proposta",
+  grupo_wpp_csv: "Grupo WhatsApp",
+  fiscal_responsavel: "Fiscal Responsável",
+  status_projeto: "Status Projeto",
+};
+
+const TAB_FIELDS = {
+  lead: ["nome_completo", "vendedor", "vendedor_telefone", "status_lead", "kommo_id", "funil_vendas", "data_criada"],
+  contato: ["celular", "telefone_comercial", "pessoa_contato", "contato_responsavel", "email", "outro_email", "grupo_wpp_csv"],
+  projeto: ["endereco_obra", "endereco", "cidade", "estado", "area_m2", "metragem_estimada", "produto_interesse", "previsao_inicio", "primeira_vistoria_data", "arquiteto", "arquitetura", "faixa_investimento"],
+  pagamento: ["orc_valor_total", "orc_valor_material", "orc_valor_mao_obra", "condicoes_pagamento", "prazo_contratual", "prazo_dias_uteis", "conta_corrente", "numero_pedido", "data_proposta"],
+  qualificacao: ["resumo_qualificacao", "observacoes", "status_projeto", "fiscal_responsavel"],
+};
+
+function fmtValue(v) {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "boolean") return v ? "Sim" : "Não";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+function FieldRow({ field, value }) {
+  return c("div", { style: { display: "flex", flexDirection: "column", gap: 3, padding: "8px 10px", background: PANEL, borderRadius: 6, border: `1px solid ${BORDER}` } },
+    c("span", { style: { fontSize: "0.5rem", color: DIM, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 } }, FIELD_LABELS[field] || field),
+    c("span", { style: { fontSize: "0.72rem", color: TEXT, wordBreak: "break-word" } }, fmtValue(value)),
+  );
+}
+
+function FieldGrid({ details, fields }) {
+  const filled = fields.filter((f) => details[f] !== null && details[f] !== undefined && details[f] !== "");
+  if (filled.length === 0) {
+    return c("div", { style: { padding: 30, textAlign: "center", color: DIM, fontSize: "0.7rem", fontStyle: "italic" } }, "Comercial ainda não preencheu nada nessa aba.");
+  }
+  return c("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 } },
+    ...filled.map((f) => c(FieldRow, { key: f, field: f, value: details[f] })),
+  );
+}
+
+function LevantamentoTab({ snapshot }) {
+  if (!snapshot || !snapshot.servicos || snapshot.servicos.length === 0) {
+    return c("div", { style: { padding: 30, textAlign: "center", color: DIM, fontSize: "0.7rem", fontStyle: "italic" } }, "Sem itens de levantamento.");
+  }
+  return c("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
+    ...snapshot.servicos.map((s, i) => c("div", { key: i, style: { background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 12 } },
+      c("h4", { style: { margin: "0 0 8px", color: TEXT, fontSize: "0.78rem", fontWeight: 700 } }, s.nome),
+      c("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
+        ...(s.itens || []).map((it, j) => c("div", { key: j, style: { background: "rgba(0,0,0,0.2)", padding: "6px 8px", borderRadius: 4, display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center", fontSize: "0.65rem" } },
+          c("span", { style: { color: TEXT } }, it.descricao || it.servico || "(sem descrição)"),
+          it.metragem_m2 && c("span", { style: { color: DIM, fontFamily: "monospace" } }, `${it.metragem_m2} ${it.unidade || "m²"}`),
+          it.preco && c("span", { style: { color: GREEN, fontWeight: 600, fontFamily: "monospace" } }, `R$ ${Number(it.preco).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`),
+        )),
+      ),
+    )),
+  );
+}
+
+function MensagensTab({ messages }) {
+  if (!messages || messages.length === 0) {
+    return c("div", { style: { padding: 30, textAlign: "center", color: DIM, fontSize: "0.7rem", fontStyle: "italic" } }, "Sem mensagens registradas.");
+  }
+  return c("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+    ...messages.map((m, i) => c("div", { key: i, style: { background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 10 } },
+      c("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
+        c("span", { style: { color: ACCENT, fontSize: "0.62rem", fontWeight: 700 } }, m.user_name || m.user || "Sistema"),
+        c("span", { style: { color: DIM, fontSize: "0.55rem" } }, m.ts ? new Date(m.ts).toLocaleString("pt-BR") : ""),
+      ),
+      c("p", { style: { color: TEXT, fontSize: "0.7rem", margin: 0, whiteSpace: "pre-wrap" } }, m.msg || ""),
+    )),
+  );
+}
+
+function CardDetailModal({ cardId, demanda, onClose }) {
+  const [card, setCard] = h.useState(null);
+  const [snapshot, setSnapshot] = h.useState(null);
+  const [messages, setMessages] = h.useState([]);
+  const [tab, setTab] = h.useState("lead");
+  const [loading, setLoading] = h.useState(true);
+  const [err, setErr] = h.useState("");
+
+  h.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [cardArr, lvArr, msgArr] = await Promise.all([
+          sbGet(`kanban_cards?select=id,title,subtitle,obra,responsavel,dept_id,column_id,tags,details,description&id=eq.${cardId}&limit=1`),
+          sbGet(`levantamento_versoes?select=snapshot,created_at,resumo&card_id=eq.${cardId}&order=created_at.desc&limit=1`),
+          sbGet(`kanban_card_messages?select=*&card_id=eq.${cardId}&order=ts.desc&limit=50`).catch(() => []),
+        ]);
+        if (!alive) return;
+        if (!cardArr || cardArr.length === 0) {
+          setErr("Card original não encontrado");
+        } else {
+          setCard(cardArr[0]);
+        }
+        setSnapshot(lvArr && lvArr[0] ? lvArr[0].snapshot : null);
+        setMessages(msgArr || []);
+      } catch (e) {
+        if (alive) setErr(String(e.message || e));
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [cardId]);
+
+  const tabs = [
+    { id: "lead", label: "Lead" },
+    { id: "contato", label: "Contato" },
+    { id: "projeto", label: "Projeto" },
+    { id: "qualificacao", label: "Qualificação" },
+    { id: "pagamento", label: "Pagamento" },
+    { id: "levantamento", label: "Levantamento" },
+    { id: "mensagens", label: "Mensagens" },
+  ];
+
+  return c("div", {
+    onClick: onClose,
+    style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
+  }, c("div", {
+    onClick: (e) => e.stopPropagation(),
+    style: { background: "#0d0d0d", border: `1px solid ${BORDER}`, borderRadius: 12, width: "100%", maxWidth: 900, maxHeight: "90vh", display: "flex", flexDirection: "column" },
+  },
+    // Header
+    c("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: 18, borderBottom: `1px solid ${BORDER}` } },
+      c("div", { style: { flex: 1, minWidth: 0 } },
+        c("h2", { style: { color: TEXT, fontSize: "1rem", fontWeight: 700, margin: "0 0 4px" } }, card ? card.title : "Carregando..."),
+        c("div", { style: { display: "flex", gap: 10, fontSize: "0.62rem", color: DIM } },
+          card && card.obra && c("span", { style: { fontFamily: "monospace" } }, card.obra),
+          demanda && demanda.details && demanda.details.vendedor_nome && c("span", null, `👤 ${demanda.details.vendedor_nome}`),
+          demanda && demanda.prazo_horas && c("span", { style: { color: ACCENT } }, `⏱ ${demanda.prazo_unidade === "dias" ? Math.round(demanda.prazo_horas / 24) + "d" : demanda.prazo_horas + "h"}`),
+        ),
+      ),
+      c("button", { onClick: onClose, style: { background: "transparent", border: "none", color: DIM, fontSize: "1.4rem", cursor: "pointer", padding: 0, lineHeight: 1, marginLeft: 12 } }, "×"),
+    ),
+    // Tabs
+    c("div", { style: { display: "flex", gap: 2, padding: "8px 18px", borderBottom: `1px solid ${BORDER}`, overflowX: "auto" } },
+      ...tabs.map((t) => c("button", {
+        key: t.id, onClick: () => setTab(t.id),
+        style: {
+          padding: "6px 12px", fontSize: "0.65rem", fontWeight: 600,
+          background: tab === t.id ? `${ACCENT}20` : "transparent",
+          color: tab === t.id ? ACCENT : DIM,
+          border: tab === t.id ? `1px solid ${ACCENT}40` : "1px solid transparent",
+          borderRadius: 6, cursor: "pointer", whiteSpace: "nowrap",
+        },
+      }, t.label)),
+    ),
+    // Body
+    c("div", { style: { flex: 1, overflow: "auto", padding: 18 } },
+      loading && c("div", { style: { textAlign: "center", color: DIM, padding: 40 } }, "Carregando…"),
+      err && c("div", { style: { color: "#EF4444", padding: 20 } }, `Erro: ${err}`),
+      !loading && !err && card && tab !== "levantamento" && tab !== "mensagens" && c(FieldGrid, { details: card.details || {}, fields: TAB_FIELDS[tab] || [] }),
+      !loading && !err && tab === "levantamento" && c(LevantamentoTab, { snapshot }),
+      !loading && !err && tab === "mensagens" && c(MensagensTab, { messages }),
+    ),
+  ));
+}
+
+export { CardDetailModal as D };

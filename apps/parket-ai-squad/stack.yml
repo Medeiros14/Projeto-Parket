@@ -1,0 +1,357 @@
+version: "3.9"
+
+# ============================================================
+# PARKET AI SQUAD - Docker Swarm Stack
+# ============================================================
+# Domain:
+#   https://agente.parket.works  (/api/* → backend, /* → frontend)
+# Network:   network_public (external, already created)
+# ============================================================
+
+networks:
+  network_public:
+    external: true
+  parket_internal:
+    driver: overlay
+    attachable: true
+  # Rede do parket-api — necessária pro backend alcançar o parket-whisper_api
+  parket-api_internal:
+    external: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  opencode_auth:
+
+services:
+
+  # ---- PostgreSQL with pgvector ----
+  postgres:
+    image: pgvector/pgvector:pg16
+    networks:
+      - parket_internal
+    environment:
+      POSTGRES_DB: parket_ai
+      POSTGRES_USER: parket
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Mfcd62!!Mfcd62!!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parket -d parket_ai"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ---- Redis ----
+  redis:
+    image: redis:7-alpine
+    networks:
+      - parket_internal
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 192M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ---- OpenCode (LLM proxy + OAuth) ----
+  opencode:
+    image: ghcr.io/anomalyco/opencode:latest
+    command: serve --hostname 0.0.0.0 --port 4096
+    networks:
+      - parket_internal
+    environment:
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_PASSWORD:-parket-opencode-secret}
+      OPENCODE_SERVER_USERNAME: opencode
+      OPENCODE_DISABLE_AUTOUPDATE: "true"
+      OPENCODE_CONFIG_CONTENT: '{"autoupdate":false,"model":"anthropic/claude-sonnet-4-5"}'
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - opencode_auth:/root/.local/share/opencode
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://opencode:$${OPENCODE_SERVER_PASSWORD}@127.0.0.1:4096/global/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # ---- Supabase MCP Server (tools para agentes IA) ----
+  supabase-mcp:
+    image: parket-supabase-mcp:latest
+    networks:
+      - parket_internal
+    environment:
+      SUPABASE_URL: https://api.parket.works
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk0MjUyNywiZXhwIjoyMDg4NTE4NTI3fQ.fTovVTCBFcMrrhVCR6TsneALfMRLLLHZdMmSJH16L4A}
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ---- Backend (FastAPI) ----
+  backend:
+    image: parket-ai-backend:teca-v2-20260817
+    networks:
+      - network_public
+      - parket_internal
+      - parket-api_internal
+    environment:
+      # Nome COMPLETO do serviço: na rede parket-api_internal existe outro
+      # serviço com alias "postgres" (parket-pg-local) e o DNS curto resolvia
+      # pro banco errado → InvalidPasswordError no startup.
+      POSTGRES_HOST: ${POSTGRES_HOST:-parket-ai-squad_postgres}
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-parket_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-parket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Mfcd62!!Mfcd62!!}
+      REDIS_URL: redis://redis:6379/0
+      EVOLUTION_API_URL: https://conect.parket.works
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-4eab105201410d6865b86dca76ee9fa3}
+      EVOLUTION_INSTANCE: Parket
+      EVOLUTION_COMERCIAL_API_KEY: ${EVOLUTION_COMERCIAL_API_KEY:-66ECA369A7FD-4444-985A-A9AA24080241}
+      EVOLUTION_COMERCIAL_INSTANCE: Comercial - Parket
+      SECRET_KEY: ${SECRET_KEY:-changeme-very-long-secret}
+      SUPABASE_URL: https://api.parket.works
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk0MjUyNywiZXhwIjoyMDg4NTE4NTI3fQ.fTovVTCBFcMrrhVCR6TsneALfMRLLLHZdMmSJH16L4A}
+      OPENCODE_URL: http://opencode:4096
+      OPENCODE_PASSWORD: ${OPENCODE_PASSWORD:-parket-opencode-secret}
+      OPENCODE_USERNAME: opencode
+      BACKEND_CORS_ORIGINS: "https://agente.parket.works,https://space.parket.works,https://dash.parket.works"
+      API_URL: https://agente.parket.works
+      TI_WHATSAPP_GROUP_ID: ${TI_WHATSAPP_GROUP_ID:-120363405979905444@g.us}
+      TI_OWNER_PHONES: ${TI_OWNER_PHONES:-5511939213329,5511986750031,210814225088568}
+      PMO_WHATSAPP_GROUP_ID: ${PMO_WHATSAPP_GROUP_ID:-120363405460675664@g.us}
+      FINANCEIRO_WHATSAPP_GROUP_ID: ${FINANCEIRO_WHATSAPP_GROUP_ID:-120363407134075532@g.us}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-AIzaSyDRPfNlSRP2K18aQsTLm1lqjCKHB45SniI}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-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}
+      WHISPER_URL: http://parket-whisper_api:8080
+      MEDIA_MAX_SIZE_MB: ${MEDIA_MAX_SIZE_MB:-25}
+      # Meta Pixel + Conversions API (tracking de Lead + Qualified Lead)
+      META_PIXEL_ID: ${META_PIXEL_ID:-1264030965924694}
+      META_CAPI_TOKEN: ${META_CAPI_TOKEN:-EAAMGdAASAAQBRsKxfPcZBrTKHbZAgHwIZAS7Ea63HUvOBG8TjKeUGOEgEfqsjA0yleoQiKfpc9JxZAMzzwzihAWhxZC1D3Tm0GlfTd4ZCi2NIjrlIN0zaNTTG6JyZB4ebE3lPVExgb3ERnooIP1NYfYJbu27OWamoPyZCu9c9ENzQrxP5mKg9Bzyntmq1HsQPy3dKAZDZD}
+      META_TEST_EVENT_CODE: ${META_TEST_EVENT_CODE:-}
+      META_GRAPH_VER: ${META_GRAPH_VER:-v21.0}
+      # Google Ads Data Manager — HTTPS pull (Offline Conversion Import via gclid)
+      GADS_BASIC_USER: ${GADS_BASIC_USER:-gads-parket}
+      GADS_BASIC_PASS: ${GADS_BASIC_PASS:-aTe5xcuoSum0Uzx7C5IkhgnB89PyMJ}
+      GADS_CONV_ACTION_QUALIFIED: ${GADS_CONV_ACTION_QUALIFIED:-Lead Qualificado}
+      # Teca V2 global — V1 desativada, V2 atende TODOS os leads (não só whitelist)
+      TECA_V2_FORCE_ALL: "1"
+    volumes:
+      - opencode_auth:/opencode-auth
+      - /root/parket-ai-squad/data:/data
+      - /root/.claude:/root/.claude:ro
+    depends_on:
+      - redis
+      - opencode
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      resources:
+        limits:
+          memory: 4G
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # HTTP → HTTPS redirect (PathPrefix /api)
+        - "traefik.http.routers.parket-backend-http.rule=Host(`agente.parket.works`) && (PathPrefix(`/api`) || PathPrefix(`/proposta`))"
+        - "traefik.http.routers.parket-backend-http.entrypoints=web"
+        - "traefik.http.routers.parket-backend-http.middlewares=https-redirect"
+        - "traefik.http.routers.parket-backend-http.priority=1000"
+        # HTTPS — serve /api/* from FastAPI (higher priority than frontend)
+        - "traefik.http.routers.parket-backend.rule=Host(`agente.parket.works`) && (PathPrefix(`/api`) || PathPrefix(`/proposta`))"
+        - "traefik.http.routers.parket-backend.entrypoints=websecure"
+        - "traefik.http.routers.parket-backend.tls=true"
+        - "traefik.http.routers.parket-backend.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.parket-backend.priority=1000"
+        - "traefik.http.services.parket-backend.loadbalancer.server.port=8000"
+        # skills.parket.works → Parket Skills (servido pelo backend)
+        # proposta.parket.works/api/* → backend (tracking API, prioridade alta)
+        - "traefik.http.routers.proposta-api.rule=Host(`proposta.parket.works`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.proposta-api.entrypoints=websecure"
+        - "traefik.http.routers.proposta-api.tls=true"
+        - "traefik.http.routers.proposta-api.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.proposta-api.priority=2000"
+        - "traefik.http.routers.proposta-api.service=parket-backend"
+        - "traefik.http.routers.proposta-api-http.rule=Host(`proposta.parket.works`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.proposta-api-http.entrypoints=web"
+        - "traefik.http.routers.proposta-api-http.middlewares=https-redirect"
+        - "traefik.http.routers.proposta-api-http.priority=2000"
+        # Shared middlewares
+        - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
+
+  # ---- Frontend (Next.js Admin Panel) ----
+  frontend:
+    image: parket-ai-frontend:latest
+    networks:
+      - network_public
+      - parket_internal
+    environment:
+      NEXT_PUBLIC_API_URL: https://agente.parket.works
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      update_config:
+        parallelism: 1
+        order: start-first
+      resources:
+        limits:
+          memory: 512M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # HTTP → HTTPS redirect
+        - "traefik.http.routers.parket-frontend-http.rule=Host(`agente.parket.works`)"
+        - "traefik.http.routers.parket-frontend-http.entrypoints=web"
+        - "traefik.http.routers.parket-frontend-http.middlewares=https-redirect"
+        - "traefik.http.routers.parket-frontend-http.priority=50"
+        # HTTPS — serve all non-/api routes from Next.js (lower priority)
+        - "traefik.http.routers.parket-frontend.rule=Host(`agente.parket.works`)"
+        - "traefik.http.routers.parket-frontend.entrypoints=websecure"
+        - "traefik.http.routers.parket-frontend.tls=true"
+        - "traefik.http.routers.parket-frontend.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.parket-frontend.priority=50"
+        - "traefik.http.services.parket-frontend.loadbalancer.server.port=3000"
+
+  # ---- AgentOS Parket (Agno 2.7 vanilla + ClaudeOAuth) ----
+  # https://os.parket.works — UI oficial: os.agno.com apontando pra cá.
+  # Auth: OS_SECURITY_KEY (Bearer) em todas as rotas exceto /health e /info.
+  # Schema `agno` no postgres compartilhado (schema `eas` antigo = backup).
+  eas:
+    image: parket-ai-eas:latest
+    networks:
+      - network_public
+      - parket_internal
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-parket}:${POSTGRES_PASSWORD:-Mfcd62!!Mfcd62!!}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_DB:-parket_ai}
+      # Settings (env_prefix EAS_) lê db_password daqui — sem ela o boot cai
+      # com "fe_sendauth: no password supplied" (estava só no spec via
+      # --env-add e se perdia a cada stack deploy — persistido 14/07)
+      EAS_DB_PASSWORD: ${POSTGRES_PASSWORD:-Mfcd62!!Mfcd62!!}
+      # OS_SECURITY_KEY vem do .env-eas (deploy SEMPRE via deploy-eas.sh)
+      OS_SECURITY_KEY: ${OS_SECURITY_KEY}
+      MODEL_DEFAULT: claude-sonnet-4-6
+      SUPABASE_URL: https://api.parket.works
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk0MjUyNywiZXhwIjoyMDg4NTE4NTI3fQ.fTovVTCBFcMrrhVCR6TsneALfMRLLLHZdMmSJH16L4A}
+      # Settings do EAS usa env_prefix EAS_ (config.py) — sem esta var o
+      # log_atividade manda Bearer vazio e falha em toda chamada
+      EAS_SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk0MjUyNywiZXhwIjoyMDg4NTE4NTI3fQ.fTovVTCBFcMrrhVCR6TsneALfMRLLLHZdMmSJH16L4A}
+      # Workflow resumo-orcamentos: envio DM via Evolution (grupos = kill switch)
+      EVOLUTION_API_URL: https://conect.parket.works
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-4eab105201410d6865b86dca76ee9fa3}
+      # PROVISÓRIO (09/07): instância Parket desconectada — usando Comercial
+      # até re-QR; voltar pra "Parket" depois (pedido do Douglas)
+      EVOLUTION_INSTANCE: Comercial - Parket
+      EAS_DM_NUMBER: ${EAS_DM_NUMBER:-5511939213329}
+    depends_on:
+      - postgres
+    volumes:
+      # Docker socket pra agentes Infra/Dashboard chamarem `docker` commands no host
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # HTTP → HTTPS
+        - "traefik.http.routers.parket-os-http.rule=Host(`os.parket.works`)"
+        - "traefik.http.routers.parket-os-http.entrypoints=web"
+        - "traefik.http.routers.parket-os-http.middlewares=https-redirect"
+        # HTTPS API — paths do AgentOS (auth é do próprio AgentOS via Bearer).
+        # Raiz do host fica com a UI (router parket-os-ui, priority 50).
+        - "traefik.http.routers.parket-os.rule=Host(`os.parket.works`) && (PathPrefix(`/agents`) || PathPrefix(`/teams`) || PathPrefix(`/workflows`) || PathPrefix(`/runs`) || PathPrefix(`/sessions`) || PathPrefix(`/health`) || PathPrefix(`/info`) || PathPrefix(`/config`) || PathPrefix(`/docs`) || PathPrefix(`/openapi`) || PathPrefix(`/knowledge`) || PathPrefix(`/memory`) || PathPrefix(`/memories`) || PathPrefix(`/memory_topics`) || PathPrefix(`/user_memory_stats`) || PathPrefix(`/optimize-memories`) || PathPrefix(`/learnings`) || PathPrefix(`/schedules`) || PathPrefix(`/components`) || PathPrefix(`/eval-runs`) || PathPrefix(`/traces`) || PathPrefix(`/trace_session_stats`) || PathPrefix(`/databases`) || PathPrefix(`/registry`) || PathPrefix(`/metrics`) || PathPrefix(`/tools`) || PathPrefix(`/toolkits`) || PathPrefix(`/models`) || PathPrefix(`/evals`) || PathPrefix(`/mcp`))"
+        - "traefik.http.routers.parket-os.entrypoints=websecure"
+        - "traefik.http.routers.parket-os.tls=true"
+        - "traefik.http.routers.parket-os.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.parket-os.priority=300"
+        - "traefik.http.services.parket-os.loadbalancer.server.port=8000"
+
+  # ---- Agent UI oficial (github.com/agno-agi/agent-ui, Next.js) ----
+  # Raiz de os.parket.works. Basic auth Traefik na frente porque o
+  # OS_SECURITY_KEY vai embutido no bundle (NEXT_PUBLIC_OS_SECURITY_KEY).
+  eas_ui:
+    image: parket-eas-ui:v2
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      resources:
+        limits:
+          memory: 512M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        - "traefik.http.routers.parket-os-ui.rule=Host(`os.parket.works`)"
+        - "traefik.http.routers.parket-os-ui.entrypoints=websecure"
+        - "traefik.http.routers.parket-os-ui.tls=true"
+        - "traefik.http.routers.parket-os-ui.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.parket-os-ui.priority=50"
+        - "traefik.http.routers.parket-os-ui.middlewares=parket-os-ui-auth"
+        - "traefik.http.middlewares.parket-os-ui-auth.basicauth.users=${EAS_BASIC_AUTH_HTPASSWD}"
+        - "traefik.http.services.parket-os-ui.loadbalancer.server.port=3000"

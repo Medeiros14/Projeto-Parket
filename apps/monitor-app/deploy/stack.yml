@@ -1,0 +1,49 @@
+# =====================================================================
+# Stack parket-monitor (monitor.parket.works)
+# Deploy: docker stack deploy -c /root/monitor-app/deploy/stack.yml parket-monitor
+# Redes: network_public (Traefik) + parket-api_internal (PG local, alias postgres)
+# =====================================================================
+version: "3.8"
+
+services:
+  monitor:
+    image: parket-monitor:latest
+    networks:
+      - network_public
+      - parket-api_internal
+    environment:
+      - MONITOR_PG_HOST=postgres
+      - MONITOR_PG_PORT=5432
+      - MONITOR_PG_DB=postgres
+      - MONITOR_PG_USER=postgres
+      - MONITOR_PG_PASSWORD_FILE=/run/secrets/parket_pg_local_password
+      # Rodada de checagem a cada 10 minutos (600000 ms)
+      - MONITOR_INTERVALO_MS=600000
+    secrets:
+      - parket_pg_local_password
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        - traefik.http.routers.parket-monitor.rule=Host(`monitor.parket.works`)
+        - traefik.http.routers.parket-monitor.entrypoints=websecure
+        - traefik.http.routers.parket-monitor.tls=true
+        - traefik.http.routers.parket-monitor.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.parket-monitor-http.rule=Host(`monitor.parket.works`)
+        - traefik.http.routers.parket-monitor-http.entrypoints=web
+        - traefik.http.routers.parket-monitor-http.middlewares=https-redirect
+        - traefik.http.services.parket-monitor.loadbalancer.server.port=3000
+
+networks:
+  network_public:
+    external: true
+  parket-api_internal:
+    external: true
+
+secrets:
+  parket_pg_local_password:
+    external: true

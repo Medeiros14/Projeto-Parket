@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PARKET — Proposta Comercial</title>
+<meta name="description" content="Proposta comercial Parket — madeira natural de alto padrão." />
+<meta name="robots" content="noindex" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/b/styles.css?v=1">
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content="PARKET — Proposta" />
+<meta property="og:description" content="Parket — madeira natural de alto padrão." />
+<meta property="og:locale" content="pt_BR" />
+</head>
+<body>
+
+<!-- ─── Página 1 — Intro com vídeo Parket ─── -->
+<section class="page page--intro is-active" data-page="intro">
+  <video class="intro-video" id="introVideo" muted playsinline webkit-playsinline preload="auto" autoplay>
+    <source src="/assets/Heromobile-v3.mp4" type="video/mp4">
+  </video>
+  <div class="intro-overlay"></div>
+  <div class="intro-brand">
+    <span class="wordmark wordmark--cream" aria-label="PARKET">PARKET</span>
+    <span class="intro-tagline">Madeira natural de alto padrão</span>
+  </div>
+  <button type="button" class="intro-skip" id="skipIntro" aria-label="Pular abertura">Pular →</button>
+</section>
+
+<!-- ─── Página 2 — Capa / dados do cliente ─── -->
+<section class="page page--cover" data-page="cover">
+  <header class="page-header">
+    <span class="wordmark wordmark--ink">PARKET</span>
+    <span class="page-num">Proposta · <span data-out="propostaNum">—</span></span>
+  </header>
+
+  <div class="cover-grid">
+    <div class="cover-text">
+      <p class="eyebrow">Proposta comercial</p>
+      <h1 class="cover-title" data-out="cliente">—</h1>
+      <dl class="cover-meta">
+        <div><dt>Obra</dt><dd data-out="endereco">—</dd></div>
+        <div><dt>Data</dt><dd data-out="dataEmissao">—</dd></div>
+        <div><dt>Validade</dt><dd data-out="validade">—</dd></div>
+        <div><dt>Consultor</dt><dd data-out="consultor">—</dd></div>
+      </dl>
+    </div>
+    <div class="cover-aside">
+      <p class="cover-quote">Do projeto<br/><em>à instalação.</em></p>
+      <span class="cover-quote-trans">Madeira natural selecionada, marcenaria própria e instalação com gestão de obra Parket.</span>
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <button type="button" class="btn-link-ink" data-go="intro">← Voltar</button>
+    <button type="button" class="btn-ghost-ink" data-go="aplicacoes">Ver proposta →</button>
+  </footer>
+</section>
+
+<!-- ─── Página 3 — Aplicações ─── -->
+<section class="page page--itens" data-page="aplicacoes">
+  <header class="page-header">
+    <span class="wordmark wordmark--ink">PARKET</span>
+    <span class="page-num">Proposta · <span data-out="propostaNum2">—</span></span>
+  </header>
+
+  <div class="prop-intro">
+    <p class="eyebrow">01 · Aplicações</p>
+    <h2 class="prop-title">Piso, deck e forro em <em>madeira natural</em>.</h2>
+    <p class="prop-lead">Superfícies em madeira de verdade, selecionadas lâmina a lâmina. Os valores por ambiente incluem material, insumos e instalação com gestão de obra.</p>
+  </div>
+
+  <div class="prop-itens" id="itensAplicacoes"></div>
+
+  <div class="grupo-sub">
+    <span class="grupo-sub-label">Subtotal · Aplicações</span>
+    <span class="grupo-sub-value"><span class="prop-currency">R$</span> <span data-out="subAplicacoes">0,00</span></span>
+  </div>
+
+  <footer class="page-footer">
+    <button type="button" class="btn-link-ink" data-go="cover">← Voltar à capa</button>
+    <button type="button" class="btn-ghost-ink" data-go="marcenaria">Marcenaria fina →</button>
+  </footer>
+</section>
+
+<!-- ─── Página 4 — Marcenaria Fina ─── -->
+<section class="page page--itens" data-page="marcenaria">
+  <header class="page-header">
+    <span class="wordmark wordmark--ink">PARKET</span>
+    <span class="page-num">Proposta · <span data-out="propostaNum3">—</span></span>
+  </header>
+
+  <div class="prop-intro">
+    <p class="eyebrow">02 · Marcenaria fina</p>
+    <h2 class="prop-title">Painéis, portas e marcenaria <em>sob medida</em>.</h2>
+    <p class="prop-lead">Peças executadas na marcenaria própria da Parket — painéis, portas, escadas, saunas e mobiliário fixo, com acabamento de fábrica e montagem inclusa.</p>
+  </div>
+
+  <div class="prop-itens" id="itensMarcenaria"></div>
+
+  <div class="grupo-sub">
+    <span class="grupo-sub-label">Subtotal · Marcenaria fina</span>
+    <span class="grupo-sub-value"><span class="prop-currency">R$</span> <span data-out="subMarcenaria">0,00</span></span>
+  </div>
+
+  <footer class="page-footer">
+    <button type="button" class="btn-link-ink" data-go="aplicacoes">← Aplicações</button>
+    <button type="button" class="btn-ghost-ink" data-go="resumo">Resumo financeiro →</button>
+  </footer>
+</section>
+
+<!-- ─── Página 5 — Resumo financeiro ─── -->
+<section class="page page--itens" data-page="resumo">
+  <header class="page-header">
+    <span class="wordmark wordmark--ink">PARKET</span>
+    <span class="page-num">Proposta · <span data-out="propostaNum4">—</span></span>
+  </header>
+
+  <div class="prop-intro">
+    <p class="eyebrow">03 · Resumo financeiro</p>
+    <h2 class="prop-title">O investimento do <em>seu projeto</em>.</h2>
+  </div>
+
+  <div class="resumo-linhas">
+    <div class="resumo-row"><span class="resumo-label">Aplicações <span class="resumo-sub" data-out="catsAplicacoes"></span></span><span class="resumo-value"><span class="prop-currency">R$</span> <span data-out="subAplicacoes2">0,00</span></span></div>
+    <div class="resumo-row"><span class="resumo-label">Marcenaria fina <span class="resumo-sub" data-out="catsMarcenaria"></span></span><span class="resumo-value"><span class="prop-currency">R$</span> <span data-out="subMarcenaria2">0,00</span></span></div>
+    <div class="resumo-row" id="rowFrete" hidden><span class="resumo-label">Logística</span><span class="resumo-value"><span class="prop-currency">R$</span> <span data-out="freteFmt">0,00</span></span></div>
+    <div class="resumo-row resumo-row--desc" id="rowDesconto" hidden><span class="resumo-label">Desconto</span><span class="resumo-value">&minus;&nbsp;<span class="prop-currency">R$</span> <span data-out="descontoFmt">0,00</span></span></div>
+  </div>
+
+  <div class="prop-total">
+    <span class="prop-total-label">Investimento total</span>
+    <span class="prop-total-value"><span class="prop-currency">R$</span> <span data-out="totalFmt">0,00</span></span>
+  </div>
+
+  <section class="prop-bloco">
+    <h3 class="prop-h3">Condições comerciais</h3>
+    <dl class="prop-cond">
+      <div><dt>Pagamento</dt><dd data-out="pagamento">—</dd></div>
+      <div><dt>Prazo de entrega</dt><dd data-out="prazoEntrega">—</dd></div>
+      <div><dt>Validade da proposta</dt><dd data-out="validade2">—</dd></div>
+      <div><dt>Garantia</dt><dd data-out="garantia">—</dd></div>
+    </dl>
+  </section>
+
+  <section class="prop-bloco">
+    <h3 class="prop-h3">O padrão Parket</h3>
+    <ul class="prop-list">
+      <li>Madeira natural selecionada, com controle de umidade e lote.</li>
+      <li>Marcenaria própria — painéis, portas e mobiliário com acabamento de fábrica.</li>
+      <li>Instalação com equipe própria e gestão de obra dedicada.</li>
+      <li>Acompanhamento pós-obra e assistência técnica Parket.</li>
+    </ul>
+  </section>
+
+  <footer class="page-footer">
+    <button type="button" class="btn-link-ink" data-go="marcenaria">← Marcenaria fina</button>
+    <button type="button" class="btn-ink" data-go="fechamento">Aceitar e seguir →</button>
+  </footer>
+</section>
+
+<!-- ─── Página 6 — Fechamento ─── -->
+<section class="page page--close" data-page="fechamento">
+  <header class="page-header page-header--dark">
+    <span class="wordmark wordmark--cream">PARKET</span>
+    <span class="page-num page-num--cream">Confirmação</span>
+  </header>
+
+  <div class="close-grid">
+    <div class="close-left">
+      <p class="eyebrow eyebrow--cream">Fechamento</p>
+      <h2 class="close-title">Bem-vindo ao padrão <em>Parket</em>.</h2>
+      <p class="close-lead">Confirme os dados abaixo para emissão do contrato, reserva de produção e agendamento da medição técnica.</p>
+    </div>
+
+    <form class="close-form" id="closeForm" novalidate>
+      <div class="close-field">
+        <label for="f-doc">CPF ou CNPJ</label>
+        <input type="text" id="f-doc" name="documento" required />
+      </div>
+      <div class="close-field">
+        <label for="f-rsocial">Razão social / Nome</label>
+        <input type="text" id="f-rsocial" name="razaoSocial" required />
+      </div>
+      <div class="close-row">
+        <div class="close-field">
+          <label for="f-email">E-mail</label>
+          <input type="email" id="f-email" name="email" required />
+        </div>
+        <div class="close-field">
+          <label for="f-tel">Telefone</label>
+          <input type="tel" id="f-tel" name="telefone" placeholder="(11) 99999-0000" required />
+        </div>
+      </div>
+      <div class="close-field">
+        <label for="f-endereco">Endereço da obra</label>
+        <input type="text" id="f-endereco" name="endereco" required />
+      </div>
+      <div class="close-field">
+        <label for="f-obs">Observações</label>
+        <textarea id="f-obs" name="observacoes" rows="3"></textarea>
+      </div>
+
+      <label class="close-aceite">
+        <input type="checkbox" id="f-aceite" required />
+        <span>Aceito as condições comerciais descritas e autorizo o início do processo.</span>
+      </label>
+
+      <div class="close-actions">
+        <button type="button" class="btn-link-cream" data-go="resumo">← Voltar</button>
+        <button type="submit" class="btn-cream" id="submitClose" disabled>Confirmar e fechar →</button>
+      </div>
+      <span class="close-msg" id="closeMsg"></span>
+    </form>
+  </div>
+</section>
+
+<!-- ─── Página 7 — Sucesso ─── -->
+<section class="page page--success" data-page="success">
+  <div class="success-inner">
+    <div class="success-mark">✓</div>
+    <span class="wordmark wordmark--ink">PARKET</span>
+    <h2 class="success-title">Recebemos sua confirmação.</h2>
+    <p class="success-lead">Nossa equipe entra em contato para agendar a medição técnica e alinhar os próximos passos do seu projeto.</p>
+    <span class="success-sub">Proposta · <span data-out="propostaNum5">—</span></span>
+  </div>
+</section>
+
+<script src="/b/script.js?v=1"></script>
+</body>
+</html>

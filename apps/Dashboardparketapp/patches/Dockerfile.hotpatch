@@ -1,0 +1,31 @@
+FROM parket-dashboard:golden-flat
+
+# ─── JS chunks com versões mais novas que a golden-flat ──────────────
+# Hotpatch null guards (m0, Yd, t.message[messageType])
+COPY dept-layout-BtZpIBbo.js /usr/share/nginx/html/assets/dept-layout-BtZpIBbo.js
+COPY dept-layout-v2-BtZpIBbo.js /usr/share/nginx/html/assets/dept-layout-v2-BtZpIBbo.js
+# Setores (versões da golden-flat são antigas; perdem features)
+COPY dept-rh-BxeG220i.js /usr/share/nginx/html/assets/dept-rh-BxeG220i.js
+COPY dept-atendimento-BCyjzWV1.js /usr/share/nginx/html/assets/dept-atendimento-BCyjzWV1.js
+COPY dept-comercial-B9ogqMP2.js /usr/share/nginx/html/assets/dept-comercial-B9ogqMP2.js
+COPY dept-obras-Cis-W8dN.js /usr/share/nginx/html/assets/dept-obras-Cis-W8dN.js
+COPY dept-operacional-XYZ12.js /usr/share/nginx/html/assets/dept-operacional-XYZ12.js
+# Pages
+COPY admin-users-page-C0QHjHwm.js /usr/share/nginx/html/assets/admin-users-page-C0QHjHwm.js
+COPY central-do-cliente-page-Rz6HSqEn.js /usr/share/nginx/html/assets/central-do-cliente-page-Rz6HSqEn.js
+COPY projeto-detalhe-page-CYOQ_vsp.js /usr/share/nginx/html/assets/projeto-detalhe-page-CYOQ_vsp.js
+COPY solicitar-compras-page-BNfXQCSS.js /usr/share/nginx/html/assets/solicitar-compras-page-BNfXQCSS.js
+# Tabs / utils
+COPY orcamento-simulador-tab-BBO23cjn.js /usr/share/nginx/html/assets/orcamento-simulador-tab-BBO23cjn.js
+COPY propostaGenerator-RP6vD_Gq.js /usr/share/nginx/html/assets/propostaGenerator-RP6vD_Gq.js
+COPY laudos-vistorias-tab-v1.js /usr/share/nginx/html/assets/laudos-vistorias-tab-v1.js
+COPY cronograma-pdf-Bt0_UEJO.js /usr/share/nginx/html/assets/cronograma-pdf-Bt0_UEJO.js
+COPY cronograma-pdf-NEW2026.js /usr/share/nginx/html/assets/cronograma-pdf-NEW2026.js
+
+# ─── HTML / estáticos ────────────────────────────────────────────────
+COPY index.html /usr/share/nginx/html/index.html
+COPY rh-epi.html /usr/share/nginx/html/rh-epi.html
+COPY rh-assinar.html /usr/share/nginx/html/rh-assinar.html
+COPY previsao-obras.html /usr/share/nginx/html/previsao-obras.html
+COPY proposta-cover.png /usr/share/nginx/html/proposta-cover.png
+COPY Heromobile-v3.mp4 /usr/share/nginx/html/assets/Heromobile-v3.mp4

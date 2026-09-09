@@ -1,0 +1,30 @@
+version: "3.9"
+services:
+  realtime-local:
+    image: supabase/realtime:v2.30.34
+    networks: [internal]
+    environment:
+      PORT: "4000"
+      DB_HOST: parket-pg-local_postgres
+      DB_PORT: "5432"
+      DB_USER: supabase_admin
+      DB_PASSWORD: c0177774ec62b4afdd2bdd1256d19828aee7784b3a6ab03d
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: supabaserealtime
+      API_JWT_SECRET: fRRTxcyFdBnWe1B65tFFn+k40+1Rrl6z4s/CcsUofAOM+MKPZIrK/B05c3rIsAcgevnVsLGX+jTf1LhZDdzsBw==
+      APP_NAME: realtime
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
+      SECRET_KEY_BASE: UpNVNtouK3WLT7eDpKuKpzL9YV0EAZdTL7HEoQqXkxRyORN1xQ6jL5wO6YjVxlD1
+      ERL_AFLAGS: "-proto_dist inet_tcp"
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.role == manager"]
+networks:
+  internal:
+    external: true
+    name: parket-api_internal

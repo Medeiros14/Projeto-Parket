@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  web:
+    image: parket-center-web:latest
+    networks:
+      - network_public
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+      mode: replicated
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        - traefik.http.routers.parket-center-http.rule=Host(`center.parket.works`)
+        - traefik.http.routers.parket-center-http.entrypoints=web
+        - traefik.http.routers.parket-center-http.middlewares=https-redirect
+        - traefik.http.routers.parket-center.rule=Host(`center.parket.works`)
+        - traefik.http.routers.parket-center.entrypoints=websecure
+        - traefik.http.routers.parket-center.tls=true
+        - traefik.http.routers.parket-center.tls.certresolver=letsencryptresolver
+        - traefik.http.services.parket-center.loadbalancer.server.port=80
+
+networks:
+  network_public:
+    external: true

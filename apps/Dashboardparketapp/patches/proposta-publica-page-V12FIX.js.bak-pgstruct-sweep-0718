@@ -1,0 +1,1155 @@
+import{c as _,r as c,s as f,j as s}from"./index-DZtetJYP.js";import{g as L}from"./propostaGenerator-PGSTRUCT30.js";
+;(function(){
+  if(typeof window==="undefined") return;
+  if(window.__pktTryAprovacao) return;
+  const SB="https://hbxpilrxmitvzebluoom.supabase.co",API="https://core.parket.works";
+  function getUserEmail(){
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i), raw=k&&localStorage.getItem(k);
+        if(!raw||(raw[0]!=="{"&&raw[0]!=="[")) continue;
+        let p; try{p=JSON.parse(raw);}catch{continue;}
+        const e=(p&&(p.user&&p.user.email))||(p&&p.currentSession&&p.currentSession.user&&p.currentSession.user.email)||null;
+        if(e) return e.toLowerCase();
+      }
+    }catch{}
+    return null;
+  }
+  async function isAprovador(email){
+    if(!email) return null;
+    if(email==="douglas@parket.com.br") return {nome:"Douglas",role:"superadmin"};
+    try{
+      const r=await fetch(`${SB}/rest/v1/user_profiles?select=email,role,full_name&email=eq.${encodeURIComponent(email)}&limit=1`,{
+        headers:{apikey:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0"}
+      });
+      const a=await r.json();
+      const u=a&&a[0];
+      if(!u) return null;
+      if(["admin","superadmin","dept_leader"].indexOf(u.role)>=0) return {nome:u.full_name||email,role:u.role};
+    }catch{}
+    return null;
+  }
+  function showOverlay(simId,user){
+    if(document.getElementById("pkt-aprov-overlay")) return;
+    const wrap=document.createElement("div"); wrap.id="pkt-aprov-overlay";
+    Object.assign(wrap.style,{position:"fixed",bottom:"20px",right:"20px",zIndex:9999,background:"#0A0A0A",border:"2px solid #D4A853",borderRadius:"12px",padding:"14px 16px",boxShadow:"0 12px 32px rgba(0,0,0,.6)",fontFamily:"system-ui,sans-serif",color:"#fff",minWidth:"280px",maxWidth:"360px"});
+    wrap.innerHTML=
+      '<div style="font-size:10px;color:#D4A853;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">MODO APROVAÇÃO INTERNA</div>'+
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);margin-bottom:12px">Logado como <b style="color:#fff">'+(user.nome||"")+'</b>. Esta visita NÃO conta no tracking. Use os botões abaixo pra validar ou devolver pro orçamentista.</div>'+
+      '<div style="display:flex;gap:8px"><button id="pkt-rej" style="flex:1;padding:10px 12px;border-radius:8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#EF4444;cursor:pointer;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase">Reprovar</button>'+
+      '<button id="pkt-apr" style="flex:1;padding:10px 12px;border-radius:8px;background:rgba(16,185,129,.18);border:1px solid rgba(16,185,129,.45);color:#10B981;cursor:pointer;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase">Aprovar</button></div>';
+    document.body.appendChild(wrap);
+    async function call(decisao,motivo){
+      const body={email:user.email,nome:user.nome};
+      if(decisao==="rejeitar") body.motivo=motivo;
+      const r=await fetch(`${API}/api/orcamento/aprovacao/por-simulacao/${simId}/${decisao}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const j=await r.json().catch(()=>({detail:"erro"}));
+      if(!r.ok){ alert("Falha: "+(j.detail||r.status)); return; }
+      wrap.innerHTML='<div style="font-size:12px;color:#10B981;font-weight:700;text-align:center">✓ Decisão registrada. Card movido e grupo notificado.</div>';
+      setTimeout(()=>{ wrap.remove(); },4000);
+    }
+    document.getElementById("pkt-apr").onclick=()=>{
+      if(confirm("Aprovar esta proposta? Card sobe pra Proposta Pronta e Comercial é avisado.")) call("aprovar");
+    };
+    document.getElementById("pkt-rej").onclick=()=>{
+      const m=prompt("Motivo da rejeição (obrigatório):");
+      if(m&&m.trim()) call("rejeitar",m.trim());
+    };
+  }
+  window.__pktTryAprovacao=function(simId){
+    const email=getUserEmail();
+    if(!email) return false;
+    isAprovador(email).then(u=>{
+      if(!u) return;
+      u.email=email;
+      showOverlay(simId,u);
+    });
+    return true; // pula tracking quando há user logado
+  };
+})();
+function i(e){return(e??"").toString().replace(/[<>&"]/g,n=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"})[n])}function z(e){try{return new Date(e).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"})}catch{return e}}function A(e){const n=e.match(/<table[^>]*class="ptable"[^>]*>[\s\S]*?<\/table>/);return n?n[0]:'<div style="padding:40px;text-align:center;color:#666">Itens não disponíveis</div>'}const P=e=>`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2, user-scalable=yes">
+<title>Proposta ${i(e.numero)} — Parket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'DM Sans', sans-serif; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    color: #1a1a1a;
+    font-family: 'DM Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* ── Carousel horizontal com snap ── */
+  .carousel {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .carousel::-webkit-scrollbar { display: none; }
+  .slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ─────────────────────────────────────────────────── */
+  /* SLIDE 1 — Intro: logo 2s → vídeo                    */
+  /* ─────────────────────────────────────────────────── */
+  .slide-intro {
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .intro-logo {
+    position: relative;
+    color: #eee;
+    font-weight: 300;
+    font-size: clamp(40px, 12vw, 88px);
+    letter-spacing: 4px;
+    z-index: 2;
+    opacity: 1;
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .intro-logo.faded { opacity: 0; transform: scale(1.05); }
+  .intro-video {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+    opacity: 0;
+    z-index: 1;
+    transition: opacity 0.8s ease-in;
+  }
+  .intro-video.ready { opacity: 1; }
+  /* Desktop: vídeo horizontal (HeroNew do site) cobre a tela inteira */
+  @media (min-width: 769px) {
+    .intro-video { object-fit: cover; }
+  }
+  /* Mobile: mantém contain pra não estourar o vídeo vertical */
+  @media (max-width: 768px) {
+    .intro-video { object-fit: contain; }
+  }
+  .intro-arrow {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: clamp(28px, 8vw, 44px);
+    z-index: 3;
+    opacity: 0;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+    pointer-events: none;
+    transition: opacity 0.8s ease-in;
+  }
+  .intro-arrow.show {
+    opacity: 0.85;
+    animation: introArrowPulse 1.5s ease-in-out infinite;
+  }
+
+  /* ── Hint setinhas pras outras páginas (mobile, indicam swipe lateral) ── */
+  .swipe-hint-right {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: clamp(28px, 8vw, 44px);
+    z-index: 30;
+    pointer-events: none;
+    animation: introArrowPulse 1.5s ease-in-out infinite;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+    font-weight: 300;
+  }
+  /* na página do orçamento (fundo claro), pinta a seta de preto + chip destacado.
+     position:fixed pra ficar SEMPRE visível mesmo enquanto o user rola verticalmente. */
+  .slide-budget .swipe-hint-right {
+    color: #000 !important;
+    text-shadow: none;
+    background: #fff;
+    border-radius: 999px;
+    width: clamp(48px, 11vw, 60px);
+    height: clamp(48px, 11vw, 60px);
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(22px, 6vw, 28px) !important;
+    font-weight: 700;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.30);
+    right: 16px;
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: budgetArrowAttention 1.2s ease-in-out infinite !important;
+    z-index: 50;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  /* Só aparece quando o user está NA pg do orçamento E rolou até o final
+     (assim indica claramente que o próximo passo é ir pro botão "Assinar"). */
+  body.on-budget.at-bottom .slide-budget .swipe-hint-right {
+    display: flex !important;
+    opacity: 1 !important;
+  }
+  /* Pulso de atenção: pulinho lateral + scale leve */
+  @keyframes budgetArrowAttention {
+    0%, 100% { transform: translateY(-50%) translateX(0) scale(1); box-shadow: 0 4px 20px rgba(0,0,0,0.30); }
+    50%      { transform: translateY(-50%) translateX(10px) scale(1.08); box-shadow: 0 6px 28px rgba(184,170,154,0.55); }
+  }
+  /* hint pra baixo (rolar) — chip branco fixo no rodapé, só visível na pg do orçamento e quando NÃO chegou no fim */
+  .swipe-hint-down {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #000;
+    font-size: clamp(20px, 5vw, 28px);
+    z-index: 40;
+    pointer-events: none;
+    animation: hintDownPulse 1.4s ease-in-out infinite;
+    background: #fff;
+    border-radius: 50%;
+    width: clamp(44px, 11vw, 56px);
+    height: clamp(44px, 11vw, 56px);
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    font-weight: 700;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  /* Só mostra a seta pra baixo quando user está no orçamento E ainda tem espaço pra rolar */
+  body.on-budget .swipe-hint-down { display: flex; }
+  body.on-budget:not(.at-bottom) .swipe-hint-down { opacity: 1; }
+
+  /* Seta lateral no orçamento: SEMPRE visível (controlada pelas regras acima). */
+  /* No fim da rolagem vertical, esconde só a seta pra baixo */
+  body.on-budget.at-bottom .swipe-hint-down { opacity: 0 !important; }
+  @keyframes hintDownPulse {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(10px); }
+  }
+  /* Em desktop esconde o hint pra baixo (user usa mouse pra scroll), MAS mantém a seta
+     direita no orçamento porque é o indicador de que tem mais uma página (CTA). */
+  @media (min-width: 900px) {
+    .swipe-hint-down { display: none !important; }
+    /* setas laterais nas demais páginas continuam escondidas em desktop */
+    .slide-intro .swipe-hint-right,
+    .slide-info  .swipe-hint-right { display: none !important; }
+  }
+  @keyframes introLogoOut {
+    to { opacity: 0; transform: scale(1.05); }
+  }
+  @keyframes introVideoIn { to { opacity: 1; } }
+  @keyframes introArrowIn { to { opacity: 0.85; } }
+  @keyframes introArrowPulse {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-50%) translateX(10px); }
+  }
+
+  /* ─────────────────────────────────────────────────── */
+  /* SLIDE 2 — Info do cliente — fixa, sem scroll        */
+  /* ─────────────────────────────────────────────────── */
+  .slide-info {
+    background: #000;
+    color: #e9e9e9;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 8vh 8vw;
+    gap: clamp(20px, 4vh, 40px);
+    overflow: hidden;
+  }
+  .info-logo {
+    position: static;
+    font-weight: 300;
+    font-size: clamp(32px, 8vw, 56px);
+    letter-spacing: 2px;
+    line-height: 1;
+    color: #e9e9e9;
+    margin: 0;
+  }
+  .info-block {
+    position: static;
+    width: 100%;
+    max-width: 600px;
+    font-weight: 300;
+    font-size: clamp(11px, 2vw, 15px);
+    line-height: 1.7;
+    color: #e9e9e9;
+  }
+  .info-block .info-line {
+    margin: 0;
+    white-space: normal;
+    word-wrap: break-word;
+  }
+  .info-block .info-gap { height: clamp(6px, 1.4vh, 14px); }
+  /* Em telas baixas, reduz mais pra caber */
+  @media (max-height: 700px) {
+    .info-logo { font-size: clamp(28px, 6vw, 44px); }
+    .info-block { font-size: clamp(10px, 1.8vw, 13px); line-height:1.65; }
+    .info-block .info-gap { height: 6px; }
+    .slide-info { gap: 14px; padding: 4vh 8vw; }
+  }
+
+  /* ─────────────────────────────────────────────────── */
+  /* SLIDE 3 — Orçamento (tabela com scroll vertical)   */
+  /* ─────────────────────────────────────────────────── */
+  .slide-budget {
+    background: #ededed;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 12px 140px;
+    height: 100%;
+  }
+  .budget-inner {
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  /* Reset CSS herdada do propostaGenerator (que usa pt fixo) */
+  .slide-budget .ptable {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    font-family: 'DM Sans', Arial, Helvetica, sans-serif !important;
+    color: #1a1a1a !important;
+    background: transparent !important;
+  }
+  .slide-budget .ptable td,
+  .slide-budget .ptable th {
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+    padding: 9px 8px !important;
+    vertical-align: top !important;
+    line-height: 1.6 !important;
+    hyphens: none !important;
+    -webkit-hyphens: none !important;
+  }
+  .slide-budget .ptable thead td.t-cliente,
+  .slide-budget .ptable thead td.t-label {
+    border: none !important;
+    padding: 10px 6px !important;
+    background: transparent !important;
+    font-size: clamp(13px, 2.6vw, 15px) !important;
+    color: #1a1a1a !important;
+    font-weight: 500 !important;
+  }
+  .slide-budget .ptable thead td.t-cliente { text-align: right !important; }
+  .slide-budget .ptable thead td.t-label { text-align: left !important; }
+  .slide-budget .hdr-itens,
+  .slide-budget .hdr-desc,
+  .slide-budget .hdr-valor {
+    background: #000 !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-size: clamp(12px, 2.1vw, 14px) !important;
+    padding: 10px 8px !important;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .slide-budget .ptable tbody td {
+    border-bottom: 2px solid #fff !important;
+    border-right: 2px solid #fff !important;
+    font-size: clamp(11px, 1.9vw, 13.5px) !important;
+    padding: 9px 8px !important;
+  }
+  .slide-budget .ptable tbody td:last-child { border-right: none !important; }
+  /* Larguras de coluna pra desktop+tablet: itens (c1) e valor (c3) estreitos,
+     descritivo (c2) bem largo pra texto não cortar. */
+  .slide-budget .ptable col.c1 { width: 18% !important; }
+  .slide-budget .ptable col.c2 { width: 55% !important; }
+  .slide-budget .ptable col.c3 { width: 27% !important; }
+  /* CONDIÇÕES: centralizado vertical e horizontal — todas as telas (desktop + mobile) */
+  .slide-budget .ptable .cond-c,
+  .slide-budget .ptable td.cond-c {
+    text-align: center !important;
+    vertical-align: middle !important;
+    font-weight: 700 !important;
+  }
+  /* CONDIÇÕES: cada item em linha própria com espaço (reset global zerava o p) */
+  .slide-budget .ptable .cond-l {
+    text-align: left !important;
+    vertical-align: top !important;
+    line-height:1.65 !important;
+  }
+  .slide-budget .ptable .cond-l p {
+    margin: 0 0 7px !important;
+    text-align: left !important;
+    display: block !important;
+  }
+  .slide-budget .ptable .cond-l p:last-child { margin-bottom: 0 !important; }
+  .slide-budget .item-c, .slide-budget .cat-c, .slide-budget .sub-c,
+  .slide-budget .total-c, .slide-budget .disc-c, .slide-budget .ftotal-c,
+  .slide-budget .log-c {
+    text-align: center !important;
+  }
+  .slide-budget .item-v, .slide-budget .cat-v, .slide-budget .sub-v,
+  .slide-budget .total-v, .slide-budget .disc-v, .slide-budget .ftotal-v {
+    text-align: right !important;
+    white-space: nowrap !important;
+  }
+  .slide-budget .cat-c, .slide-budget .cat-l, .slide-budget .cat-v {
+    font-weight: 700 !important;
+    background: #f5f5f5 !important;
+  }
+  .slide-budget .ftotal-l, .slide-budget .ftotal-v, .slide-budget .ftotal-c {
+    font-weight: 800 !important;
+    border-top: 1px solid #000 !important;
+    border-bottom: 0.5px solid #000 !important;
+    background: #f5f5f5 !important;
+  }
+  .slide-budget .desc-title {
+    font-weight: 600 !important;
+    font-size: 1em !important;
+    margin: 0 0 2px 0 !important;
+    line-height: 1.3 !important;
+  }
+  .slide-budget .desc-body {
+    font-weight: 400 !important;
+    font-size: 1em !important;
+    line-height: 1.55 !important;
+    margin: 0 !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    hyphens: none !important;
+  }
+
+  /* Limita colunas em mobile pra não sobrepor */
+  @media (max-width: 640px) {
+    .slide-budget { padding: 10px 6px 220px; }
+    /* Coluna do meio (c2) maior pra caber "Metragem real 25,45m² + 10% de perda = 28m²" */
+    .slide-budget .ptable col.c1 { width: 18% !important; }
+    .slide-budget .ptable col.c2 { width: 55% !important; }
+    .slide-budget .ptable col.c3 { width: 27% !important; }
+    .slide-budget .ptable td, .slide-budget .ptable th {
+      padding: 4px 3px !important;
+      font-size: 10px !important;
+    }
+    .slide-budget .hdr-itens, .slide-budget .hdr-desc, .slide-budget .hdr-valor {
+      font-size: 10px !important;
+      padding: 5px 3px !important;
+    }
+    /* Labels na coluna 1 (RESUMO, TOTAL, CONDIÇÕES, item nº, cat nome): NÃO quebra palavra */
+    .slide-budget .item-c, .slide-budget .cat-c, .slide-budget .sub-c,
+    .slide-budget .total-c, .slide-budget .disc-c, .slide-budget .ftotal-c,
+    .slide-budget .obs-c, .slide-budget .cond-c, .slide-budget .log-c {
+      word-break: keep-all !important;
+      overflow-wrap: normal !important;
+      hyphens: none !important;
+      white-space: normal !important;
+      font-size: 9.5px !important;
+      letter-spacing: -0.01em !important;
+    }
+    /* CONDIÇÕES no mobile: palavra grande não cabe em 18% da coluna — font menor */
+    .slide-budget .ptable td.cond-c,
+    .slide-budget .ptable .cond-c {
+      font-size: 8px !important;
+      letter-spacing: -0.05em !important;
+      padding: 4px 1px !important;
+    }
+    /* Valor: NÃO quebra linha */
+    .slide-budget .item-v, .slide-budget .cat-v, .slide-budget .sub-v,
+    .slide-budget .total-v, .slide-budget .disc-v, .slide-budget .ftotal-v {
+      white-space: nowrap !important;
+      font-size: 9.5px !important;
+      letter-spacing: -0.02em !important;
+    }
+    /* Mobile: desc-body/title menores pra caber metragens completas */
+    .slide-budget .desc-title { font-size: 10px !important; line-height: 1.4 !important; }
+    .slide-budget .desc-body  { font-size: 9.5px !important; line-height: 1.45 !important; }
+    /* Descritivo (c2): quebra naturalmente em palavras */
+    .slide-budget .item-l, .slide-budget .cat-l, .slide-budget .sub-l,
+    .slide-budget .total-l, .slide-budget .disc-l, .slide-budget .ftotal-l,
+    .slide-budget .obs-l, .slide-budget .cond-l, .slide-budget .log-l {
+      word-break: normal !important;
+      overflow-wrap: break-word !important;
+      font-size: 9.5px !important;
+      letter-spacing: -0.01em !important;
+      hyphens: none !important;
+      -webkit-hyphens: none !important;
+    }
+  }
+
+  /* ─────────────────────────────────────────────────── */
+  /* SLIDE 4 — Formulário de Contrato                    */
+  /* ─────────────────────────────────────────────────── */
+  .slide-cta {
+    background: linear-gradient(135deg, #1a1a1a 0%, #000 100%);
+    color: #fff;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 16px 100px;
+  }
+  .cta-inner {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .cta-title {
+    font-weight: 300;
+    font-size: clamp(22px, 5vw, 32px);
+    letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .cta-subtitle {
+    font-weight: 300;
+    font-size: clamp(12px, 2.2vw, 14px);
+    line-height:1.65;
+    color: rgba(255,255,255,0.65);
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .cta-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .cta-form .full { grid-column: 1 / -1; }
+  .cta-form .field { display: flex; flex-direction: column; gap: 4px; }
+  .cta-form label {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    font-weight: 500;
+  }
+  .cta-form input, .cta-form select {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .cta-form input:focus, .cta-form select:focus {
+    border-color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.1);
+  }
+  .cta-form input::placeholder { color: rgba(255,255,255,0.25); }
+  .cta-form select { appearance: none; cursor: pointer; }
+  .cta-terms {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.6;
+  }
+  .cta-terms input { flex: 0 0 auto; margin-top: 2px; }
+  .cta-btn {
+    grid-column: 1 / -1;
+    background: #fff;
+    color: #000;
+    border: none;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.2s;
+    margin-top: 8px;
+  }
+  .cta-btn:active { transform: scale(0.98); }
+  .cta-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .cta-status {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 13px;
+    padding: 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+  }
+  .cta-status.ok { background: rgba(52,211,153,0.15); color: #34D399; }
+  .cta-status.err { background: rgba(248,113,113,0.15); color: #F87171; }
+  .cta-success {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .cta-success-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+  .cta-success h3 {
+    font-weight: 300;
+    font-size: clamp(22px, 5vw, 28px);
+    margin-bottom: 8px;
+  }
+  .cta-success p {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    line-height: 1.6;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  @media (max-width: 480px) {
+    .cta-form { grid-template-columns: 1fr; }
+    .cta-form .half-mobile { grid-column: 1; }
+  }
+
+  /* Estado inicial: tela centralizada com CTA grande */
+  .slide-cta:has(#cta-initial:not([hidden])) { display: flex; align-items: center; justify-content: center; padding: 8vw; }
+  .cta-initial {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    max-width: 520px;
+    margin: auto;
+  }
+  .cta-initial .cta-title { font-size: clamp(26px, 6vw, 42px); margin: 0; }
+  .cta-initial .cta-subtitle { margin: 0; font-size: clamp(17px, 3.5vw, 22px); line-height: 1.5; }
+  .cta-btn-large {
+    background: #fff;
+    color: #000;
+    border: none;
+    padding: 18px 48px;
+    font-size: clamp(13px, 2.4vw, 16px);
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+    margin-top: 8px;
+  }
+  .cta-btn-large:hover { box-shadow: 0 6px 28px rgba(255,255,255,0.25); }
+  .cta-btn-large:active { transform: scale(0.97); }
+
+  /* ─────────────────────────────────────────────────── */
+  /* Nav: bullets + setas (desktop)                      */
+  /* ─────────────────────────────────────────────────── */
+  .bullets {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 50;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.45);
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+  }
+  .bullets button {
+    width: 8px; height: 8px;
+    background: rgba(255,255,255,0.35);
+    border: none; border-radius: 50%; padding: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .bullets button.active {
+    background: #fff;
+    transform: scale(1.3);
+  }
+  .nav-arrow {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px; height: 44px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 50;
+    display: none;
+  }
+  .nav-arrow:hover { background: rgba(0,0,0,0.85); }
+  .nav-arrow:disabled { opacity: 0.25; cursor: not-allowed; }
+  .nav-arrow.prev { left: 20px; }
+  .nav-arrow.next { right: 20px; }
+  @media (min-width: 900px) {
+    .nav-arrow { display: flex; align-items: center; justify-content: center; }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="carousel">
+
+  <!-- ═══ SLIDE 1: Intro ═══ -->
+  <section class="slide slide-intro">
+    <video autoplay loop muted playsinline preload="auto" class="intro-video"
+           data-mobile-src="/assets/Heromobile-v3.mp4"
+           data-desktop-src="https://parket.com.br/wp-content/uploads/2026/04/Parket-HeroNew.mp4">
+      <source src="/assets/Heromobile-v3.mp4" type="video/mp4" />
+    </video>
+    <div class="intro-logo">PARKET</div>
+    <div class="intro-arrow" aria-hidden="true">→</div>
+  </section>
+
+  <!-- ═══ SLIDE 2: Info do cliente (mesma estrutura do PDF) ═══ -->
+  <section class="slide slide-info">
+    <div class="info-logo">PARKET</div>
+    <div class="info-block">
+      <div class="info-line">${i(e.cidade||"São Paulo")}, ${i(e.data)}</div>
+      <div class="info-gap"></div>
+      <div class="info-line">Proposta comercial - ${i(e.numero)}</div>
+      <div class="info-gap"></div>
+      <div class="info-line">Contratante: ${i(e.cliente)}</div>
+      ${e.cnpj?`<div class="info-line">CPF/CNPJ: ${i(e.cnpj)}</div>`:""}
+      ${e.endereco?`<div class="info-line">Endereço: ${i(e.endereco)}</div>`:""}
+      <div class="info-gap"></div>
+      ${e.vendedor?`<div class="info-line">Vendedor: ${i(e.vendedor)}</div>`:""}
+      ${e.orcamentista?`<div class="info-line">Orçamentista: ${i(e.orcamentista)}</div>`:""}
+      ${e.arquiteto?`<div class="info-line">Arquiteto(a): ${i(e.arquiteto)}</div>`:""}
+      <div class="info-gap"></div>
+      <div class="info-line">Validade da proposta: ${e.validade} dias</div>
+    </div>
+    <div class="swipe-hint-right" aria-hidden="true">→</div>
+  </section>
+
+  <!-- ═══ SLIDE 3: Orçamento ═══ -->
+  <section class="slide slide-budget">
+    <div class="budget-inner">
+      ${e.itemsTableHtml}
+    </div>
+    <div class="swipe-hint-right" aria-hidden="true">→</div>
+    <div class="swipe-hint-down" aria-hidden="true">↓</div>
+  </section>
+
+  <!-- ═══ SLIDE 4: Formulário do Contrato ═══ -->
+  <section class="slide slide-cta">
+    <div class="cta-inner" id="cta-container">
+      <!-- Estado inicial: só call-to-action centralizado -->
+      <div id="cta-initial" class="cta-initial">
+        <div class="cta-subtitle">Tudo pronto! Clique abaixo para preencher seus dados e iniciar o contrato.</div>
+        <button type="button" id="cta-open-form" class="cta-btn-large">ASSINAR CONTRATO →</button>
+      </div>
+      <!-- Estado aberto: formulário (escondido inicialmente) -->
+      <div id="cta-form-wrap" style="display:none">
+      <div class="cta-title">Dados para o contrato</div>
+      <div class="cta-subtitle">Preencha os campos abaixo. Em poucos minutos enviaremos os documentos pra assinatura digital.</div>
+      <form class="cta-form" id="contract-form" onsubmit="return false">
+        <div class="field full">
+          <label>Nome completo *</label>
+          <input id="cf_nome" required value="${i(e.cliente)}" placeholder="Nome completo"/>
+        </div>
+        <div class="field">
+          <label>CPF / CNPJ *</label>
+          <input id="cf_cpf" required value="${i(e.cnpj)}" placeholder="000.000.000-00"/>
+        </div>
+        <div class="field">
+          <label>RG / IE *</label>
+          <input id="cf_rg" required placeholder="00.000.000-0"/>
+        </div>
+        <div class="field">
+          <label>Telefone *</label>
+          <input id="cf_tel" type="tel" required placeholder="(11) 9 9999-9999"/>
+        </div>
+        <div class="field">
+          <label>E-mail *</label>
+          <input id="cf_email" type="email" required placeholder="seu@email.com"/>
+        </div>
+        <div class="field">
+          <label>CEP</label>
+          <input id="cf_cep" placeholder="00000-000" maxlength="9"/>
+        </div>
+        <div class="field">
+          <label>Estado civil</label>
+          <select id="cf_estciv">
+            <option value="">Selecione…</option>
+            <option value="solteiro">Solteiro(a)</option>
+            <option value="casado">Casado(a)</option>
+            <option value="divorciado">Divorciado(a)</option>
+            <option value="viuvo">Viúvo(a)</option>
+            <option value="uniao_estavel">União estável</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Endereço (rua) *</label>
+          <input id="cf_rua" required placeholder="Rua, Avenida..."/>
+        </div>
+        <div class="field">
+          <label>Número *</label>
+          <input id="cf_num" required placeholder="123"/>
+        </div>
+        <div class="field">
+          <label>Complemento</label>
+          <input id="cf_comp" placeholder="Apto, sala..."/>
+        </div>
+        <div class="field full">
+          <label>Bairro *</label>
+          <input id="cf_bairro" required placeholder="Bairro"/>
+        </div>
+        <div class="field">
+          <label>Cidade *</label>
+          <input id="cf_cidade" required value="${i(e.cidade||"")}" placeholder="Cidade"/>
+        </div>
+        <div class="field">
+          <label>Estado (UF) *</label>
+          <input id="cf_uf" required maxlength="2" placeholder="SP" style="text-transform:uppercase"/>
+        </div>
+        <label class="cta-terms">
+          <input type="checkbox" id="cf_termos" required/>
+          <span>Li e estou de acordo com os termos do contrato e as condições comerciais apresentadas acima.</span>
+        </label>
+        <div id="cf_status"></div>
+        <button class="cta-btn" id="cf_submit" type="submit">ENVIAR DADOS →</button>
+      </form>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function() {
+  // Desliga restauração de scroll do navegador — assim cada reload começa no slide 1
+  if ('scrollRestoration' in history) {
+    try { history.scrollRestoration = 'manual'; } catch (e) {}
+  }
+  function init() {
+    var carousel = document.querySelector('.carousel');
+    if (!carousel) return;
+    var slides = carousel.querySelectorAll('.slide');
+    var total = slides.length;
+    if (total === 0) return;
+
+    // Força começar no slide 1 (intro) em todo carregamento
+    try {
+      carousel.scrollLeft = 0;
+      if (slides[0]) slides[0].scrollTop = 0;
+    } catch (e) {}
+    // E também depois de um tick (alguns navegadores restauram após o load)
+    setTimeout(function(){
+      try {
+        carousel.scrollLeft = 0;
+        for (var _i = 0; _i < slides.length; _i++) slides[_i].scrollTop = 0;
+        window.scrollTo(0, 0);
+      } catch (e) {}
+    }, 0);
+    window.addEventListener('pageshow', function(ev){
+      // pageshow dispara inclusive em back/forward cache (Safari/Firefox)
+      if (ev.persisted) {
+        try {
+          carousel.scrollLeft = 0;
+          for (var _j = 0; _j < slides.length; _j++) slides[_j].scrollTop = 0;
+        } catch (e) {}
+        // re-dispara vídeo do começo
+        var _v = document.querySelector('.intro-video');
+        if (_v) { try { _v.currentTime = 0; _v.play(); } catch (e) {} }
+      }
+    });
+
+    // ── Intro: troca vídeo por desktop/mobile + acelera + auto-scroll em 4s ──
+    var introVideo = document.querySelector('.intro-video');
+    var introLogo = document.querySelector('.intro-logo');
+    var introArrow = document.querySelector('.intro-arrow');
+    // Desktop: usa vídeo horizontal da capa do site. Mobile: vertical.
+    if (introVideo) {
+      var isDesktop = window.matchMedia('(min-width: 769px)').matches;
+      var srcEl = introVideo.querySelector('source');
+      var desktopSrc = introVideo.getAttribute('data-desktop-src');
+      var mobileSrc = introVideo.getAttribute('data-mobile-src');
+      var wantedSrc = isDesktop && desktopSrc ? desktopSrc : (mobileSrc || (srcEl && srcEl.src));
+      if (srcEl && wantedSrc && srcEl.getAttribute('src') !== wantedSrc) {
+        srcEl.setAttribute('src', wantedSrc);
+        introVideo.load();
+      }
+      // Acelera reprodução pra "encurtar" o intro
+      try { introVideo.playbackRate = 1.6; } catch(e){}
+    }
+    var minLogoTime = Date.now() + 800; // logo aparece por no mínimo 0.8s
+    var userInteracted = false;
+    var autoStopAt = 2; // para no slide-budget (idx 2) — não avança pra CTA (3)
+    function scrollToSlide(idx){
+      if (slides[idx]) slides[idx].scrollIntoView({behavior:'smooth', block:'nearest', inline:'start'});
+    }
+    // Cadeia de auto-avanço: intro (0) → info (1) → budget (2) e para.
+    // Primeiro salto em 3.2s (junto com logo de 0.8s = 4s totais desde o load).
+    // Os próximos em 4s cada.
+    function scheduleAutoAdvance(fromIdx){
+      if (userInteracted) return;
+      if (fromIdx >= autoStopAt) return;
+      var ms = fromIdx === 0 ? 3200 : 4000;
+      setTimeout(function(){
+        if (userInteracted) return;
+        var nowIdx = currentIdx && currentIdx();
+        if (nowIdx !== fromIdx) return; // user já mudou
+        scrollToSlide(fromIdx + 1);
+        scheduleAutoAdvance(fromIdx + 1);
+      }, ms);
+    }
+    // Auto-scroll é independente do vídeo (mobile lento não fica travado).
+    // Logo fade em 0.8s, scroll pra slide 2 em 4s totais desde o load.
+    setTimeout(function(){
+      if (introLogo) introLogo.classList.add('faded');
+      if (introArrow) setTimeout(function(){ introArrow.classList.add('show'); }, 600);
+    }, 800);
+    scheduleAutoAdvance(0);
+    // Vídeo: usa autoplay nativo (com muted+playsinline mobile aceita).
+    // Faz fade-in só quando o primeiro frame estiver pronto.
+    if (introVideo) {
+      var _markReady = function(){ introVideo.classList.add('ready'); };
+      if (introVideo.readyState >= 2) _markReady();
+      else introVideo.addEventListener('loadeddata', _markReady, { once: true });
+      // Force play em caso de navegador que ignora autoplay até interação
+      try { var _p = introVideo.play(); if (_p && _p.catch) _p.catch(function(){}); } catch(e){}
+    }
+
+    // Bullets
+    var bullets = document.createElement('div');
+    bullets.className = 'bullets';
+    for (var i = 0; i < total; i++) {
+      (function(idx){
+        var dot = document.createElement('button');
+        dot.className = idx === 0 ? 'active' : '';
+        dot.setAttribute('aria-label', 'Página ' + (idx + 1));
+        dot.addEventListener('click', function(){
+          userInteracted = true;
+          slides[idx].scrollIntoView({behavior:'smooth', block:'nearest', inline:'start'});
+        });
+        bullets.appendChild(dot);
+      })(i);
+    }
+    document.body.appendChild(bullets);
+
+    // Arrows
+    var prev = document.createElement('button');
+    prev.className = 'nav-arrow prev';
+    prev.innerHTML = '&#10094;';
+    var next = document.createElement('button');
+    next.className = 'nav-arrow next';
+    next.innerHTML = '&#10095;';
+    document.body.appendChild(prev);
+    document.body.appendChild(next);
+
+    function currentIdx(){
+      return Math.round(carousel.scrollLeft / window.innerWidth);
+    }
+    function goTo(i){
+      i = Math.max(0, Math.min(total - 1, i));
+      slides[i].scrollIntoView({behavior:'smooth', block:'nearest', inline:'start'});
+    }
+    prev.onclick = function(){ userInteracted = true; goTo(currentIdx() - 1); };
+    next.onclick = function(){ userInteracted = true; goTo(currentIdx() + 1); };
+    // Qualquer toque/click/swipe/tecla também cancela o auto-scroll
+    ['touchstart','wheel','keydown','pointerdown'].forEach(function(ev){
+      window.addEventListener(ev, function(){ userInteracted = true; }, { passive: true, once: true });
+    });
+
+    var st;
+    function updateUI(){
+      var idx = currentIdx();
+      bullets.querySelectorAll('button').forEach(function(b,i){
+        b.classList.toggle('active', i===idx);
+      });
+      prev.disabled = (idx === 0);
+      next.disabled = (idx === total - 1);
+      // Marca o body com a classe da pg atual (pra mostrar hint da seta pra baixo)
+      var isBudget = slides[idx] && slides[idx].classList.contains('slide-budget');
+      document.body.classList.toggle('on-budget', isBudget);
+      // Reseta is-scrolling ao trocar pra outro slide
+      document.body.classList.remove('is-scrolling');
+      if (isBudget) {
+        // Recalcula at-bottom (caso conteúdo caiba inteiro sem scroll)
+        setTimeout(function(){ if (typeof updateAtBottom === 'function') updateAtBottom(); }, 80);
+      } else {
+        document.body.classList.remove('at-bottom');
+      }
+    }
+
+    // Listener de scroll no slide-budget
+    var budgetSlide = document.querySelector('.slide-budget');
+    var scrollIdleTimer;
+    function updateAtBottom(){
+      if (!budgetSlide) return;
+      var st2 = budgetSlide.scrollTop;
+      var sh = budgetSlide.scrollHeight;
+      var ch = budgetSlide.clientHeight;
+      // "fim" = a menos de 30px do bottom OU conteúdo cabe inteiro sem scroll
+      var atBottom = (sh - st2 - ch) < 30 || sh <= ch;
+      document.body.classList.toggle('at-bottom', atBottom);
+    }
+    function onBudgetScroll(){
+      // Marca como "rolando" e remove após 500ms sem scroll → mostra seta lateral
+      document.body.classList.add('is-scrolling');
+      clearTimeout(scrollIdleTimer);
+      scrollIdleTimer = setTimeout(function(){
+        document.body.classList.remove('is-scrolling');
+      }, 500);
+      updateAtBottom();
+    }
+    if (budgetSlide) {
+      budgetSlide.addEventListener('scroll', onBudgetScroll, { passive: true });
+      // Calcula estado inicial após render
+      setTimeout(updateAtBottom, 100);
+    }
+    carousel.addEventListener('scroll', function(){
+      clearTimeout(st);
+      st = setTimeout(updateUI, 70);
+    });
+    updateUI();
+
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'ArrowRight') goTo(currentIdx() + 1);
+      else if (e.key === 'ArrowLeft') goTo(currentIdx() - 1);
+    });
+
+    // ── CEP autofill via ViaCEP ──
+    var cepInput = document.getElementById('cf_cep');
+    if (cepInput) {
+      cepInput.addEventListener('input', function(){
+        var v = cepInput.value.replace(/\\D/g,'').slice(0,8);
+        if (v.length>5) v = v.slice(0,5)+'-'+v.slice(5);
+        cepInput.value = v;
+      });
+      cepInput.addEventListener('blur', function(){
+        var cep = cepInput.value.replace(/\\D/g,'');
+        if (cep.length!==8) return;
+        fetch('https://viacep.com.br/ws/'+cep+'/json/')
+          .then(function(r){return r.json();})
+          .then(function(d){
+            if (d.erro) return;
+            if (d.logradouro) document.getElementById('cf_rua').value = d.logradouro;
+            if (d.bairro) document.getElementById('cf_bairro').value = d.bairro;
+            if (d.localidade) document.getElementById('cf_cidade').value = d.localidade;
+            if (d.uf) document.getElementById('cf_uf').value = d.uf;
+          }).catch(function(){});
+      });
+    }
+
+    // ── Abre o form ao clicar no botão "ASSINAR CONTRATO" ──
+    var ctaOpenBtn = document.getElementById('cta-open-form');
+    if (ctaOpenBtn) {
+      ctaOpenBtn.addEventListener('click', function(){
+        var initial = document.getElementById('cta-initial');
+        var formWrap = document.getElementById('cta-form-wrap');
+        if (initial) initial.style.display = 'none';
+        if (formWrap) formWrap.style.display = 'block';
+        // Foca no primeiro campo
+        setTimeout(function(){
+          var first = document.getElementById('cf_nome');
+          if (first) first.focus();
+        }, 100);
+      });
+    }
+
+    // ── Submit do form: salva no Supabase ──
+    var SUPA = ${JSON.stringify({url:"https://api.parket.works",anon:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0"})};
+    var SIM_ID = ${JSON.stringify(e.simId)};
+    var form = document.getElementById('contract-form');
+    if (form) {
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        var btn = document.getElementById('cf_submit');
+        var status = document.getElementById('cf_status');
+        var get = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
+        var dados = {
+          nome: get('cf_nome'),
+          cpf_cnpj: get('cf_cpf'),
+          rg: get('cf_rg'),
+          telefone: get('cf_tel'),
+          email: get('cf_email'),
+          cep: get('cf_cep'),
+          rua: get('cf_rua'),
+          numero: get('cf_num'),
+          complemento: get('cf_comp'),
+          bairro: get('cf_bairro'),
+          cidade: get('cf_cidade'),
+          uf: get('cf_uf').toUpperCase(),
+          estado_civil: get('cf_estciv'),
+          aceito_em: new Date().toISOString(),
+        };
+        // Validação básica
+        var miss = [];
+        if (!dados.nome) miss.push('Nome');
+        if (!dados.cpf_cnpj) miss.push('CPF/CNPJ');
+        if (!dados.rg) miss.push('RG/IE');
+        if (!dados.telefone) miss.push('Telefone');
+        if (!dados.email) miss.push('E-mail');
+        if (!dados.rua) miss.push('Rua');
+        if (!dados.numero) miss.push('Número');
+        if (!dados.bairro) miss.push('Bairro');
+        if (!dados.cidade) miss.push('Cidade');
+        if (!dados.uf) miss.push('UF');
+        if (!document.getElementById('cf_termos').checked) miss.push('aceitar os termos');
+        if (miss.length>0){
+          status.className = 'cta-status err';
+          status.textContent = 'Preencha: ' + miss.join(', ');
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'ENVIANDO…';
+        status.className = '';
+        status.textContent = '';
+        // Lê meta atual primeiro, depois merge com contrato_cliente
+        fetch(SUPA.url+'/rest/v1/simulacao_projetos?id=eq.'+SIM_ID+'&select=meta', {
+          headers: { apikey: SUPA.anon, Authorization: 'Bearer '+SUPA.anon }
+        })
+        .then(function(r){return r.json();})
+        .then(function(rows){
+          var meta = (rows && rows[0] && rows[0].meta) || {};
+          meta.contrato_cliente = dados;
+          return fetch(SUPA.url+'/rest/v1/simulacao_projetos?id=eq.'+SIM_ID, {
+            method: 'PATCH',
+            headers: { apikey: SUPA.anon, Authorization: 'Bearer '+SUPA.anon, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            body: JSON.stringify({ meta: meta })
+          });
+        })
+        .then(function(r){
+          if (!r.ok) throw new Error('HTTP '+r.status);
+          var container = document.getElementById('cta-container');
+          container.innerHTML = '<div class="cta-success">'+
+            '<div class="cta-success-icon">✓</div>'+
+            '<h3>Dados recebidos!</h3>'+
+            '<p>Obrigado! Em breve nossa equipe entrará em contato para finalizar a assinatura do contrato.</p>'+
+          '</div>';
+        })
+        .catch(function(err){
+          btn.disabled = false;
+          btn.textContent = 'ENVIAR DADOS →';
+          status.className = 'cta-status err';
+          status.textContent = 'Erro ao enviar: '+(err.message||err);
+        });
+      });
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+<\/script>
+
+</body>
+</html>`;function H(){const{id:e}=_(),[n,v]=c.useState(null),[g,p]=c.useState(null),[h,m]=c.useState(!0);return c.useEffect(()=>{if(!e){p("ID da proposta não informado"),m(!1);return}(async()=>{try{const[d,u]=await Promise.all([f.from("simulacao_projetos").select("*").eq("id",e).single(),f.from("simulacao_itens").select("*").eq("simulacao_id",e).order("ordem",{ascending:!0})]),{data:t,error:x}=d,{data:w}=u;if(x||!t){p("Proposta não encontrada"),m(!1);return}let r={};const b=t.obra_id||t.card_id;if(b){const{data:o}=await f.from("kanban_cards").select("details").eq("id",b).maybeSingle();o!=null&&o.details&&(r=o.details)}const a={numero:t.numero??"",cliente:t.cliente??"",cnpj_cpf:t.cnpj_cpf||r.cnpj_cpf||"",endereco:t.endereco||r.endereco_obra||"",obra_code:t.obra_code??"",vendedor:r.vendedor||t.vendedor||"",orcamentista:r.orcamentista||r.orcamentista_nome||t.orcamentista||"",validade_dias:t.validade_dias??15,desconto_perc:t.desconto_perc??0,desconto_modo:t.desconto_modo??"perc",desconto_valor:Number(t.desconto_valor)||0,frete_valor:Number(t.frete_valor)||0,created_at:t.created_at??new Date().toISOString(),arquiteto:t.arquiteto||r.arquitetura||"",forma_pagamento:t.forma_pagamento||r.forma_pagamento||"",pag_prazo_entrega:t.pag_prazo_entrega||r.pag_prazo_entrega||"",pag_prazo_execucao:t.pag_prazo_execucao||r.pag_prazo_execucao||"",pag_garantia:t.pag_garantia||r.pag_garantia||"",pag_dados_bancarios:t.pag_dados_bancarios||r.pag_dados_bancarios||"",pag_razao_social:t.pag_razao_social||r.pag_razao_social||""},y=(w??[]).map((o,l)=>({id:o.id??String(l),categoria:o.categoria??"ITEM",descritivo:o.descritivo??"",valor:o.valor??0,ordem:o.ordem??l})),I=L({...a,id:e},y),S=A(I),k=P({numero:a.numero,cliente:a.cliente,cnpj:a.cnpj_cpf,endereco:a.endereco,cidade:(a.endereco.split(/[-,]/).pop()||"São Paulo").trim(),vendedor:a.vendedor,orcamentista:a.orcamentista,arquiteto:a.arquiteto,data:z(a.created_at),validade:a.validade_dias,itemsTableHtml:S,simId:e});v(k),setTimeout(()=>{try{const o=new URLSearchParams(window.location.search),l=(o.get("u")||"").trim(),E=(o.get("p")||"").trim();if(window.__pktTryAprovacao&&window.__pktTryAprovacao(e)){return}let _iu=l?{email:l,nome:""}:null;try{if(!_iu){for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i),raw=k&&localStorage.getItem(k);if(!raw||(raw[0]!=="{"&&raw[0]!=="[")) continue;let _p;try{_p=JSON.parse(raw)}catch{continue}const _u=(_p&&(_p.user||(_p.currentSession&&_p.currentSession.user)))||null;const _em=_u&&_u.email,_nm=_u&&_u.user_metadata&&(_u.user_metadata.full_name||_u.user_metadata.name);if(_em){_iu={email:String(_em).toLowerCase(),nome:_nm||""};break}}}}catch{}let _vid=null;try{_vid=localStorage.getItem("pkt_visitor_id");if(!_vid){_vid=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Math.random().toString(36).slice(2)+Date.now().toString(36));localStorage.setItem("pkt_visitor_id",_vid)}}catch{}let _fp=null;try{const _s=[navigator.userAgent,screen.width+"x"+screen.height,navigator.language||"",(Intl&&Intl.DateTimeFormat&&Intl.DateTimeFormat().resolvedOptions().timeZone)||"",window.devicePixelRatio||1].join("|");let _h=0;for(let _i=0;_i<_s.length;_i++){_h=((_h<<5)-_h)+_s.charCodeAt(_i);_h|=0}_fp="fp_"+(_h>>>0).toString(36)}catch{}fetch("https://agente.parket.works/api/orcamento/tracking/abriu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({simulacao_id:e,recipient_token:E||null,internal_user:_iu,visitor_id:_vid,fingerprint:_fp})}).catch(()=>{})}catch{}},0)}catch(d){const u=d instanceof Error?d.message:"Erro ao carregar proposta";p(u)}m(!1)})()},[e]),h?s.jsx("div",{style:{minHeight:"100vh",background:"#0a0a0a",display:"flex",alignItems:"center",justifyContent:"center"},children:s.jsx("p",{style:{color:"rgba(255,255,255,0.4)",fontSize:"0.8rem"},children:"Carregando proposta..."})}):g?s.jsxs("div",{style:{minHeight:"100vh",background:"#0a0a0a",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12},children:[s.jsx("p",{style:{color:"#F87171",fontSize:"0.9rem",fontWeight:700},children:"Proposta indisponível"}),s.jsx("p",{style:{color:"rgba(255,255,255,0.4)",fontSize:"0.7rem"},children:g})]}):s.jsx("iframe",{srcDoc:n??"",style:{width:"100%",height:"100vh",border:"none",display:"block"},title:"Proposta Parket"})}export{H as PropostaPublicaPage};

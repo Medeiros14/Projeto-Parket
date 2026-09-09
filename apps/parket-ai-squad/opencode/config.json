@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.schema.json",
+  "model": "claude-4-sonnet",
+  "provider": {
+    "anthropic": {
+      "name": "Anthropic (Web Auth)",
+      "env": "ANTHROPIC_WEB_AUTH"
+    }
+  },
+  "autoshare": false,
+  "keybinds": {
+    "session.new": "ctrl+n"
+  }
+}

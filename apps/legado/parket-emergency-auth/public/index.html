@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Parket — Login de Emergência</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 20px; color: #fff;
+}
+.box {
+  width: 100%; max-width: 420px;
+  background: #141414; border: 1px solid #2a2a2a; border-radius: 12px;
+  padding: 32px;
+}
+.logo {
+  font-size: 24px; font-weight: 700; letter-spacing: 4px;
+  color: #B8AA9A; text-align: center; margin-bottom: 6px;
+}
+.tag {
+  font-size: 10px; color: #ef4444; text-align: center;
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px;
+}
+.host-tag {
+  background: #0a0a0a; border: 1px solid #2a2a2a;
+  border-radius: 6px; padding: 8px 12px; text-align: center;
+  font-size: 11px; color: #888; margin-bottom: 16px;
+}
+.host-tag b { color: #B8AA9A; font-weight: 600; }
+.warning {
+  background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.30);
+  color: #fca5a5; padding: 10px 12px; border-radius: 6px;
+  font-size: 12px; margin-bottom: 16px; line-height: 1.4;
+}
+label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+input {
+  width: 100%; padding: 11px 14px; background: #0a0a0a;
+  border: 1px solid #2a2a2a; border-radius: 6px; color: #fff;
+  font-size: 14px; outline: none; margin-bottom: 14px; font-family: inherit;
+}
+input:focus { border-color: #B8AA9A; }
+button {
+  width: 100%; padding: 13px; background: #B8AA9A; color: #000;
+  border: none; border-radius: 6px; font-size: 13px; font-weight: 700;
+  cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
+  transition: background 0.15s;
+}
+button:hover:not(:disabled) { background: #d4c4b2; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.err {
+  background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+  color: #fca5a5; padding: 10px 12px; border-radius: 6px;
+  font-size: 12px; margin-top: 14px; display: none;
+}
+.ok {
+  background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3);
+  color: #86efac; padding: 10px 12px; border-radius: 6px;
+  font-size: 12px; margin-top: 14px; display: none;
+}
+.foot { text-align: center; margin-top: 16px; font-size: 10px; color: #555; }
+.apps {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px;
+}
+.apps a {
+  text-align: center; padding: 8px; background: #0a0a0a;
+  border: 1px solid #2a2a2a; border-radius: 5px;
+  color: #888; text-decoration: none; font-size: 11px;
+  transition: all 0.15s;
+}
+.apps a:hover { color: #B8AA9A; border-color: #B8AA9A; }
+.apps a.current { color: #B8AA9A; border-color: #B8AA9A; cursor: default; }
+.divider { font-size: 9px; color: #444; text-align: center; margin: 16px 0 8px; letter-spacing: 1px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">PARKET</div>
+  <div class="tag">Login de Emergência</div>
+  <div class="host-tag">Você vai entrar em <b id="hostname">…</b></div>
+  <div class="warning">
+    O serviço de login normal está fora do ar. Esta página gera uma sessão
+    temporária com suas credenciais habituais.
+  </div>
+  <form id="f">
+    <label>E-mail</label>
+    <input id="email" type="email" required autofocus autocomplete="username" />
+    <label>Senha</label>
+    <input id="password" type="password" required autocomplete="current-password" />
+    <button id="btn" type="submit">Entrar</button>
+    <div id="err" class="err"></div>
+    <div id="ok" class="ok"></div>
+  </form>
+  <div class="divider">Outros apps</div>
+  <div class="apps" id="apps"></div>
+  <div class="foot">Sessão válida por 7 dias</div>
+</div>
+
+<script>
+const STORAGE_KEY = "sb-hbxpilrxmitvzebluoom-auth-token";
+const APPS = [
+  { host: "space.parket.works", label: "Space" },
+  { host: "erp.parket.works", label: "ERP" },
+  { host: "rh.parket.works", label: "RH" },
+  { host: "homebroker.parket.works", label: "Homebroker" },
+  { host: "fiscal.parket.works", label: "Fiscal" },
+  { host: "comercial.parket.works", label: "Comercial" },
+  { host: "draw.parket.works", label: "Draw" },
+];
+
+// Mostra o hostname atual
+document.getElementById("hostname").textContent = window.location.host;
+
+// Renderiza lista de outros apps
+const appsEl = document.getElementById("apps");
+APPS.forEach(a => {
+  const aTag = document.createElement("a");
+  aTag.href = `https://${a.host}/emerg/`;
+  aTag.textContent = a.label;
+  if (a.host === window.location.host) aTag.classList.add("current");
+  appsEl.appendChild(aTag);
+});
+
+const form = document.getElementById("f");
+const btn = document.getElementById("btn");
+const errEl = document.getElementById("err");
+const okEl = document.getElementById("ok");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  errEl.style.display = "none";
+  okEl.style.display = "none";
+  btn.disabled = true;
+  btn.textContent = "Entrando…";
+
+  try {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    const r = await fetch("/emerg/api/emergency-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Erro no login");
+
+    // Salva no localStorage no formato esperado pelo supabase-js
+    const session = {
+      access_token: data.access_token,
+      token_type: data.token_type,
+      expires_in: data.expires_in,
+      expires_at: data.expires_at,
+      refresh_token: data.refresh_token,
+      user: data.user,
+      provider_token: null,
+      provider_refresh_token: null,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+
+    okEl.textContent = "Sessão criada! Entrando em " + window.location.host + "…";
+    okEl.style.display = "block";
+    setTimeout(() => {
+      // Redireciona pra raiz do mesmo origin (onde o app espera achar a session)
+      window.location.href = "/";
+    }, 700);
+  } catch (e) {
+    errEl.textContent = e.message || String(e);
+    errEl.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Entrar";
+  }
+});
+</script>
+</body>
+</html>

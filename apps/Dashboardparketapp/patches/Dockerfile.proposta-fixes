@@ -1,0 +1,10 @@
+FROM parket-dashboard:golden
+COPY index.html /usr/share/nginx/html/index.html
+COPY nginx-default.conf /etc/nginx/conf.d/default.conf
+COPY propostaGenerator-RP6vD_Gq.js /usr/share/nginx/html/assets/propostaGenerator-RP6vD_Gq.js
+COPY orcamento-simulador-tab-BBO23cjn.js /usr/share/nginx/html/assets/orcamento-simulador-tab-BBO23cjn.js
+COPY orcamento-simulador-tab-BBO23cjn-P2.js /usr/share/nginx/html/assets/orcamento-simulador-tab-BBO23cjn-P2.js
+COPY marcenaria-personalizada-pkt1.js /usr/share/nginx/html/assets/marcenaria-personalizada-pkt1.js
+COPY dept-layout-BtZpIBbo.js /usr/share/nginx/html/assets/dept-layout-BtZpIBbo.js
+COPY dept-layout-v2-BtZpIBbo.js /usr/share/nginx/html/assets/dept-layout-v2-BtZpIBbo.js
+COPY proposta-publica-page-Cfqr-XjR.js /usr/share/nginx/html/assets/proposta-publica-page-Cfqr-XjR.js

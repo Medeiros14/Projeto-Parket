@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laudo de Vistoria — Parket</title>
+<meta property="og:title" content="Laudo de Vistoria — Parket">
+<meta property="og:description" content="Vistoria técnica · Parket">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, 'Segoe UI', Helvetica, sans-serif;
+  background: #D8D3C7; color: #050505;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 22px 16px; }
+.loading, .erro { text-align: center; padding: 60px 20px; font-size: 14px; color: #77736A; }
+.erro { color: #8E3D3D; }
+
+.btn-bar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(216,211,199,0.95); backdrop-filter: blur(6px);
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 10px 14px; border-bottom: 1px solid #C3BEB4;
+  margin: -22px -16px 16px -16px;
+}
+.btn {
+  background: #050505; color: #D8D3C7; border: none;
+  padding: 9px 18px; font-size: 11px; font-weight: 500;
+  border-radius: 0; cursor: pointer; letter-spacing: 0.16em; text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+}
+.btn:hover { background: #3A3833; }
+.btn.alt { background: #60544D; color: #F3F0E8; }
+.btn.green { background: #645D3B; color: #F3F0E8; }
+
+.doc { background: #F3F0E8; padding: 28px 32px; border: 1px solid #C3BEB4; border-radius: 0; }
+
+.cap-hdr { text-align: center; padding-bottom: 16px; border-bottom: 2px solid #60544D; margin-bottom: 20px; }
+.cap-hdr .marca { font-family: 'Cinzel', Georgia, serif; font-size: 11pt; letter-spacing: 0.4em; color: #60544D; font-weight: 500; }
+.cap-hdr h1 { font-family: 'Cinzel', Georgia, serif; font-size: 15pt; margin: 8px 0 4px; letter-spacing: 0.10em; text-transform: uppercase; font-weight: 500; }
+.cap-hdr .sub { font-size: 9pt; color: #77736A; letter-spacing: 0.15em; text-transform: uppercase; }
+
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; margin-bottom: 18px; }
+.info-box { background: #EDEAE0; border-left: 3px solid #60544D; padding: 10px 12px; border-radius: 0; }
+.info-box .l { font-size: 8pt; color: #77736A; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+.info-box .v { font-size: 11pt; font-weight: 600; }
+
+.sec-title {
+  font-family: 'Cinzel', Georgia, serif; text-transform: uppercase; letter-spacing: 0.12em;
+  font-size: 11pt; font-weight: 500; margin: 22px 0 8px;
+  padding-bottom: 4px; border-bottom: 1px solid #C3BEB4;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.sec-title .count { font-size: 10pt; font-weight: 400; color: #77736A; }
+
+.servico-block {
+  margin-bottom: 16px; padding: 12px 14px;
+  background: #EDEAE0; border-radius: 0; border: 1px solid #DCD8CC;
+}
+.servico-block h3 {
+  font-family: 'Cinzel', Georgia, serif; font-weight: 500;
+  font-size: 10pt; color: #60544D; margin-bottom: 8px;
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
+
+.ck-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 4px 0; font-size: 10.5pt;
+  border-bottom: 1px dashed #DCD8CC;
+}
+.ck-row:last-child { border-bottom: 0; }
+.ck-row .resp {
+  flex: 0 0 50px; font-weight: 700;
+  padding: 1px 6px; border-radius: 2px;
+  text-align: center; font-size: 9pt;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.ck-row .resp.sim { background: rgba(100,93,59,0.15); color: #645D3B; }
+.ck-row .resp.nao { background: rgba(142,61,61,0.12); color: #8E3D3D; }
+.ck-row .resp.na  { background: #E3DFD3; color: #5F5C55; }
+.ck-row .lbl { flex: 1; color: #050505; }
+.ck-row .ck-obs { margin-top: 2px; font-size: 9pt; color: #77736A; font-style: italic; }
+
+.fotos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px; margin-top: 10px;
+}
+.foto-item {
+  border-radius: 0; overflow: hidden;
+  background: #EDEAE0; border: 1px solid #DCD8CC;
+}
+.foto-item img, .foto-item video {
+  width: 100%; height: 140px; object-fit: cover;
+  display: block; background: #000; cursor: zoom-in;
+}
+.foto-item .legenda {
+  padding: 6px 8px; font-size: 9pt; color: #55524B;
+  min-height: 24px;
+}
+
+.obs { background: #EDEAE0; padding: 12px 16px; border-radius: 2px; margin-top: 10px; }
+.obs h3 { font-size: 11pt; margin-bottom: 6px; color: #050505; }
+.obs p { font-size: 10.5pt; line-height: 1.6; white-space: pre-line; }
+
+.assinatura-box {
+  margin-top: 24px; padding: 14px 18px;
+  background: #fff; border: 2px dashed #60544D;
+  border-radius: 0; text-align: center;
+}
+.assinatura-box .titulo {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 10pt; font-weight: 500;
+  letter-spacing: 0.16em; color: #60544D;
+  text-transform: uppercase; margin-bottom: 12px;
+}
+.assinatura-box .linhas {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;
+}
+.assinatura-box .linha {
+  border-top: 1px solid #050505; padding-top: 6px;
+  font-size: 9.5pt; color: #55524B;
+}
+.assinatura-box img.assinatura {
+  max-height: 80px; display: block; margin: 0 auto 6px;
+}
+.btn-assinar {
+  background: #050505; color: #D8D3C7; border: none;
+  padding: 12px 24px; font-size: 10pt; font-weight: 500;
+  border-radius: 0; cursor: pointer; margin-top: 10px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+}
+
+.foot { margin-top: 24px; padding-top: 14px; border-top: 1px solid #C3BEB4; text-align: center; font-size: 9pt; color: #77736A; }
+.foot strong { color: #050505; }
+
+/* Modal de assinatura — canvas pra desenhar com dedo/mouse */
+.sig-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+  z-index: 99999; display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.sig-box {
+  background: #F3F0E8; border-radius: 8px; padding: 16px;
+  width: 100%; max-width: 600px;
+}
+.sig-box h3 { font-size: 14pt; margin-bottom: 4px; }
+.sig-box .sub { font-size: 10pt; color: #77736A; margin-bottom: 10px; }
+.sig-box input[type="text"] {
+  width: 100%; padding: 10px 12px; font-size: 12pt;
+  border: 1px solid #C3BEB4; border-radius: 0; margin-bottom: 10px;
+  outline: none; box-sizing: border-box;
+}
+.sig-box input[type="text"]:focus { border-color: #60544D; }
+.sig-canvas-wrap {
+  border: 2px dashed #60544D; border-radius: 0;
+  background: #EDEAE0; touch-action: none;
+  position: relative;
+}
+.sig-canvas-wrap canvas {
+  display: block; width: 100%; height: 200px;
+  background: #fff; border-radius: 0;
+  cursor: crosshair;
+}
+.sig-canvas-wrap .hint {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  color: rgba(106,106,106,0.4); font-size: 11pt;
+  pointer-events: none; font-style: italic;
+}
+.sig-actions {
+  display: flex; gap: 8px; margin-top: 12px; justify-content: space-between;
+}
+.sig-actions .left { display: flex; gap: 8px; }
+.sig-actions button {
+  padding: 9px 18px; border-radius: 0; cursor: pointer;
+  font-size: 11pt; font-weight: 700; border: 1px solid transparent;
+}
+.btn-cancel { background: #F3F0E8; border-color: #C3BEB4 !important; color: #55524B; }
+.btn-clear { background: #E3DFD3; color: #5F5C55; }
+.btn-save  { background: #645D3B; color: #fff; }
+
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+  z-index: 99999; display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal img, .modal video { max-width: 100%; max-height: 90vh; }
+.modal .close {
+  position: absolute; top: 20px; right: 24px;
+  font-size: 30pt; color: #fff; cursor: pointer; background: none; border: none;
+}
+
+@media print {
+  body { background: #fff; }
+  .btn-bar { display: none; }
+  .wrap { padding: 0; max-width: none; }
+  .doc { box-shadow: none; border-radius: 0; padding: 16px 22px; }
+  .servico-block { break-inside: avoid; }
+  .foto-item img, .foto-item video { height: 200px; }
+  .btn-assinar { display: none; }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 12px 8px; }
+  .doc { padding: 18px 14px; }
+  .info-grid { grid-template-columns: 1fr; }
+  .assinatura-box .linhas { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap"><div id="root"><div class="loading">Carregando laudo…</div></div></div>
+<div id="modal-root"></div>
+
+<script>
+(function(){
+  const REST = 'https://hbxpilrxmitvzebluoom.supabase.co/rest/v1';
+  const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0';
+
+  const TIPO_LABELS = {
+    "1vistoria": "1ª Vistoria",
+    "2vistoria": "2ª Vistoria",
+    "acompanhamento": "Acompanhamento",
+    "entrega": "Entrega",
+    "reparo": "Reparo",
+  };
+
+  function dateBR(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch { return ''; }
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function getId() {
+    const m = location.pathname.match(/\/laudo\/([0-9a-f-]{20,})/i);
+    if (m) return m[1];
+    return new URLSearchParams(location.search).get('id');
+  }
+  async function fetchJson(path) {
+    const r = await fetch(REST + path, { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON } });
+    if (!r.ok) throw new Error('REST ' + r.status);
+    return await r.json();
+  }
+  function openMediaModal(src, isVideo) {
+    const m = document.getElementById('modal-root');
+    m.innerHTML = `<div class="modal" onclick="this.remove()">
+      <button class="close">×</button>
+      ${isVideo ? `<video src="${src}" controls autoplay></video>` : `<img src="${src}"/>`}
+    </div>`;
+  }
+  window._pktOpenMedia = openMediaModal;
+
+  function renderChecklist(laudo) {
+    const SERVICOS = { liberacao: 'Liberação', piso: 'Piso', deck: 'Deck', forro: 'Forro', painel: 'Painel', porta: 'Porta', escada: 'Escada', bancos: 'Bancos', equipe: 'Equipe', produtividade: 'Produtividade' };
+    const EXTRA = { qualidade: 'Qualidade da Entrega', tipo: 'Tipo de Reparo', materiais: 'Materiais' };
+    const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+    const blocos = [];
+    for (const key in SERVICOS) {
+      const items = laudo['checklist_' + key];
+      if (isObj(items) && Object.keys(items).length) blocos.push([SERVICOS[key], items]);
+    }
+    if (isObj(laudo.checklist_extra)) {
+      for (const key in laudo.checklist_extra) {
+        const items = laudo.checklist_extra[key];
+        if (isObj(items) && Object.keys(items).length) blocos.push([EXTRA[key] || key, items]);
+      }
+    }
+    if (!blocos.length) return '';
+    let html = '<div class="sec-title">Checklist</div>';
+    for (const [titulo, items] of blocos) {
+      let rows = '';
+      for (const pergunta in items) {
+        const it = items[pergunta];
+        const resp = isObj(it) ? (it.valor || '') : String(it || '');
+        const obs = isObj(it) && it.obs ? it.obs : '';
+        if (!resp && !obs) continue;
+        const r = String(resp).toLowerCase();
+        const cls = r === 'sim' ? 'sim' : (r === 'nao' || r === 'não' ? 'nao' : 'na');
+        const label = r === 'sim' ? 'Sim' : (r === 'nao' || r === 'não' ? 'Não' : 'N/A');
+        rows += `<div class="ck-row"><div class="resp ${cls}">${escapeHtml(label)}</div><div class="lbl">${escapeHtml(pergunta)}${obs ? `<div class="ck-obs">${escapeHtml(obs)}</div>` : ''}</div></div>`;
+      }
+      if (rows) html += `<div class="servico-block"><h3>${escapeHtml(titulo)}</h3>${rows}</div>`;
+    }
+    return html;
+  }
+
+  function renderTextos(laudo) {
+    const CAMPOS = { tipo_laje: 'Tipo de laje', reforco_necessario: 'Reforço necessário', insumos_necessarios: 'Insumos necessários', materiais_falta: 'Materiais em falta', insumos_falta: 'Insumos em falta', metragem_areas: 'Metragem das áreas', ocorrencias: 'Ocorrências', descritivo_sistema: 'Descritivo do sistema', descritivo_material: 'Descritivo do material', descritivo_reparo: 'Descritivo do reparo', sistema_instalacao: 'Sistema de instalação', obs_solucao: 'Observação da solução', obs_andaime: 'Observação do andaime' };
+    let rows = '';
+    for (const k in CAMPOS) {
+      const v = laudo[k];
+      if (!v || typeof v !== 'string') continue;
+      rows += `<div class="info-box" style="grid-column:1/-1"><div class="l">${escapeHtml(CAMPOS[k])}</div><div class="v">${escapeHtml(v)}</div></div>`;
+    }
+    if (!rows) return '';
+    return '<div class="sec-title">Detalhes da Vistoria</div><div class="info-grid">' + rows + '</div>';
+  }
+
+  function renderFotos(fotos) {
+    if (!fotos || fotos.length === 0) return '';
+    // Agrupa por servico
+    const groups = {};
+    fotos.forEach(f => {
+      const s = f.servico || 'outros';
+      (groups[s] = groups[s] || []).push(f);
+    });
+    let html = `<div class="sec-title">Mídias <span class="count">${fotos.length} ${fotos.length === 1 ? 'arquivo' : 'arquivos'}</span></div>`;
+    for (const servico in groups) {
+      const arr = groups[servico];
+      html += `<div class="servico-block"><h3>${escapeHtml(servico)} <span style="color:#77736A;font-size:9pt;font-weight:400">(${arr.length})</span></h3>`;
+      html += '<div class="fotos-grid">';
+      arr.forEach(f => {
+        const isVideo = f.tipo === 'video';
+        if (isVideo) {
+          html += `<div class="foto-item"><video src="${f.url}" preload="metadata" onclick="event.preventDefault(); window._pktOpenMedia('${f.url}', true)"></video><div class="legenda">${escapeHtml(f.descricao || '🎥 Vídeo')}</div></div>`;
+        } else {
+          html += `<div class="foto-item"><img src="${f.url}" alt="" onclick="window._pktOpenMedia('${f.url}', false)"/><div class="legenda">${escapeHtml(f.descricao || '')}</div></div>`;
+        }
+      });
+      html += '</div></div>';
+    }
+    return html;
+  }
+
+  function renderAssinatura(laudo) {
+    let html = '<div class="sec-title">Assinatura</div>';
+    html += '<div class="assinatura-box">';
+    if (laudo.assinatura_fiscal_url) {
+      html += `<img class="assinatura" src="${escapeHtml(laudo.assinatura_fiscal_url)}" alt="Assinatura" style="max-height:100px"/>`;
+      html += `<div style="color:#645D3B;font-weight:700;margin-top:4px">✓ Assinado por <strong>${escapeHtml(laudo.assinado_por || laudo.fiscal_nome || '—')}</strong></div>`;
+      if (laudo.assinado_em) html += `<div style="font-size:9pt;color:#77736A;margin-top:2px">em ${dateBR(laudo.assinado_em)}</div>`;
+    } else if (laudo.assinado_em) {
+      html += `<div style="color:#645D3B;font-weight:700;margin-bottom:10px">✓ Assinado digitalmente</div>`;
+      html += `<div style="font-size:10pt">por ${escapeHtml(laudo.assinado_por || '—')} em ${dateBR(laudo.assinado_em)}</div>`;
+    } else {
+      html += `<button class="btn-assinar" onclick="assinar()">✍ Assinar este laudo</button>`;
+      html += `<div style="font-size:9pt;color:#77736A;margin-top:6px">Clique para abrir o quadro de assinatura</div>`;
+    }
+    html += '<div class="linhas">';
+    html += `<div class="linha"><strong>${escapeHtml(laudo.fiscal_nome || 'Fiscal Parket')}</strong><br>Fiscal Parket${laudo.assinado_em ? '<br>' + dateBR(laudo.assinado_em) : ''}</div>`;
+    html += '<div class="linha"><strong>Cliente / Responsável de obra</strong></div>';
+    html += '</div></div>';
+    return html;
+  }
+
+  // ─── Modal de assinatura: canvas pra desenhar à mão ───
+  window.assinar = function(){
+    const m = document.getElementById('modal-root');
+    m.innerHTML = `<div class="sig-modal">
+      <div class="sig-box">
+        <h3>Assinatura Digital</h3>
+        <div class="sub">Digite seu nome e desenhe sua assinatura abaixo (use o dedo no celular ou mouse).</div>
+        <input type="text" id="_sig_nome" placeholder="Seu nome completo *" autocomplete="name"/>
+        <div class="sig-canvas-wrap" id="_sig_wrap">
+          <canvas id="_sig_canvas" width="800" height="200"></canvas>
+          <div class="hint" id="_sig_hint">✍ assine aqui</div>
+        </div>
+        <div class="sig-actions">
+          <div class="left">
+            <button class="btn-cancel" onclick="document.getElementById('modal-root').innerHTML=''">Cancelar</button>
+            <button class="btn-clear" id="_sig_limpar">Limpar</button>
+          </div>
+          <button class="btn-save" id="_sig_salvar">✓ Confirmar assinatura</button>
+        </div>
+      </div>
+    </div>`;
+
+    const canvas = document.getElementById('_sig_canvas');
+    const ctx = canvas.getContext('2d');
+    const hint = document.getElementById('_sig_hint');
+
+    // Ajusta tamanho real do canvas pro DPI do dispositivo
+    function resize(){
+      const r = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = r.width * dpr;
+      canvas.height = r.height * dpr;
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#050505';
+    }
+    setTimeout(resize, 0);
+    window.addEventListener('resize', resize);
+
+    let drawing = false, hasInk = false;
+    function getPos(ev){
+      const r = canvas.getBoundingClientRect();
+      const t = ev.touches && ev.touches[0];
+      const x = (t ? t.clientX : ev.clientX) - r.left;
+      const y = (t ? t.clientY : ev.clientY) - r.top;
+      return { x, y };
+    }
+    function start(ev){
+      ev.preventDefault();
+      drawing = true;
+      hint.style.display = 'none';
+      const p = getPos(ev);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      hasInk = true;
+    }
+    function move(ev){
+      if (!drawing) return;
+      ev.preventDefault();
+      const p = getPos(ev);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+    function end(ev){ drawing = false; }
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', end);
+    canvas.addEventListener('mouseleave', end);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', end);
+
+    document.getElementById('_sig_limpar').onclick = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hint.style.display = 'flex';
+      hasInk = false;
+    };
+
+    document.getElementById('_sig_salvar').onclick = async () => {
+      const nome = document.getElementById('_sig_nome').value.trim();
+      if (!nome) { alert('Digite seu nome completo.'); return; }
+      if (!hasInk) { alert('Desenhe a assinatura no campo.'); return; }
+      const btn = document.getElementById('_sig_salvar');
+      btn.disabled = true; btn.textContent = 'Salvando…';
+      try {
+        const dataUrl = canvas.toDataURL('image/png');
+        const id = getId();
+        const r = await fetch(REST + '/fiscal_laudos?id=eq.' + id, {
+          method: 'PATCH',
+          headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assinado_em: new Date().toISOString(),
+            assinado_por: nome,
+            assinatura_fiscal_url: dataUrl,
+          }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        alert('✓ Assinatura registrada com sucesso!');
+        location.reload();
+      } catch (e) {
+        btn.disabled = false; btn.textContent = '✓ Confirmar assinatura';
+        alert('Erro ao salvar: ' + (e.message || e));
+      }
+    };
+  };
+
+  function render(laudo, fotos, card) {
+    const tipo = TIPO_LABELS[laudo.tipo] || laudo.tipo || 'Vistoria';
+    const cliente = (card && (card.title || card.cliente)) || laudo.cliente || '—';
+    const obra = (card && card.obra) || laudo.obra || '';
+    const arquiteto = card && card.details && (card.details.arquiteto || card.details.arquitetura) || '';
+
+    let html = `<div class="btn-bar">
+      <button class="btn" onclick="window.print()">🖨️ Imprimir / PDF</button>
+      <button class="btn alt" onclick="navigator.clipboard.writeText(location.href).then(()=>alert('Link copiado!'))">🔗 Copiar Link</button>
+    </div>`;
+
+    html += '<div class="doc">';
+    html += `<div class="cap-hdr">
+      <div class="marca">PARKET</div>
+      <h1>Laudo de Vistoria</h1>
+      <div class="sub">${escapeHtml(tipo)} · ${dateBR(laudo.created_at)}</div>
+    </div>`;
+
+    // Cliente e Projeto
+    html += '<div class="sec-title">Cliente & Projeto</div>';
+    html += '<div class="info-grid">';
+    html += `<div class="info-box"><div class="l">Cliente</div><div class="v">${escapeHtml(cliente)}</div></div>`;
+    if (obra) html += `<div class="info-box"><div class="l">Obra</div><div class="v">${escapeHtml(obra)}</div></div>`;
+    if (arquiteto) html += `<div class="info-box"><div class="l">Arquiteto</div><div class="v">${escapeHtml(arquiteto)}</div></div>`;
+    html += `<div class="info-box"><div class="l">Tipo de Visita</div><div class="v">${escapeHtml(tipo)}</div></div>`;
+    html += '</div>';
+
+    // Fiscal
+    html += '<div class="sec-title">Fiscal & Data</div>';
+    html += '<div class="info-grid">';
+    html += `<div class="info-box"><div class="l">Fiscal Responsável</div><div class="v">${escapeHtml(laudo.fiscal_nome || laudo.fiscal_email || '—')}</div></div>`;
+    html += `<div class="info-box"><div class="l">Data da Vistoria</div><div class="v">${dateBR(laudo.created_at)}</div></div>`;
+    if (laudo.fiscal_email) html += `<div class="info-box"><div class="l">Contato</div><div class="v">${escapeHtml(laudo.fiscal_email)}</div></div>`;
+    if (laudo.status) html += `<div class="info-box"><div class="l">Status</div><div class="v">${escapeHtml(laudo.status)}</div></div>`;
+    html += '</div>';
+
+    // Checklist
+    html += renderChecklist(laudo);
+
+    // Campos de texto da vistoria
+    html += renderTextos(laudo);
+
+    // Mídias
+    html += renderFotos(fotos);
+
+    // Observações
+    if (laudo.observacoes) {
+      html += '<div class="sec-title">Observações</div>';
+      html += `<div class="obs"><p>${escapeHtml(laudo.observacoes)}</p></div>`;
+    }
+
+    // Descrição extra
+    if (laudo.descricao) {
+      html += '<div class="sec-title">Descrição</div>';
+      html += `<div class="obs"><p>${escapeHtml(laudo.descricao)}</p></div>`;
+    }
+
+    // Assinatura
+    html += renderAssinatura(laudo);
+
+    html += '<div class="foot"><strong>PARKET — Madeira Nobre</strong><br>parket.com.br · @parket.parket</div>';
+    html += '</div>';
+
+    document.getElementById('root').innerHTML = html;
+    document.title = `${tipo} · ${cliente} · Parket`;
+  }
+
+  (async function(){
+    try {
+      const id = getId();
+      if (!id) throw new Error('ID não informado');
+      const laudos = await fetchJson('/fiscal_laudos?id=eq.' + id + '&limit=1');
+      if (!laudos || laudos.length === 0) throw new Error('Laudo não encontrado');
+      const laudo = laudos[0];
+      const [fotos, cards] = await Promise.all([
+        fetchJson('/fiscal_fotos?laudo_id=eq.' + id + '&order=created_at'),
+        laudo.card_id ? fetchJson('/kanban_cards?id=eq.' + laudo.card_id + '&limit=1') : Promise.resolve([]),
+      ]);
+      const card = cards && cards[0];
+      render(laudo, fotos || [], card);
+    } catch(e) {
+      document.getElementById('root').innerHTML = `<div class="erro">Erro: ${e.message || 'falha ao carregar'}</div>`;
+      console.error(e);
+    }
+  })();
+})();
+</script>
+</body>
+</html>

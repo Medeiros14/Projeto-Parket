@@ -1,0 +1,30 @@
+(function(){
+  try {
+    if (new URLSearchParams(location.search).get('print') !== '1') return;
+  } catch(_) { return; }
+  var clicked = false;
+  var tries = 0;
+  function findBaixarPdf() {
+    var btns = document.querySelectorAll('button,a');
+    for (var i = 0; i < btns.length; i++) {
+      var txt = (btns[i].textContent || '').trim().toLowerCase();
+      if (txt === 'baixar pdf' || txt === 'baixar em pdf' || txt === 'download pdf') return btns[i];
+    }
+    return null;
+  }
+  function ready() {
+    tries++;
+    if (clicked) return;
+    var btn = findBaixarPdf();
+    if (btn) {
+      clicked = true;
+      try { btn.click(); } catch(e) {}
+      return;
+    }
+    if (tries > 60) return; // ~15s: desiste sem chamar window.print (evita layout errado)
+    setTimeout(ready, 250);
+  }
+  function boot() { setTimeout(ready, 600); }
+  if (document.readyState === 'complete') boot();
+  else window.addEventListener('load', boot);
+})();

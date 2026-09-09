@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#131313" />
+    <title>InstaParket</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Paleta Parket (mesma do Center) — claro default, dark via data-theme */
+      :root {
+        --pkt-bg: #F6F3EE;
+        --pkt-card: #FFFFFF;
+        --pkt-card2: #F1EEE8;
+        --pkt-border: #DDD7CC;
+        --pkt-border2: #E8E2D8;
+        --pkt-text: #111111;
+        --pkt-text2: #6D675F;
+        --pkt-text3: #9D9790;
+        --pkt-accent: #8A6F3D;
+        --pkt-accent-soft: rgba(138,111,61,.10);
+        --pkt-nav-bg: rgba(246,243,238,.96);
+        /* header invertido: escuro sobre tema claro */
+        --pkt-hd-bg: #131313;
+        --pkt-hd-text: #F4F1EA;
+        --pkt-hd-text2: #8D8A84;
+        --pkt-hd-border: #2A2A2A;
+        --pkt-hd-accent: #C8B68A;
+      }
+      html[data-theme="dark"] {
+        --pkt-bg: #050505;
+        --pkt-card: #0B0B0B;
+        --pkt-card2: #101010;
+        --pkt-border: #1F1F1F;
+        --pkt-border2: #2A2A2A;
+        --pkt-text: #F4F1EA;
+        --pkt-text2: #8D8A84;
+        --pkt-text3: #5F5D58;
+        --pkt-accent: #C8B68A;
+        --pkt-accent-soft: rgba(200,182,138,.12);
+        --pkt-nav-bg: rgba(5,5,5,.96);
+        /* header invertido: claro sobre tema escuro */
+        --pkt-hd-bg: #EEE9E2;
+        --pkt-hd-text: #111111;
+        --pkt-hd-text2: #6D675F;
+        --pkt-hd-border: #E8E2D8;
+        --pkt-hd-accent: #8A6F3D;
+      }
+      html, body { margin: 0; padding: 0; background: var(--pkt-bg); }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      ::-webkit-scrollbar { width: 0; height: 0; }
+    </style>
+    <script>
+      try { if (localStorage.getItem("insta-theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- Chat Parket entre setores: widget flutuante servido pelo parket-chat -->
+    <script src="https://server.parket.works/app.js" data-parket-chat data-api="https://server.parket.works" defer></script>
+  </body>
+</html>

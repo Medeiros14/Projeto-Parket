@@ -1,0 +1,890 @@
+import { j as _jrt, r as _rh, R as _R, s as supabase } from "./index-DZtetJYP.js";
+const Fragment = _jrt.Fragment, jsx = _jrt.jsx, jsxs = _jrt.jsxs;
+const useState = _rh.useState, useEffect = _rh.useEffect, useCallback = _rh.useCallback, useRef = _rh.useRef;
+const React = _R;
+const TEXT_DIM = "rgba(255,255,255,0.4)";
+const TEXT_MED = "rgba(255,255,255,0.7)";
+const CARD_BG = "rgba(255,255,255,0.02)";
+const BORDER = "rgba(255,255,255,0.08)";
+const ACCENT = "#D4A853";
+const GREEN = "#10B981";
+const RED = "#EF4444";
+const BLUE = "#3B82F6";
+const PURPLE = "#8B5CF6";
+const YELLOW = "#F59E0B";
+const ORANGE = "#F97316";
+const STATUS_COLORS = {
+  pendente: YELLOW,
+  em_andamento: BLUE,
+  concluido: GREEN,
+  cancelado: RED,
+  agendada: GREEN,
+  realizada: BLUE,
+  confirmada: PURPLE
+};
+const TIPO_OPTIONS = [
+  { value: "1vistoria", label: "1a Vistoria" },
+  { value: "2vistoria", label: "2a Vistoria" },
+  { value: "acompanhamento", label: "Acompanhamento" },
+  { value: "entrega", label: "Entrega" },
+  { value: "reparo", label: "Reparo" }
+];
+const CK_1V_PISO = ["Encontra-se nivelado e sem ondulacoes", "Encontra-se liso", "Apresenta arenoso", "Apresenta buracos ou calombos", "Pisos frios finalizados", "A espessura deixada para o nosso piso esta de acordo com o nivel dos pisos frios", "Baguetes finalizadas", "Tem espaco para dilatacao do rodape invertido", "Soleiras finalizadas", "Hidraulica esta finalizada", "Eletrica esta finalizada", "Gesso finalizado", "Massa corrida finalizada", "Primeira demao de tinta finalizada", "Portas instaladas", "Janelas instaladas", "Vidros e esquadrias instalados", "Realizada medicao final", "Cacamba disponivel", "Area de instalacao livre de objetos e pessoas", "Umidade no contrapiso", "Area liberada para instalacao?"];
+const CK_1V_DECK = ["Hidraulica esta finalizada", "Eletrica esta finalizada", "Pisos frios finalizados", "Alcapoes no contrapiso", "Espessura deixada para nosso material acabado esta de acordo", "Estrutura metalica finalizada (caso tenha)", "Tem encontro com piscinas/spas", "Tem escada na area de instalacao do deck", "Vidros e esquadrias instalados", "Realizada a medicao final", "Cacamba disponivel", "Area de instalacao livre de objetos e pessoas", "Area liberada para instalacao?"];
+const CK_1V_FORRO = ["Laje finalizada", "A laje tem alguma especificacao", "Area de instalacao do forro tem encontro com outros tipos de forros", "Vai ter cortineiro/sanca", "Vai ter beiral", "Estrutura do beiral finalizada", "Paredes finalizadas", "Portas instaladas", "Janelas instaladas", "Vidros e esquadrias instalados", "Hidraulica esta finalizada", "Eletrica esta finalizada", "Realizada a medicao final", "Cacamba disponivel", "Area de instalacao livre de objetos e pessoas", "Existe necessidade de andaime e escada", "Umidade na laje", "Area liberada para instalacao?", "Projeto confere com a obra"];
+const CK_1V_FORRO_EXTRA = [{ q: "Qual o tipo de laje?", type: "text" }, { q: "Sera necessario algum reforco?", type: "text" }, { q: "Quais insumos serao necessario?", type: "text" }];
+const CK_1V_PAINEL = ["Parede estruturada", "Parede requadrada", "Parede sem buracos", "Parede masseada", "Existe encontro com outros materiais", "Rodape finalizado", "Cacamba disponivel", "Area de instalacao livre de objetos e pessoas", "Existe necessidade de andaime e escada", "Caso forro e piso nao sejam Parket: Forro finalizado", "Caso forro e piso nao sejam Parket: Piso finalizado", "Realizada a medicao fina"];
+const CK_1V_PORTA = ["Vao estruturado", "Vao requadrado", "Vao acabado e masseado", "Existe necessidade de andaime e escada", "Cacamba disponivel", "Area de instalacao livre de objetos e pessoas", "Caso forro e piso nao sejam Parket: Forro finalizado", "Caso forro e piso nao sejam Parket: Piso finalizado", "Realizada a medicao fina"];
+const CK_1V_ESCADA = ["Escada requadrada e em prumo", "Sem calombos", "Sem porosidade", "Nivelado", "Escada em ferro", "Medidas conferem com projeto", "Realizada a medicao fina", "Area de instalacao livre de objetos e pessoas", "Cacamba disponivel", "Existe necessidade de andaime e escada"];
+const CK_2V_LIBERACAO = ["Area liberada para instalacao?", "Andaimes em obra", "Insumos e material em obra"];
+const CK_2V_PISO = ["O contrapiso esta apto a instalacao", "Pisos frios finalizados", "A espessura deixada para o nosso piso esta de acordo com o nivel dos pisos frios", "Baguetes/soleiras finalizadas", "Tem espaco para dilatacao do rodape invertido", "Hidraulica esta finalizada", "Eletrica esta finalizada", "Gesso/massa corrida e pintura finalizado", "Portas/janelas/vidros e esquadrias instalados", "Realizada medicao", "Cacamba disponivel", "Area de instalacao livre de objetos e pessoas", "Umidade no contrapiso", "Area liberada para instalacao?"];
+const CK_2V_DECK = ["Hidraulica esta finalizada", "Eletrica esta finalizada", "Pisos frios finalizados", "Alcapoes no contrapiso", "Espessura deixada para nosso material acabado esta de acordo", "Estrutura metalica finalizada (caso tenha)", "Tem encontro com piscinas/spas", "Tem escada na area de instalacao do deck", "Vidros e esquadrias instalados", "Realizada a medicao final", "Cacamba disponivel", "Area de instalacao livre de objetos e pessoas"];
+const CK_2V_FORRO = ["Laje finalizada", "A laje tem alguma especificacao", "Area de instalacao do forro tem encontro com outros tipos de forros", "Vai ter cortineiro/sanca", "Estrutura do beiral finalizada", "Paredes finalizadas", "Caixilhos ou contramarco instalados", "Hidraulica esta finalizada", "Eletrica esta finalizada", "Dutos/grelhas de ar instalados", "Realizada a medicao final", "Cacamba disponivel", "Area de instalacao livre de objetos e pessoas", "Existe necessidade de andaime e escada", "Umidade na laje", "Area liberada para instalacao?", "Projeto confere com a obra"];
+const CK_2V_FORRO_EXTRA = [{ q: "Qual o tipo de laje?", type: "text" }, { q: "Sera necessario algum reforco?", type: "text" }, { q: "Quais insumos serao necessario?", type: "text" }];
+const CK_2V_PAINEL = CK_1V_PAINEL;
+const CK_2V_PORTA = CK_1V_PORTA;
+const CK_2V_ESCADA = CK_1V_ESCADA;
+const CK_2V_BANCOS = ["Existe estrutura para o banco", "Caso haja estrutura, esta finalizada", "Contrapiso esta nivelado", "Possui encontro com algum material", "Medidas conferem com projeto", "Realizada a medicao fina", "Area de instalacao livre de objetos e pessoas", "Cacamba disponivel", "Existe necessidade de andaime e escada"];
+const CK_ACOMP_EQUIPE = ["Uniformizados", "Postura em obra", "Uso de EPI"];
+const CK_ACOMP_PRODUTIVIDADE = ["Tem alguma frente de trabalho travada por conta da engenharia", "Falta algum insumo", "Falta algum material", "As partes instaladas estao de acordo"];
+const ACOMP_TEXT_FIELDS = ["Lista os materiais em falta", "Lista os insumos em falta", "Metragem realizada e areas finalizadas", "Ocorrencias"];
+const ENTREGA_TEXT_FIELDS = ["Descritivo do sistema", "Descritivo do material", "Ocorrencias"];
+const CK_ENTREGA = ["A instalacao esta na qualidade esperada e padroes Parket?", "Tivemos muitas ocorrencias ao longo da obra?", "A obra foi entregue dentro do prazo?", "O cliente esta satisfeito com a entrega?"];
+const CK_REPARO_TIPO = ["Mal uso do material", "Reparo Parket"];
+const CK_REPARO_MATERIAIS = ["Possui material em obra", "Possui insumos em obra"];
+const REPARO_TEXT_FIELDS = ["Descritivo dos servicos e materiais com problema", "Descritivo de sistema de instalacao necessario", "Observacoes para solucao"];
+function buildCkState(items) {
+  const s = {};
+  items.forEach((it) => {
+    s[it] = { valor: null, obs: "" };
+  });
+  return s;
+}
+function mergeCkState(items, saved) {
+  const s = {};
+  items.forEach((it) => {
+    s[it] = saved && saved[it] || { valor: null, obs: "" };
+  });
+  return s;
+}
+function detectSections(tipoProjeto) {
+  const t = (tipoProjeto || "").toLowerCase();
+  return {
+    piso: t.includes("piso") || t === "piso_forro",
+    deck: t.includes("deck"),
+    forro: t.includes("forro") || t === "piso_forro",
+    painel: t.includes("painel") || t.includes("marcenaria"),
+    porta: t.includes("porta"),
+    escada: t.includes("escada"),
+    bancos: t.includes("banco")
+  };
+}
+function Btn({ color = PURPLE, onClick, disabled, children, variant }) {
+  const ghost = variant === "ghost";
+  return /* @__PURE__ */ jsx(
+    "button",
+    {
+      onClick,
+      disabled,
+      style: {
+        padding: "6px 12px",
+        borderRadius: 8,
+        fontSize: "0.65rem",
+        fontWeight: 700,
+        background: ghost ? "transparent" : `${color}20`,
+        border: `1px solid ${color}40`,
+        color,
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.5 : 1
+      },
+      children
+    }
+  );
+}
+function FInput(props) {
+  return /* @__PURE__ */ jsx("input", { ...props, style: { width: "100%", padding: "6px 10px", background: "rgba(0,0,0,0.3)", border: `1px solid ${BORDER}`, borderRadius: 6, color: "white", fontSize: "0.7rem", outline: "none", ...props.style } });
+}
+function FSelect(props) {
+  return /* @__PURE__ */ jsx("select", { ...props, style: { width: "100%", padding: "6px 10px", background: "rgba(0,0,0,0.3)", border: `1px solid ${BORDER}`, borderRadius: 6, color: "white", fontSize: "0.7rem", outline: "none", colorScheme: "dark", ...props.style } });
+}
+function FTextarea(props) {
+  return /* @__PURE__ */ jsx("textarea", { ...props, style: { width: "100%", padding: "6px 10px", background: "rgba(0,0,0,0.3)", border: `1px solid ${BORDER}`, borderRadius: 6, color: "white", fontSize: "0.7rem", outline: "none", minHeight: 60, resize: "vertical", ...props.style } });
+}
+function FormField({ label, children }) {
+  return /* @__PURE__ */ jsxs("div", { style: { marginBottom: 8 }, children: [
+    /* @__PURE__ */ jsx("label", { style: { display: "block", fontSize: "0.55rem", fontWeight: 700, color: TEXT_DIM, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }, children: label }),
+    children
+  ] });
+}
+function StatusSelect({ value, options, onChange, colorMap }) {
+  return /* @__PURE__ */ jsx(
+    "select",
+    {
+      value,
+      onChange: (e) => {
+        e.stopPropagation();
+        onChange(e.target.value);
+      },
+      onClick: (e) => e.stopPropagation(),
+      style: { padding: "2px 8px", borderRadius: 12, fontSize: "0.55rem", fontWeight: 700, background: `${colorMap?.[value] || TEXT_DIM}18`, color: colorMap?.[value] || TEXT_DIM, border: `1px solid ${colorMap?.[value] || TEXT_DIM}35`, cursor: "pointer", textTransform: "uppercase" },
+      children: options.map((o) => /* @__PURE__ */ jsx("option", { value: o, style: { background: "#111" }, children: o }, o))
+    }
+  );
+}
+const Plus = () => /* @__PURE__ */ jsx("span", { style: { fontWeight: 700 }, children: "+" });
+const Save = () => /* @__PURE__ */ jsx("span", { children: "\u{1F4BE}" });
+const X = () => /* @__PURE__ */ jsx("span", { children: "\xD7" });
+const Upload = () => /* @__PURE__ */ jsx("span", { children: "\u2B06" });
+const Camera = () => /* @__PURE__ */ jsx("span", { children: "\u{1F4F7}" });
+const FileText = () => /* @__PURE__ */ jsx("span", { children: "\u{1F4C4}" });
+const Trash2 = () => /* @__PURE__ */ jsx("span", { children: "\u{1F5D1}" });
+const ChevronDown = () => /* @__PURE__ */ jsx("span", { children: "\u25BC" });
+const ChevronRight = () => /* @__PURE__ */ jsx("span", { children: "\u25B6" });
+function SectionCard({ title, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return /* @__PURE__ */ jsxs("div", { style: { background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, overflow: "hidden", marginBottom: 12 }, children: [
+    /* @__PURE__ */ jsxs("button", { onClick: () => setOpen(!open), style: { width: "100%", display: "flex", alignItems: "center", gap: 8, padding: 12, background: "none", border: "none", cursor: "pointer" }, children: [
+      /* @__PURE__ */ jsx("span", { style: { color: open ? PURPLE : TEXT_DIM, fontSize: "0.9rem" }, children: open ? "\u25BC" : "\u25B6" }),
+      /* @__PURE__ */ jsx("span", { style: { fontSize: "0.78rem", fontWeight: 600, color: "white" }, children: title })
+    ] }),
+    open && /* @__PURE__ */ jsx("div", { style: { padding: "0 12px 12px" }, children })
+  ] });
+}
+function ChecklistToggleRow({ label, value, onChange, obs, onObsChange }) {
+  return /* @__PURE__ */ jsxs("div", { style: { padding: "8px 0", borderBottom: `1px solid ${BORDER}` }, children: [
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsx("div", { style: { flex: 1, fontSize: "0.7rem", color: TEXT_MED }, children: label }),
+      /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 4 }, children: [
+        /* @__PURE__ */ jsx("button", { onClick: () => onChange(true), style: { padding: "3px 10px", borderRadius: 6, fontSize: "0.6rem", fontWeight: 700, cursor: "pointer", background: value === true ? `${GREEN}30` : "rgba(255,255,255,0.04)", color: value === true ? GREEN : TEXT_DIM, border: `1px solid ${value === true ? `${GREEN}50` : "rgba(255,255,255,0.08)"}` }, children: "SIM" }),
+        /* @__PURE__ */ jsx("button", { onClick: () => onChange(false), style: { padding: "3px 10px", borderRadius: 6, fontSize: "0.6rem", fontWeight: 700, cursor: "pointer", background: value === false ? `${RED}30` : "rgba(255,255,255,0.04)", color: value === false ? RED : TEXT_DIM, border: `1px solid ${value === false ? `${RED}50` : "rgba(255,255,255,0.08)"}` }, children: "NAO" })
+      ] })
+    ] }),
+    onObsChange && /* @__PURE__ */ jsx("input", { placeholder: "Observacao...", value: obs || "", onChange: (e) => onObsChange(e.target.value), style: { marginTop: 4, width: "100%", background: "rgba(255,255,255,0.03)", border: `1px solid rgba(255,255,255,0.06)`, borderRadius: 6, padding: "4px 8px", fontSize: "0.6rem", color: "white", outline: "none" } })
+  ] });
+}
+function BadgePill({ text, color }) {
+  return /* @__PURE__ */ jsx("span", { style: { display: "inline-block", padding: "2px 8px", borderRadius: 999, fontSize: "0.5rem", fontWeight: 700, textTransform: "uppercase", background: `${color}18`, color, border: `1px solid ${color}35` }, children: text });
+}
+function LaudosVistoriasTab() {
+  const [laudos, setLaudos] = useState([]);
+  const [equipe, setEquipe] = useState([]);
+  const [cards, setCards] = useState([]);
+  const [projCards, setProjCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [viewing, setViewing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [formCardId, setFormCardId] = useState("");
+  const [formTipo, setFormTipo] = useState("1vistoria");
+  const [formFiscalId, setFormFiscalId] = useState("");
+  const [formDataVistoria, setFormDataVistoria] = useState("");
+  const [formObs, setFormObs] = useState("");
+  const [detectedSections, setDetectedSections] = useState({ piso: false, deck: false, forro: false, painel: false, porta: false, escada: false, bancos: false });
+  const [servicos, setServicos] = useState([]);
+  const [ckPiso, setCkPiso] = useState({});
+  const [ckDeck, setCkDeck] = useState({});
+  const [ckForro, setCkForro] = useState({});
+  const [ckPainel, setCkPainel] = useState({});
+  const [ckPorta, setCkPorta] = useState({});
+  const [ckEscada, setCkEscada] = useState({});
+  const [ckBancos, setCkBancos] = useState({});
+  const [ckExtra, setCkExtra] = useState({});
+  const [textFields, setTextFields] = useState({});
+  const [reparoMateriais, setReparoMateriais] = useState([]);
+  const [medicaoObra, setMedicaoObra] = useState("");
+  const [equipesInfo, setEquipesInfo] = useState("");
+  const [itemInstalado, setItemInstalado] = useState("");
+  const [descritivoReparo, setDescritivoReparo] = useState("");
+  const [fotos, setFotos] = useState([]);
+  const [fotoAmbiente, setFotoAmbiente] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const [filterTipo, setFilterTipo] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [cardSearch, setCardSearch] = useState("");
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    const [{ data: ld }, { data: eq }, { data: kc }, { data: pc }] = await Promise.all([
+      supabase.from("fiscal_laudos").select("*").order("created_at", { ascending: false }),
+      supabase.from("fiscal_equipe").select("*").eq("ativo", true).order("nome"),
+      supabase.from("kanban_cards").select("id, title, column_id, obra, responsavel").eq("dept_id", "operacional").order("updated_at", { ascending: false }).limit(500),
+      supabase.from("kanban_cards").select("id, title, obra, details").eq("dept_id", "projetos").order("created_at", { ascending: false }).limit(200)
+    ]);
+    setLaudos(ld ?? []);
+    setEquipe(eq ?? []);
+    setCards(kc ?? []);
+    setProjCards(pc ?? []);
+    setLoading(false);
+  }, []);
+  useEffect(() => {
+    fetchAll();
+    const ch = supabase.channel("fiscal_laudos_rt").on("postgres_changes", { event: "*", schema: "public", table: "fiscal_laudos" }, fetchAll).on("postgres_changes", { event: "*", schema: "public", table: "fiscal_laudo_messages" }, fetchAll).on("postgres_changes", { event: "*", schema: "public", table: "fiscal_fotos" }, fetchAll).on("postgres_changes", { event: "*", schema: "public", table: "fiscal_agenda" }, fetchAll).subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [fetchAll]);
+  // Re-sync detalhe aberto quando o laudo selecionado for atualizado
+  // pela subscription (IA respondendo no whatsapp). Sem isso, o user
+  // abre um laudo, fica com snapshot estático e perde updates da IA.
+  useEffect(() => {
+    if (!viewing || !viewing.id) return;
+    const fresh = (laudos || []).find((l) => l.id === viewing.id);
+    if (!fresh) return;
+    if ((fresh.updated_at || "") === (viewing.updated_at || "")) return;
+    openViewLaudo(fresh);
+  }, [laudos, viewing && viewing.id]);
+  const handleCardSelect = (cardId) => {
+    setFormCardId(cardId);
+    const card = cards.find((c) => c.id === cardId);
+    if (card) {
+      const projMatch = projCards.find((p) => p.title && card.title && p.title.toLowerCase() === card.title.toLowerCase());
+      const tipoProj = projMatch?.details?.tipo_projeto || projMatch?.tipo_projeto;
+      if (tipoProj) {
+        const sections = detectSections(tipoProj);
+        setDetectedSections(sections);
+        const svcs = [];
+        ["piso", "deck", "forro", "painel", "porta", "escada", "bancos"].forEach((k) => {
+          if (sections[k]) svcs.push(k);
+        });
+        setServicos(svcs);
+      } else {
+        setDetectedSections({ piso: true, deck: true, forro: true, painel: true, porta: false, escada: false, bancos: false });
+        setServicos(["piso", "deck", "forro", "painel"]);
+      }
+    }
+  };
+  const toggleServico = (s) => {
+    setServicos((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+    setDetectedSections((prev) => ({ ...prev, [s]: !prev[s] }));
+  };
+  const getChecklistItems = (tipo, section) => {
+    if (tipo === "1vistoria") {
+      if (section === "piso") return CK_1V_PISO;
+      if (section === "deck") return CK_1V_DECK;
+      if (section === "forro") return CK_1V_FORRO;
+      if (section === "painel") return CK_1V_PAINEL;
+      if (section === "porta") return CK_1V_PORTA;
+      if (section === "escada") return CK_1V_ESCADA;
+    }
+    if (tipo === "2vistoria") {
+      if (section === "piso") return CK_2V_PISO;
+      if (section === "deck") return CK_2V_DECK;
+      if (section === "forro") return CK_2V_FORRO;
+      if (section === "painel") return CK_2V_PAINEL;
+      if (section === "porta") return CK_2V_PORTA;
+      if (section === "escada") return CK_2V_ESCADA;
+      if (section === "bancos") return CK_2V_BANCOS;
+    }
+    return [];
+  };
+  const initChecklist = (tipo) => {
+    if (tipo === "1vistoria" || tipo === "2vistoria") {
+      setCkPiso(buildCkState(getChecklistItems(tipo, "piso")));
+      setCkDeck(buildCkState(getChecklistItems(tipo, "deck")));
+      setCkForro(buildCkState(getChecklistItems(tipo, "forro")));
+      setCkPainel(buildCkState(getChecklistItems(tipo, "painel")));
+      setCkPorta(buildCkState(getChecklistItems(tipo, "porta")));
+      setCkEscada(buildCkState(getChecklistItems(tipo, "escada")));
+      setCkBancos(tipo === "2vistoria" ? buildCkState(CK_2V_BANCOS) : {});
+      setMedicaoObra("");
+      if (tipo === "1vistoria") {
+        const extra = {};
+        CK_1V_FORRO_EXTRA.forEach((e) => {
+          extra[e.q] = "";
+        });
+        setCkExtra(extra);
+      }
+      if (tipo === "2vistoria") {
+        const extra = { liberacao: buildCkState(CK_2V_LIBERACAO) };
+        CK_2V_FORRO_EXTRA.forEach((e) => {
+          extra[e.q] = "";
+        });
+        setCkExtra(extra);
+      }
+    }
+    if (tipo === "acompanhamento") {
+      setCkExtra({ equipe: buildCkState(CK_ACOMP_EQUIPE), produtividade: buildCkState(CK_ACOMP_PRODUTIVIDADE) });
+      const tf = {};
+      ACOMP_TEXT_FIELDS.forEach((f) => {
+        tf[f] = "";
+      });
+      setTextFields(tf);
+      setEquipesInfo("");
+      setItemInstalado("");
+    }
+    if (tipo === "entrega") {
+      setCkExtra({ entrega: buildCkState(CK_ENTREGA) });
+      const tf = {};
+      ENTREGA_TEXT_FIELDS.forEach((f) => {
+        tf[f] = "";
+      });
+      setTextFields(tf);
+    }
+    if (tipo === "reparo") {
+      setCkExtra({ reparo: buildCkState(CK_REPARO_TIPO), materiais: buildCkState(CK_REPARO_MATERIAIS) });
+      const tf = {};
+      REPARO_TEXT_FIELDS.forEach((f) => {
+        tf[f] = "";
+      });
+      setTextFields(tf);
+      setReparoMateriais([{ material: "", insumo: "", quantidade: "" }]);
+      setDescritivoReparo("");
+    }
+  };
+  const startCreating = () => {
+    setCreating(true);
+    setViewing(null);
+    setFormCardId("");
+    setFormTipo("1vistoria");
+    setFormFiscalId("");
+    setFormDataVistoria((/* @__PURE__ */ new Date()).toISOString().split("T")[0]);
+    setFormObs("");
+    setDetectedSections({ piso: false, deck: false, forro: false, painel: false, porta: false, escada: false, bancos: false });
+    setServicos([]);
+    setCkPiso({});
+    setCkDeck({});
+    setCkForro({});
+    setCkPainel({});
+    setCkPorta({});
+    setCkEscada({});
+    setCkBancos({});
+    setCkExtra({});
+    setTextFields({});
+    setReparoMateriais([]);
+    setFotos([]);
+    setMedicaoObra("");
+    setEquipesInfo("");
+    setItemInstalado("");
+    setDescritivoReparo("");
+    initChecklist("1vistoria");
+  };
+  const handleTipoChange = (tipo) => {
+    setFormTipo(tipo);
+    initChecklist(tipo);
+  };
+  const _laudoToast = (msg, kind) => {
+    try {
+      const c = kind === "err"
+        ? { bg: "rgba(239,68,68,0.15)", bd: "rgba(239,68,68,0.4)", fg: "#ef4444" }
+        : { bg: "rgba(34,197,94,0.15)", bd: "rgba(34,197,94,0.4)", fg: "#22c55e" };
+      const w = document.createElement("div");
+      w.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:99999;padding:14px 18px;border-radius:10px;font-size:13px;font-weight:600;max-width:420px;box-shadow:0 8px 24px rgba(0,0,0,0.4)";
+      w.style.background = c.bg; w.style.border = "1px solid " + c.bd; w.style.color = c.fg;
+      w.textContent = msg;
+      document.body.appendChild(w);
+      setTimeout(() => w.remove(), 5000);
+    } catch (_) {}
+  };
+  const handleSaveLaudo = async () => {
+    setSaving(true);
+    try {
+    const card = cards.find((c) => c.id === formCardId);
+    const fiscal = equipe.find((e) => e.id === formFiscalId);
+    const payload = {
+      card_id: formCardId || null,
+      obra: card?.obra || "",
+      cliente: card?.title || "",
+      tipo: formTipo,
+      fiscal_id: formFiscalId || null,
+      fiscal_nome: fiscal?.nome || null,
+      data_vistoria: formDataVistoria || null,
+      status: "pendente",
+      servicos_inclusos: servicos,
+      observacoes: formObs || null
+    };
+    if (formTipo === "1vistoria" || formTipo === "2vistoria") {
+      if (detectedSections.piso) payload.checklist_piso = ckPiso;
+      if (detectedSections.deck) payload.checklist_deck = ckDeck;
+      if (detectedSections.forro) payload.checklist_forro = ckForro;
+      if (detectedSections.painel) payload.checklist_painel = ckPainel;
+      const extraPayload = { ...ckExtra };
+      if (detectedSections.porta) extraPayload.porta = ckPorta;
+      if (detectedSections.escada) extraPayload.escada = ckEscada;
+      if (formTipo === "2vistoria" && detectedSections.bancos) extraPayload.bancos = ckBancos;
+      payload.checklist_extra = extraPayload;
+      if (medicaoObra) payload.medicao_obra = medicaoObra;
+    } else if (formTipo === "acompanhamento") {
+      payload.checklist_extra = { ...ckExtra, textFields, equipesInfo, itemInstalado };
+    } else if (formTipo === "reparo") {
+      payload.checklist_extra = { ...ckExtra, textFields, reparoMateriais: reparoMateriais.length > 0 ? reparoMateriais : void 0 };
+      if (descritivoReparo) payload.descritivo_reparo = descritivoReparo;
+    } else {
+      payload.checklist_extra = { ...ckExtra, textFields, reparoMateriais: reparoMateriais.length > 0 ? reparoMateriais : void 0 };
+    }
+    let laudoId = null;
+    if (viewing) {
+      await supabase.from("fiscal_laudos").update(payload).eq("id", viewing.id);
+      laudoId = viewing.id;
+    } else {
+      const { data } = await supabase.from("fiscal_laudos").insert(payload).select("id").single();
+      laudoId = data?.id || null;
+    }
+    if (laudoId && fotos.length > 0) {
+      const fotosToInsert = fotos.filter((f) => !f.id.startsWith("existing_")).map((f) => ({
+        laudo_id: laudoId,
+        card_id: formCardId || null,
+        ambiente: f.ambiente,
+        url: f.url,
+        descricao: f.descricao
+      }));
+      if (fotosToInsert.length > 0) {
+        await supabase.from("fiscal_fotos").insert(fotosToInsert);
+      }
+    }
+    setSaving(false);
+    setCreating(false);
+    setViewing(null);
+    fetchAll();
+    _laudoToast("✓ Laudo salvo no banco", "ok");
+    } catch (_lErr) {
+      console.error("[Laudo save FALHOU]", _lErr);
+      _laudoToast("❌ Erro ao salvar laudo: " + (_lErr?.message || _lErr), "err");
+      setSaving(false);
+    }
+  };
+  const openViewLaudo = async (laudo) => {
+    setViewing(laudo);
+    setCreating(true);
+    setFormCardId(laudo.card_id || "");
+    setFormTipo(laudo.tipo);
+    setFormFiscalId(laudo.fiscal_id || "");
+    setFormDataVistoria(laudo.data_vistoria || "");
+    setFormObs(laudo.observacoes || "");
+    setServicos(laudo.servicos_inclusos || []);
+    const sections = { piso: false, deck: false, forro: false, painel: false, porta: false, escada: false, bancos: false };
+    (laudo.servicos_inclusos || []).forEach((s) => {
+      if (s in sections) sections[s] = true;
+    });
+    setDetectedSections(sections);
+    setMedicaoObra(laudo.medicao_obra || "");
+    setDescritivoReparo(laudo.descritivo_reparo || "");
+    const items1v = laudo.tipo === "1vistoria";
+    const items2v = laudo.tipo === "2vistoria";
+    if (items1v || items2v) {
+      setCkPiso(mergeCkState(getChecklistItems(laudo.tipo, "piso"), laudo.checklist_piso));
+      setCkDeck(mergeCkState(getChecklistItems(laudo.tipo, "deck"), laudo.checklist_deck));
+      setCkForro(mergeCkState(getChecklistItems(laudo.tipo, "forro"), laudo.checklist_forro));
+      setCkPainel(mergeCkState(getChecklistItems(laudo.tipo, "painel"), laudo.checklist_painel));
+      const extra = laudo.checklist_extra || {};
+      setCkPorta(mergeCkState(getChecklistItems(laudo.tipo, "porta"), extra.porta));
+      setCkEscada(mergeCkState(getChecklistItems(laudo.tipo, "escada"), extra.escada));
+      setCkBancos(items2v ? mergeCkState(CK_2V_BANCOS, extra.bancos) : {});
+      setCkExtra(extra);
+    } else {
+      const extra = laudo.checklist_extra || {};
+      setCkExtra(extra);
+      setTextFields(extra.textFields || {});
+      setReparoMateriais(extra.reparoMateriais || []);
+      setEquipesInfo(extra.equipesInfo || "");
+      setItemInstalado(extra.itemInstalado || "");
+    }
+    const { data: existingFotos } = await supabase.from("fiscal_fotos").select("*").eq("laudo_id", laudo.id);
+    setFotos((existingFotos || []).map((f) => ({ ...f, id: "existing_" + f.id })));
+  };
+  const updateLaudoStatus = async (id, status) => {
+    await supabase.from("fiscal_laudos").update({ status }).eq("id", id);
+    fetchAll();
+  };
+  const handlePhotoUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split(".").pop();
+      const path = `laudos/${formCardId || "sem-card"}/${Date.now()}_${i}.${ext}`;
+      const { error } = await supabase.storage.from("fiscal-fotos").upload(path, file);
+      if (!error) {
+        const { data: urlData } = supabase.storage.from("fiscal-fotos").getPublicUrl(path);
+        setFotos((prev) => [...prev, {
+          id: `new_${Date.now()}_${i}`,
+          laudo_id: viewing?.id || "",
+          card_id: formCardId || null,
+          ambiente: fotoAmbiente || "Geral",
+          url: urlData.publicUrl,
+          descricao: null
+        }]);
+      }
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+  const removeFoto = (fotoId) => setFotos((prev) => prev.filter((f) => f.id !== fotoId));
+  const filteredLaudos = laudos.filter((l) => {
+    if (filterTipo && l.tipo !== filterTipo) return false;
+    if (filterStatus && l.status !== filterStatus) return false;
+    return true;
+  });
+  if (creating) {
+    return /* @__PURE__ */ jsxs("div", { style: { padding: 16 }, children: [
+      /* @__PURE__ */ jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }, children: [
+        /* @__PURE__ */ jsx("h2", { style: { color: "white", fontSize: "1rem", fontWeight: 600, margin: 0 }, children: viewing ? "Editar Laudo" : "Novo Laudo" }),
+        /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 8 }, children: [
+          /* @__PURE__ */ jsx(Btn, { color: GREEN, disabled: saving, onClick: handleSaveLaudo, children: saving ? "Salvando..." : "\u{1F4BE} Salvar Laudo" }),
+          /* @__PURE__ */ jsx(Btn, { color: TEXT_DIM, variant: "ghost", onClick: () => {
+            setCreating(false);
+            setViewing(null);
+          }, children: "Voltar" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs(SectionCard, { title: "Informacoes do Laudo", children: [
+        /* @__PURE__ */ jsx(FormField, { label: "Projeto do Kanban Operacional", children: (() => {
+          const selected = cards.find((c) => c.id === formCardId);
+          if (selected) {
+            return /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 12, padding: 12, background: `${GREEN}10`, border: `1px solid ${GREEN}40`, borderRadius: 8 }, children: [
+              /* @__PURE__ */ jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [
+                /* @__PURE__ */ jsxs("div", { style: { fontSize: "0.78rem", fontWeight: 700, color: "white" }, children: [
+                  selected.obra || "(sem c\xF3digo)",
+                  " \u2014 ",
+                  selected.title
+                ] }),
+                /* @__PURE__ */ jsxs("div", { style: { fontSize: "0.6rem", color: TEXT_DIM, marginTop: 2 }, children: [
+                  "Coluna: ",
+                  /* @__PURE__ */ jsx("span", { style: { color: PURPLE }, children: selected.column_id || "\u2014" }),
+                  selected.responsavel && /* @__PURE__ */ jsxs(Fragment, { children: [
+                    " \xB7 Respons\xE1vel: ",
+                    /* @__PURE__ */ jsx("span", { style: { color: BLUE }, children: selected.responsavel })
+                  ] })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsx(Btn, { color: TEXT_DIM, variant: "ghost", onClick: () => {
+                setFormCardId("");
+                setCardSearch("");
+              }, children: "\xD7 Trocar projeto" })
+            ] });
+          }
+          const filtered = cards.filter((c) => {
+            if (!cardSearch.trim()) return true;
+            const q = cardSearch.toLowerCase();
+            return (c.title || "").toLowerCase().includes(q) || (c.obra || "").toLowerCase().includes(q) || (c.obra || "").toLowerCase().includes(q) || (c.column_id || "").toLowerCase().includes(q) || (c.responsavel || "").toLowerCase().includes(q);
+          });
+          return /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx(
+              FInput,
+              {
+                placeholder: `Buscar em ${cards.length} projeto${cards.length !== 1 ? "s" : ""} (nome, obra, coluna, respons\xE1vel)...`,
+                value: cardSearch,
+                onChange: (e) => setCardSearch(e.target.value)
+              }
+            ),
+            /* @__PURE__ */ jsx("div", { style: { marginTop: 8, maxHeight: 320, overflowY: "auto", border: `1px solid ${BORDER}`, borderRadius: 8, background: "rgba(0,0,0,0.2)" }, children: filtered.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: 24, textAlign: "center", fontSize: "0.7rem", color: TEXT_DIM }, children: "Nenhum projeto encontrado" }) : filtered.map((c) => /* @__PURE__ */ jsx(
+              "div",
+              {
+                onClick: () => handleCardSelect(c.id),
+                style: {
+                  padding: "10px 12px",
+                  borderBottom: `1px solid ${BORDER}`,
+                  cursor: "pointer",
+                  transition: "background 0.15s"
+                },
+                onMouseEnter: (e) => {
+                  e.currentTarget.style.background = "rgba(139,92,246,0.08)";
+                },
+                onMouseLeave: (e) => {
+                  e.currentTarget.style.background = "transparent";
+                },
+                children: /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }, children: [
+                  /* @__PURE__ */ jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [
+                    /* @__PURE__ */ jsxs("div", { style: { fontSize: "0.72rem", fontWeight: 600, color: "white", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: [
+                      c.obra || "(sem c\xF3digo)",
+                      " \u2014 ",
+                      c.title
+                    ] }),
+                    /* @__PURE__ */ jsxs("div", { style: { fontSize: "0.55rem", color: TEXT_DIM, marginTop: 2 }, children: [
+                      c.column_id || "\u2014",
+                      c.responsavel && /* @__PURE__ */ jsxs(Fragment, { children: [
+                        " \xB7 ",
+                        c.responsavel
+                      ] })
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ jsx("span", { style: { fontSize: "0.5rem", padding: "2px 6px", borderRadius: 4, background: `${PURPLE}15`, color: PURPLE, fontWeight: 700, whiteSpace: "nowrap" }, children: "Selecionar" })
+                ] })
+              },
+              c.id
+            )) }),
+            /* @__PURE__ */ jsxs("div", { style: { fontSize: "0.55rem", color: TEXT_DIM, marginTop: 4 }, children: [
+              filtered.length,
+              " de ",
+              cards.length,
+              " projetos"
+            ] })
+          ] });
+        })() }),
+        /* @__PURE__ */ jsxs("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }, children: [
+          /* @__PURE__ */ jsx(FormField, { label: "Tipo de Vistoria", children: /* @__PURE__ */ jsx(FSelect, { value: formTipo, onChange: (e) => handleTipoChange(e.target.value), children: TIPO_OPTIONS.map((t) => /* @__PURE__ */ jsx("option", { value: t.value, children: t.label }, t.value)) }) }),
+          /* @__PURE__ */ jsx(FormField, { label: "Fiscal Responsavel", children: /* @__PURE__ */ jsxs(FSelect, { value: formFiscalId, onChange: (e) => setFormFiscalId(e.target.value), children: [
+            /* @__PURE__ */ jsx("option", { value: "", children: "\u2014 Selecionar \u2014" }),
+            equipe.map((e) => /* @__PURE__ */ jsx("option", { value: e.id, children: e.nome }, e.id))
+          ] }) }),
+          /* @__PURE__ */ jsx(FormField, { label: "Data da Vistoria", children: /* @__PURE__ */ jsx(FInput, { type: "date", value: formDataVistoria, onChange: (e) => setFormDataVistoria(e.target.value) }) })
+        ] })
+      ] }),
+      (formTipo === "1vistoria" || formTipo === "2vistoria") && /* @__PURE__ */ jsx(SectionCard, { title: "Servicos Inclusos", children: /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: (formTipo === "2vistoria" ? ["piso", "deck", "forro", "painel", "porta", "escada", "bancos"] : ["piso", "deck", "forro", "painel", "porta", "escada"]).map((s) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          onClick: () => toggleServico(s),
+          style: {
+            padding: "4px 12px",
+            borderRadius: 8,
+            fontSize: "0.65rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            background: servicos.includes(s) ? `${PURPLE}30` : "rgba(255,255,255,0.04)",
+            color: servicos.includes(s) ? PURPLE : TEXT_DIM,
+            border: `1px solid ${servicos.includes(s) ? `${PURPLE}50` : "rgba(255,255,255,0.08)"}`,
+            textTransform: "capitalize"
+          },
+          children: s
+        },
+        s
+      )) }) }),
+      (formTipo === "1vistoria" || formTipo === "2vistoria") && /* @__PURE__ */ jsx(SectionCard, { title: "Medicao de Obra", children: /* @__PURE__ */ jsx(FormField, { label: "Descricao da medicao", children: /* @__PURE__ */ jsx(FTextarea, { value: medicaoObra, onChange: (e) => setMedicaoObra(e.target.value) }) }) }),
+      (formTipo === "1vistoria" || formTipo === "2vistoria") && detectedSections.piso && /* @__PURE__ */ jsx(SectionCard, { title: "Piso - Checklist", children: getChecklistItems(formTipo, "piso").map((item) => /* @__PURE__ */ jsx(
+        ChecklistToggleRow,
+        {
+          label: item,
+          value: ckPiso[item]?.valor ?? null,
+          obs: ckPiso[item]?.obs || "",
+          onChange: (v) => setCkPiso((prev) => ({ ...prev, [item]: { ...prev[item] || { obs: "" }, valor: v } })),
+          onObsChange: (v) => setCkPiso((prev) => ({ ...prev, [item]: { ...prev[item] || { valor: null }, obs: v } }))
+        },
+        item
+      )) }),
+      (formTipo === "1vistoria" || formTipo === "2vistoria") && detectedSections.deck && /* @__PURE__ */ jsx(SectionCard, { title: "Deck - Checklist", children: getChecklistItems(formTipo, "deck").map((item) => /* @__PURE__ */ jsx(
+        ChecklistToggleRow,
+        {
+          label: item,
+          value: ckDeck[item]?.valor ?? null,
+          obs: ckDeck[item]?.obs || "",
+          onChange: (v) => setCkDeck((prev) => ({ ...prev, [item]: { ...prev[item] || { obs: "" }, valor: v } })),
+          onObsChange: (v) => setCkDeck((prev) => ({ ...prev, [item]: { ...prev[item] || { valor: null }, obs: v } }))
+        },
+        item
+      )) }),
+      (formTipo === "1vistoria" || formTipo === "2vistoria") && detectedSections.forro && /* @__PURE__ */ jsxs(SectionCard, { title: "Forro - Checklist", children: [
+        getChecklistItems(formTipo, "forro").map((item) => /* @__PURE__ */ jsx(
+          ChecklistToggleRow,
+          {
+            label: item,
+            value: ckForro[item]?.valor ?? null,
+            obs: ckForro[item]?.obs || "",
+            onChange: (v) => setCkForro((prev) => ({ ...prev, [item]: { ...prev[item] || { obs: "" }, valor: v } })),
+            onObsChange: (v) => setCkForro((prev) => ({ ...prev, [item]: { ...prev[item] || { valor: null }, obs: v } }))
+          },
+          item
+        )),
+        (formTipo === "1vistoria" ? CK_1V_FORRO_EXTRA : CK_2V_FORRO_EXTRA).map((ex) => /* @__PURE__ */ jsxs("div", { style: { marginTop: 8 }, children: [
+          /* @__PURE__ */ jsx("label", { style: { fontSize: "0.6rem", color: TEXT_MED, display: "block", marginBottom: 4 }, children: ex.q }),
+          /* @__PURE__ */ jsx(FInput, { value: ckExtra[ex.q] || "", onChange: (e) => setCkExtra((prev) => ({ ...prev, [ex.q]: e.target.value })) })
+        ] }, ex.q))
+      ] }),
+      (formTipo === "1vistoria" || formTipo === "2vistoria") && detectedSections.painel && /* @__PURE__ */ jsx(SectionCard, { title: "Painel - Checklist", children: getChecklistItems(formTipo, "painel").map((item) => /* @__PURE__ */ jsx(
+        ChecklistToggleRow,
+        {
+          label: item,
+          value: ckPainel[item]?.valor ?? null,
+          obs: ckPainel[item]?.obs || "",
+          onChange: (v) => setCkPainel((prev) => ({ ...prev, [item]: { ...prev[item] || { obs: "" }, valor: v } })),
+          onObsChange: (v) => setCkPainel((prev) => ({ ...prev, [item]: { ...prev[item] || { valor: null }, obs: v } }))
+        },
+        item
+      )) }),
+      (formTipo === "1vistoria" || formTipo === "2vistoria") && detectedSections.porta && /* @__PURE__ */ jsx(SectionCard, { title: "Porta - Checklist", children: getChecklistItems(formTipo, "porta").map((item) => /* @__PURE__ */ jsx(
+        ChecklistToggleRow,
+        {
+          label: item,
+          value: ckPorta[item]?.valor ?? null,
+          obs: ckPorta[item]?.obs || "",
+          onChange: (v) => setCkPorta((prev) => ({ ...prev, [item]: { ...prev[item] || { obs: "" }, valor: v } })),
+          onObsChange: (v) => setCkPorta((prev) => ({ ...prev, [item]: { ...prev[item] || { valor: null }, obs: v } }))
+        },
+        item
+      )) }),
+      (formTipo === "1vistoria" || formTipo === "2vistoria") && detectedSections.escada && /* @__PURE__ */ jsx(SectionCard, { title: "Escada - Checklist", children: getChecklistItems(formTipo, "escada").map((item) => /* @__PURE__ */ jsx(
+        ChecklistToggleRow,
+        {
+          label: item,
+          value: ckEscada[item]?.valor ?? null,
+          obs: ckEscada[item]?.obs || "",
+          onChange: (v) => setCkEscada((prev) => ({ ...prev, [item]: { ...prev[item] || { obs: "" }, valor: v } })),
+          onObsChange: (v) => setCkEscada((prev) => ({ ...prev, [item]: { ...prev[item] || { valor: null }, obs: v } }))
+        },
+        item
+      )) }),
+      formTipo === "2vistoria" && detectedSections.bancos && /* @__PURE__ */ jsx(SectionCard, { title: "Bancos - Checklist", children: CK_2V_BANCOS.map((item) => /* @__PURE__ */ jsx(
+        ChecklistToggleRow,
+        {
+          label: item,
+          value: ckBancos[item]?.valor ?? null,
+          obs: ckBancos[item]?.obs || "",
+          onChange: (v) => setCkBancos((prev) => ({ ...prev, [item]: { ...prev[item] || { obs: "" }, valor: v } })),
+          onObsChange: (v) => setCkBancos((prev) => ({ ...prev, [item]: { ...prev[item] || { valor: null }, obs: v } }))
+        },
+        item
+      )) }),
+      formTipo === "2vistoria" && /* @__PURE__ */ jsx(SectionCard, { title: "Liberacao da Obra", children: CK_2V_LIBERACAO.map((item) => /* @__PURE__ */ jsx(
+        ChecklistToggleRow,
+        {
+          label: item,
+          value: ckExtra.liberacao?.[item]?.valor ?? null,
+          obs: ckExtra.liberacao?.[item]?.obs || "",
+          onChange: (v) => setCkExtra((prev) => ({ ...prev, liberacao: { ...prev.liberacao, [item]: { ...prev.liberacao?.[item] || { obs: "" }, valor: v } } })),
+          onObsChange: (v) => setCkExtra((prev) => ({ ...prev, liberacao: { ...prev.liberacao, [item]: { ...prev.liberacao?.[item] || { valor: null }, obs: v } } }))
+        },
+        item
+      )) }),
+      formTipo === "acompanhamento" && /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsxs(SectionCard, { title: "Equipes e Item Instalado", children: [
+          /* @__PURE__ */ jsx(FormField, { label: "Equipes em obra", children: /* @__PURE__ */ jsx(FTextarea, { value: equipesInfo, onChange: (e) => setEquipesInfo(e.target.value), placeholder: "Quais equipes estao em obra, quantidade de pessoas..." }) }),
+          /* @__PURE__ */ jsx(FormField, { label: "Item instalado", children: /* @__PURE__ */ jsx(FTextarea, { value: itemInstalado, onChange: (e) => setItemInstalado(e.target.value), placeholder: "Qual item esta sendo instalado (piso, deck, forro, painel, porta, escada)..." }) })
+        ] }),
+        /* @__PURE__ */ jsx(SectionCard, { title: "Equipe", children: CK_ACOMP_EQUIPE.map((item) => /* @__PURE__ */ jsx(
+          ChecklistToggleRow,
+          {
+            label: item,
+            value: ckExtra.equipe?.[item]?.valor ?? null,
+            obs: ckExtra.equipe?.[item]?.obs || "",
+            onChange: (v) => setCkExtra((prev) => ({ ...prev, equipe: { ...prev.equipe, [item]: { ...prev.equipe?.[item] || { obs: "" }, valor: v } } })),
+            onObsChange: (v) => setCkExtra((prev) => ({ ...prev, equipe: { ...prev.equipe, [item]: { ...prev.equipe?.[item] || { valor: null }, obs: v } } }))
+          },
+          item
+        )) }),
+        /* @__PURE__ */ jsx(SectionCard, { title: "Produtividade", children: CK_ACOMP_PRODUTIVIDADE.map((item) => /* @__PURE__ */ jsx(
+          ChecklistToggleRow,
+          {
+            label: item,
+            value: ckExtra.produtividade?.[item]?.valor ?? null,
+            obs: ckExtra.produtividade?.[item]?.obs || "",
+            onChange: (v) => setCkExtra((prev) => ({ ...prev, produtividade: { ...prev.produtividade, [item]: { ...prev.produtividade?.[item] || { obs: "" }, valor: v } } })),
+            onObsChange: (v) => setCkExtra((prev) => ({ ...prev, produtividade: { ...prev.produtividade, [item]: { ...prev.produtividade?.[item] || { valor: null }, obs: v } } }))
+          },
+          item
+        )) }),
+        /* @__PURE__ */ jsx(SectionCard, { title: "Informacoes Complementares", children: ACOMP_TEXT_FIELDS.map((f) => /* @__PURE__ */ jsx(FormField, { label: f, children: /* @__PURE__ */ jsx(FTextarea, { value: textFields[f] || "", onChange: (e) => setTextFields((prev) => ({ ...prev, [f]: e.target.value })) }) }, f)) })
+      ] }),
+      formTipo === "entrega" && /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx(SectionCard, { title: "Checklist Entrega", children: CK_ENTREGA.map((item) => /* @__PURE__ */ jsx(
+          ChecklistToggleRow,
+          {
+            label: item,
+            value: ckExtra.entrega?.[item]?.valor ?? null,
+            obs: ckExtra.entrega?.[item]?.obs || "",
+            onChange: (v) => setCkExtra((prev) => ({ ...prev, entrega: { ...prev.entrega, [item]: { ...prev.entrega?.[item] || { obs: "" }, valor: v } } })),
+            onObsChange: (v) => setCkExtra((prev) => ({ ...prev, entrega: { ...prev.entrega, [item]: { ...prev.entrega?.[item] || { valor: null }, obs: v } } }))
+          },
+          item
+        )) }),
+        /* @__PURE__ */ jsx(SectionCard, { title: "Descritivos", children: ENTREGA_TEXT_FIELDS.map((f) => /* @__PURE__ */ jsx(FormField, { label: f, children: /* @__PURE__ */ jsx(FTextarea, { value: textFields[f] || "", onChange: (e) => setTextFields((prev) => ({ ...prev, [f]: e.target.value })) }) }, f)) })
+      ] }),
+      formTipo === "reparo" && /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx(SectionCard, { title: "Descritivo dos servicos e materiais com problema", children: /* @__PURE__ */ jsx(FTextarea, { value: descritivoReparo, onChange: (e) => setDescritivoReparo(e.target.value), placeholder: "Descreva os servicos executados e materiais que apresentaram problema..." }) }),
+        /* @__PURE__ */ jsx(SectionCard, { title: "Tipo de Reparo", children: CK_REPARO_TIPO.map((item) => /* @__PURE__ */ jsx(
+          ChecklistToggleRow,
+          {
+            label: item,
+            value: ckExtra.reparo?.[item]?.valor ?? null,
+            onChange: (v) => setCkExtra((prev) => ({ ...prev, reparo: { ...prev.reparo, [item]: { ...prev.reparo?.[item] || { obs: "" }, valor: v } } }))
+          },
+          item
+        )) }),
+        /* @__PURE__ */ jsx(SectionCard, { title: "Materiais Disponiveis", children: CK_REPARO_MATERIAIS.map((item) => /* @__PURE__ */ jsx(
+          ChecklistToggleRow,
+          {
+            label: item,
+            value: ckExtra.materiais?.[item]?.valor ?? null,
+            onChange: (v) => setCkExtra((prev) => ({ ...prev, materiais: { ...prev.materiais, [item]: { ...prev.materiais?.[item] || { obs: "" }, valor: v } } }))
+          },
+          item
+        )) }),
+        /* @__PURE__ */ jsx(SectionCard, { title: "Descritivos", children: REPARO_TEXT_FIELDS.map((f) => /* @__PURE__ */ jsx(FormField, { label: f, children: /* @__PURE__ */ jsx(FTextarea, { value: textFields[f] || "", onChange: (e) => setTextFields((prev) => ({ ...prev, [f]: e.target.value })) }) }, f)) }),
+        /* @__PURE__ */ jsxs(SectionCard, { title: "Materiais/Insumos Necessarios", children: [
+          reparoMateriais.map((m, i) => /* @__PURE__ */ jsxs("div", { style: { display: "grid", gridTemplateColumns: "2fr 2fr 1fr auto", gap: 8, marginBottom: 6 }, children: [
+            /* @__PURE__ */ jsx(FInput, { placeholder: "Material", value: m.material, onChange: (e) => setReparoMateriais((prev) => prev.map((x, j) => j === i ? { ...x, material: e.target.value } : x)) }),
+            /* @__PURE__ */ jsx(FInput, { placeholder: "Insumo", value: m.insumo, onChange: (e) => setReparoMateriais((prev) => prev.map((x, j) => j === i ? { ...x, insumo: e.target.value } : x)) }),
+            /* @__PURE__ */ jsx(FInput, { placeholder: "Qtde", value: m.quantidade, onChange: (e) => setReparoMateriais((prev) => prev.map((x, j) => j === i ? { ...x, quantidade: e.target.value } : x)) }),
+            /* @__PURE__ */ jsx("button", { onClick: () => setReparoMateriais((prev) => prev.filter((_, j) => j !== i)), style: { padding: "0 8px", background: "transparent", border: "none", color: RED, cursor: "pointer" }, children: "\u{1F5D1}" })
+          ] }, i)),
+          /* @__PURE__ */ jsx(Btn, { color: PURPLE, variant: "ghost", onClick: () => setReparoMateriais((prev) => [...prev, { material: "", insumo: "", quantidade: "" }]), children: "+ Adicionar linha" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx(SectionCard, { title: "Observacoes Gerais", children: /* @__PURE__ */ jsx(FTextarea, { value: formObs, onChange: (e) => setFormObs(e.target.value) }) }),
+      /* @__PURE__ */ jsxs(SectionCard, { title: "Fotos", children: [
+        /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 8, marginBottom: 12 }, children: [
+          /* @__PURE__ */ jsx(FInput, { placeholder: "Ambiente (ex: Sala 1)", value: fotoAmbiente, onChange: (e) => setFotoAmbiente(e.target.value) }),
+          /* @__PURE__ */ jsx("input", { ref: fileInputRef, type: "file", accept: "image/*", multiple: true, onChange: handlePhotoUpload, style: { display: "none" } }),
+          /* @__PURE__ */ jsx(Btn, { color: BLUE, onClick: () => fileInputRef.current?.click(), disabled: uploading, children: uploading ? "Enviando..." : "\u2B06 Upload" })
+        ] }),
+        fotos.length > 0 && /* @__PURE__ */ jsx("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }, children: fotos.map((f) => /* @__PURE__ */ jsxs("div", { style: { position: "relative", borderRadius: 8, overflow: "hidden", border: `1px solid ${BORDER}`, background: "rgba(0,0,0,0.3)" }, children: [
+          /* @__PURE__ */ jsx("img", { src: f.url, alt: f.ambiente, style: { width: "100%", height: 80, objectFit: "cover" } }),
+          /* @__PURE__ */ jsx("div", { style: { padding: 6 }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "0.5rem", color: ACCENT }, children: f.ambiente }) }),
+          /* @__PURE__ */ jsx("button", { onClick: () => removeFoto(f.id), style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 4, padding: 2, cursor: "pointer", color: RED }, children: "\xD7" })
+        ] }, f.id)) })
+      ] })
+    ] });
+  }
+  return /* @__PURE__ */ jsxs("div", { style: { padding: 16 }, children: [
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }, children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("h2", { style: { color: "white", fontSize: "1rem", fontWeight: 600, margin: 0 }, children: "Laudos & Vistorias" }),
+        /* @__PURE__ */ jsxs("p", { style: { fontSize: "0.65rem", color: TEXT_DIM, margin: "4px 0 0" }, children: [
+          laudos.length,
+          " laudos registrados"
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx(Btn, { color: PURPLE, onClick: startCreating, children: "+ Novo Laudo" })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 8, marginBottom: 12 }, children: [
+      /* @__PURE__ */ jsxs(FSelect, { value: filterTipo, onChange: (e) => setFilterTipo(e.target.value), style: { maxWidth: 160 }, children: [
+        /* @__PURE__ */ jsx("option", { value: "", children: "Todos os tipos" }),
+        TIPO_OPTIONS.map((t) => /* @__PURE__ */ jsx("option", { value: t.value, children: t.label }, t.value))
+      ] }),
+      /* @__PURE__ */ jsxs(FSelect, { value: filterStatus, onChange: (e) => setFilterStatus(e.target.value), style: { maxWidth: 160 }, children: [
+        /* @__PURE__ */ jsx("option", { value: "", children: "Todos os status" }),
+        /* @__PURE__ */ jsx("option", { value: "pendente", children: "Pendente" }),
+        /* @__PURE__ */ jsx("option", { value: "em_andamento", children: "Em Andamento" }),
+        /* @__PURE__ */ jsx("option", { value: "concluido", children: "Concluido" })
+      ] })
+    ] }),
+    loading ? /* @__PURE__ */ jsx("p", { style: { color: TEXT_DIM, fontSize: "0.7rem" }, children: "Carregando..." }) : filteredLaudos.length === 0 ? /* @__PURE__ */ jsxs("div", { style: { background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 32, textAlign: "center" }, children: [
+      /* @__PURE__ */ jsx("div", { style: { fontSize: "2rem" }, children: "\u{1F4C4}" }),
+      /* @__PURE__ */ jsx("p", { style: { color: TEXT_DIM, fontSize: "0.72rem" }, children: "Nenhum laudo encontrado" })
+    ] }) : /* @__PURE__ */ jsx("div", { style: { display: "flex", flexDirection: "column", gap: 8 }, children: filteredLaudos.map((laudo) => {
+      const tipoLabel = TIPO_OPTIONS.find((t) => t.value === laudo.tipo)?.label || laudo.tipo;
+      return /* @__PURE__ */ jsxs("div", { style: { background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 14, cursor: "pointer" }, onClick: () => openViewLaudo(laudo), children: [
+        /* @__PURE__ */ jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }, children: [
+          /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+            /* @__PURE__ */ jsx("span", { style: { color: "white", fontSize: "0.78rem", fontWeight: 600 }, children: laudo.obra || "Sem obra" }),
+            /* @__PURE__ */ jsx(BadgePill, { text: tipoLabel, color: PURPLE }),
+            /* @__PURE__ */ jsx(
+              StatusSelect,
+              {
+                value: laudo.status,
+                options: ["pendente", "em_andamento", "concluido", "cancelado"],
+                onChange: (v) => updateLaudoStatus(laudo.id, v),
+                colorMap: STATUS_COLORS
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+            /* @__PURE__ */ jsx("button", {
+              onClick: async (e) => { e.stopPropagation(); try { const r = await fetch("https://draw.parket.works/api/laudos-fiscal/" + laudo.id + "/pdf"); if (!r.ok) throw new Error("HTTP " + r.status); const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "laudo-" + (laudo.obra || laudo.id) + ".pdf"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500); } catch (err) { alert("Erro ao gerar PDF: " + (err.message || err)); } },
+              title: "Gerar PDF do laudo",
+              style: { background: BLUE + "20", border: "1px solid " + BLUE + "50", color: BLUE, padding: "4px 10px", borderRadius: 6, fontSize: "0.6rem", fontWeight: 700, cursor: "pointer" },
+              children: "\u{1F4C4} PDF"
+            }),
+            /* @__PURE__ */ jsx("span", { style: { fontSize: "0.55rem", color: TEXT_DIM }, children: laudo.data_vistoria ? new Date(laudo.data_vistoria).toLocaleDateString("pt-BR") : "\u2014" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 16 }, children: [
+          /* @__PURE__ */ jsx("span", { style: { fontSize: "0.65rem", color: ACCENT }, children: laudo.cliente || "\u2014" }),
+          laudo.fiscal_nome && /* @__PURE__ */ jsx("span", { style: { fontSize: "0.6rem", color: BLUE }, children: laudo.fiscal_nome }),
+          laudo.servicos_inclusos && laudo.servicos_inclusos.length > 0 && /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 4 }, children: laudo.servicos_inclusos.map((s) => /* @__PURE__ */ jsx("span", { style: { fontSize: "0.45rem", padding: "1px 5px", borderRadius: 4, background: `${ORANGE}15`, color: ORANGE, fontWeight: 600, textTransform: "capitalize" }, children: s }, s)) })
+        ] })
+      ] }, laudo.id);
+    }) })
+  ] });
+}
+export {
+  LaudosVistoriasTab
+};

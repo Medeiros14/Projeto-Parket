@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  rest-local:
+    image: postgrest/postgrest:v12.2.3
+    networks: [internal]
+    environment:
+      PGRST_DB_URI: "postgres://postgres:${LOCAL_PG_PASSWORD}@parket-pg-local_postgres:5432/postgres"
+      PGRST_DB_SCHEMAS: "public,graphql_public,core,rh,signer,erp,orcamento_produtos"
+      PGRST_DB_EXTRA_SEARCH_PATH: "public,extensions,core,rh,signer,erp,orcamento_produtos"
+      PGRST_DB_ANON_ROLE: "anon"
+      PGRST_JWT_SECRET: "fRRTxcyFdBnWe1B65tFFn+k40+1Rrl6z4s/CcsUofAOM+MKPZIrK/B05c3rIsAcgevnVsLGX+jTf1LhZDdzsBw=="
+      PGRST_JWT_AUD: "authenticated"
+      PGRST_DB_MAX_ROWS: "5000"
+      PGRST_DB_PREPARED_STATEMENTS: "false"
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_DB_POOL: "30"
+      PGRST_DB_POOL_ACQUISITION_TIMEOUT: "10"
+      PGRST_SERVER_PORT: "3000"
+      PGRST_ADMIN_SERVER_PORT: "3001"
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.role == manager"]
+networks:
+  internal:
+    external: true
+    name: parket-api_internal

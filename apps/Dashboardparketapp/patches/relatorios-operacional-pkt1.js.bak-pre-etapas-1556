@@ -1,0 +1,805 @@
+// relatorios-operacional-pkt1.js
+// Aba "📊 Relatórios" do Operacional — analytics multi-dimensional + builder
+// com filtros combinados + 10 templates pré-prontos + export CSV.
+//
+// Dimensões disponíveis: fase do kanban, característica (tags Piso/Painel/
+// Forro/Deck/Porta/Marcenaria/Escada), região (SP/DF/RJ/...), fiscal,
+// responsável, SLA, datas. Dados vêm de kanban_cards (dept='operacional')
+// + kanban_columns + fiscal_equipe.
+
+import { r as RE, s as SB, j as o } from "./index-DZtetJYP.js";
+
+const ACCENT = "#FF6B35";
+const BG_PANEL = "#111";
+const BG_CARD = "#1a1a1a";
+const BORDER = "#2a2a2a";
+const TXT = "#fafafa";
+const TXT_DIM = "#a1a1aa";
+const TXT_MUTED = "#71717a";
+
+const CARACTERISTICAS = ["Piso", "Painel", "Forro", "Deck", "Porta", "Marcenaria", "Escada"];
+const ESTADOS_BR = ["SP", "RJ", "DF", "BA", "MG", "PR", "SC", "RS", "PE", "MT", "PB"];
+const SLA_OPTS = [
+  { v: "", l: "Todos" },
+  { v: "ok", l: "✅ OK" },
+  { v: "warning", l: "⚠️ Atenção" },
+  { v: "critical", l: "🔥 Crítico" },
+];
+
+// Parse "R$ 52.000,00" → 52000 (número). Tolerante.
+function parseValor(s) {
+  if (s == null) return 0;
+  if (typeof s === "number") return s;
+  const t = String(s).replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(t);
+  return isFinite(n) ? n : 0;
+}
+function fmtBRL(n) {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+function fmtDate(s) {
+  if (!s) return "";
+  try { return new Date(s).toLocaleDateString("pt-BR"); } catch { return s; }
+}
+function daysBetween(a, b) {
+  if (!a || !b) return null;
+  try {
+    const d1 = new Date(a), d2 = new Date(b);
+    return Math.floor((d2 - d1) / 86400000);
+  } catch { return null; }
+}
+
+// Mini-componentes visuais
+function Btn({ label, onClick, color, active, small, title }) {
+  return o.jsx("button", {
+    onClick, title: title || label,
+    style: {
+      padding: small ? "4px 8px" : "6px 10px",
+      borderRadius: 4,
+      background: active ? (color || ACCENT) : "transparent",
+      color: active ? "#fff" : (color || TXT_DIM),
+      border: `1px solid ${active ? (color || ACCENT) : BORDER}`,
+      fontSize: small ? "0.6rem" : "0.65rem",
+      fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+    },
+    children: label,
+  });
+}
+
+function Chip({ label, count, onClick, active, color }) {
+  return o.jsxs("button", {
+    onClick,
+    style: {
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "3px 8px", borderRadius: 12,
+      background: active ? (color || ACCENT) : "transparent",
+      color: active ? "#fff" : (color || TXT_DIM),
+      border: `1px solid ${active ? (color || ACCENT) : BORDER}`,
+      fontSize: "0.6rem", fontWeight: 600, cursor: "pointer",
+    },
+    children: [
+      label,
+      count != null ? o.jsx("span", {
+        style: { opacity: 0.7, fontSize: "0.55rem" }, children: `${count}`,
+      }) : null,
+    ],
+  });
+}
+
+function MetricCard({ label, value, sub, color }) {
+  return o.jsxs("div", {
+    style: {
+      flex: 1, minWidth: 140,
+      background: BG_CARD, border: `1px solid ${BORDER}`,
+      borderTop: `3px solid ${color || ACCENT}`,
+      borderRadius: 6, padding: "12px 14px",
+    },
+    children: [
+      o.jsx("div", {
+        style: { fontSize: "0.55rem", color: TXT_MUTED, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 },
+        children: label,
+      }),
+      o.jsx("div", {
+        style: { fontSize: "1.4rem", fontWeight: 700, color: TXT },
+        children: value,
+      }),
+      sub ? o.jsx("div", {
+        style: { fontSize: "0.6rem", color: TXT_DIM, marginTop: 2 },
+        children: sub,
+      }) : null,
+    ],
+  });
+}
+
+// ─── Componente principal ───────────────────────────────────────────
+function RelatoriosOperacionalPage() {
+  const [cards, setCards] = RE.useState([]);
+  const [cols, setCols] = RE.useState([]);
+  const [fiscais, setFiscais] = RE.useState([]);
+  const [loading, setLoading] = RE.useState(true);
+  const [err, setErr] = RE.useState(null);
+
+  // Filtros
+  const [phasesSel, setPhasesSel] = RE.useState(new Set());
+  const [tagsSel, setTagsSel] = RE.useState(new Set());
+  const [estadosSel, setEstadosSel] = RE.useState(new Set());
+  const [fiscaisSel, setFiscaisSel] = RE.useState(new Set());
+  const [slaSel, setSlaSel] = RE.useState("");
+  const [respQuery, setRespQuery] = RE.useState("");
+  const [search, setSearch] = RE.useState("");
+  const [dateFrom, setDateFrom] = RE.useState("");
+  const [dateTo, setDateTo] = RE.useState("");
+  const [page, setPage] = RE.useState(0);
+  const PAGE_SIZE = 50;
+
+  // Carrega tudo no mount
+  RE.useEffect(() => {
+    let alive = true;
+    Promise.all([
+      SB.from("kanban_cards").select("*").eq("dept_id", "operacional").limit(2000),
+      SB.from("kanban_columns").select("*").eq("dept_id", "operacional").order("position"),
+      SB.from("fiscal_equipe").select("id,nome,ativo").eq("ativo", true).order("nome"),
+    ]).then(([cR, colR, fR]) => {
+      if (!alive) return;
+      if (cR.error) { setErr(cR.error.message); setLoading(false); return; }
+      setCards(cR.data || []);
+      setCols(colR.data || []);
+      setFiscais(fR.data || []);
+      setLoading(false);
+    }).catch((e) => {
+      if (alive) { setErr(String(e)); setLoading(false); }
+    });
+    return () => { alive = false; };
+  }, []);
+
+  // Map id → column meta (title, position)
+  const colsById = RE.useMemo(() => {
+    const m = new Map();
+    cols.forEach((c) => m.set(c.id, c));
+    return m;
+  }, [cols]);
+
+  // Filtragem
+  const filtered = RE.useMemo(() => {
+    return cards.filter((c) => {
+      if (phasesSel.size > 0 && !phasesSel.has(c.column_id)) return false;
+      if (tagsSel.size > 0) {
+        const ts = c.tags || [];
+        let any = false;
+        for (const t of tagsSel) {
+          if (ts.includes(t)) { any = true; break; }
+        }
+        if (!any) return false;
+      }
+      if (estadosSel.size > 0) {
+        const ts = c.tags || [];
+        let any = false;
+        for (const e of estadosSel) {
+          if (ts.includes(e)) { any = true; break; }
+        }
+        if (!any) return false;
+      }
+      if (fiscaisSel.size > 0) {
+        const f = ((c.details && c.details.fiscal) || "").toUpperCase();
+        let any = false;
+        for (const fs of fiscaisSel) {
+          if (f.includes(fs.toUpperCase())) { any = true; break; }
+        }
+        if (!any) return false;
+      }
+      if (slaSel && c.sla_status !== slaSel) return false;
+      if (respQuery && !((c.responsavel || "").toLowerCase().includes(respQuery.toLowerCase()))) return false;
+      if (search) {
+        const s = search.toLowerCase();
+        const hit = (c.title || "").toLowerCase().includes(s) ||
+                    (c.subtitle || "").toLowerCase().includes(s) ||
+                    (c.obra || "").toLowerCase().includes(s);
+        if (!hit) return false;
+      }
+      if (dateFrom && c.created_at && c.created_at.slice(0, 10) < dateFrom) return false;
+      if (dateTo && c.created_at && c.created_at.slice(0, 10) > dateTo) return false;
+      return true;
+    });
+  }, [cards, phasesSel, tagsSel, estadosSel, fiscaisSel, slaSel, respQuery, search, dateFrom, dateTo]);
+
+  // Métricas agregadas
+  const metrics = RE.useMemo(() => {
+    let totalValor = 0;
+    let critico = 0, warning = 0, ok = 0;
+    let finalizadas = 0, ativas = 0;
+    for (const c of filtered) {
+      totalValor += parseValor(c.value);
+      if (c.sla_status === "critical") critico++;
+      else if (c.sla_status === "warning") warning++;
+      else ok++;
+      const col = colsById.get(c.column_id);
+      const t = (col && col.title || "").toLowerCase();
+      if (t.includes("finaliz") || t.includes("conclu")) finalizadas++;
+      else ativas++;
+    }
+    return { total: filtered.length, totalValor, critico, warning, ok, finalizadas, ativas };
+  }, [filtered, colsById]);
+
+  // Distribuição por fase (pra "Distribuição por fase")
+  const distPorFase = RE.useMemo(() => {
+    const m = new Map();
+    for (const c of filtered) {
+      m.set(c.column_id, (m.get(c.column_id) || 0) + 1);
+    }
+    return cols.map((col) => ({ col, qtd: m.get(col.id) || 0 }));
+  }, [filtered, cols]);
+
+  // Distribuição por característica (tag)
+  const distPorCaract = RE.useMemo(() => {
+    const m = new Map(CARACTERISTICAS.map((c) => [c, 0]));
+    for (const c of filtered) {
+      const ts = c.tags || [];
+      for (const t of ts) {
+        if (m.has(t)) m.set(t, m.get(t) + 1);
+      }
+    }
+    return Array.from(m.entries()).map(([k, v]) => ({ tag: k, qtd: v }));
+  }, [filtered]);
+
+  // Distribuição por estado
+  const distPorEstado = RE.useMemo(() => {
+    const m = new Map();
+    for (const c of filtered) {
+      const ts = c.tags || [];
+      for (const t of ts) {
+        if (ESTADOS_BR.includes(t)) {
+          m.set(t, (m.get(t) || 0) + 1);
+        }
+      }
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
+
+  // Backlog por fiscal
+  const distPorFiscal = RE.useMemo(() => {
+    const m = new Map();
+    for (const c of filtered) {
+      const f = (c.details && c.details.fiscal) || "—";
+      m.set(f, (m.get(f) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
+
+  // Carga por responsável
+  const distPorResp = RE.useMemo(() => {
+    const m = new Map();
+    for (const c of filtered) {
+      const r = c.responsavel || "—";
+      m.set(r, (m.get(r) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  }, [filtered]);
+
+  // Tempo médio em fase (proxy: dias desde updated_at, agrupado por col)
+  const tempoMedioFase = RE.useMemo(() => {
+    const now = Date.now();
+    const m = new Map();
+    for (const c of filtered) {
+      if (!c.updated_at) continue;
+      const days = Math.floor((now - new Date(c.updated_at).getTime()) / 86400000);
+      if (!m.has(c.column_id)) m.set(c.column_id, []);
+      m.get(c.column_id).push(days);
+    }
+    const out = [];
+    for (const [colId, arr] of m.entries()) {
+      const sum = arr.reduce((a, b) => a + b, 0);
+      const avg = arr.length > 0 ? Math.round(sum / arr.length) : 0;
+      const col = colsById.get(colId);
+      out.push({ col: col || { title: "?", position: 999 }, dias: avg, n: arr.length });
+    }
+    out.sort((a, b) => (a.col.position || 0) - (b.col.position || 0));
+    return out;
+  }, [filtered, colsById]);
+
+  // Templates: aplica filtros pré-definidos
+  const resetFilters = () => {
+    setPhasesSel(new Set()); setTagsSel(new Set()); setEstadosSel(new Set());
+    setFiscaisSel(new Set()); setSlaSel(""); setRespQuery("");
+    setSearch(""); setDateFrom(""); setDateTo(""); setPage(0);
+  };
+  const applyTemplate = (key) => {
+    resetFilters();
+    if (key === "forro") setTagsSel(new Set(["Forro"]));
+    if (key === "piso") setTagsSel(new Set(["Piso"]));
+    if (key === "deck") setTagsSel(new Set(["Deck"]));
+    if (key === "painel") setTagsSel(new Set(["Painel"]));
+    if (key === "marcenaria") setTagsSel(new Set(["Marcenaria"]));
+    if (key === "escada") setTagsSel(new Set(["Escada"]));
+    if (key === "porta") setTagsSel(new Set(["Porta"]));
+    if (key === "sla_critico") setSlaSel("critical");
+    if (key === "sla_warning") setSlaSel("warning");
+    if (key === "sp") setEstadosSel(new Set(["SP"]));
+    if (key === "fora_sp") setEstadosSel(new Set(ESTADOS_BR.filter((e) => e !== "SP")));
+    if (key === "primeira_vistoria") {
+      const col = cols.find((c) => c.slug === "primeira-vistoria");
+      if (col) setPhasesSel(new Set([col.id]));
+    }
+    if (key === "cronograma_final") {
+      const col = cols.find((c) => c.slug === "cronograma-final");
+      if (col) setPhasesSel(new Set([col.id]));
+    }
+    if (key === "obras_liberadas") {
+      const col = cols.find((c) => c.slug === "obras-liberadas");
+      if (col) setPhasesSel(new Set([col.id]));
+    }
+    if (key === "finalizadas_mes") {
+      const col = cols.find((c) => c.slug === "obras-finalizadas");
+      if (col) setPhasesSel(new Set([col.id]));
+      const now = new Date();
+      const d1 = new Date(now.getFullYear(), now.getMonth(), 1);
+      setDateFrom(d1.toISOString().slice(0, 10));
+    }
+  };
+
+  // Export CSV (filtrado atual)
+  const exportCsv = () => {
+    const rows = [["Obra/Cliente", "Fase", "Características", "Estado", "Fiscal", "Responsável", "SLA", "Valor", "Criado", "Atualizado"]];
+    for (const c of filtered) {
+      const col = colsById.get(c.column_id);
+      const tags = c.tags || [];
+      const caract = tags.filter((t) => CARACTERISTICAS.includes(t)).join(",");
+      const ests = tags.filter((t) => ESTADOS_BR.includes(t)).join(",");
+      const fiscal = (c.details && c.details.fiscal) || "";
+      rows.push([
+        (c.title || c.obra || "").replace(/"/g, '""'),
+        (col && col.title) || "",
+        caract, ests,
+        fiscal, c.responsavel || "",
+        c.sla_status || "",
+        c.value || "",
+        fmtDate(c.created_at), fmtDate(c.updated_at),
+      ]);
+    }
+    const csv = rows.map((r) => r.map((cell) => `"${String(cell)}"`).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `relatorio-operacional-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Tags únicos para os filtros (multi-select)
+  const allUniqueTags = RE.useMemo(() => {
+    const counts = new Map();
+    for (const c of cards) {
+      const ts = c.tags || [];
+      for (const t of ts) counts.set(t, (counts.get(t) || 0) + 1);
+    }
+    return counts;
+  }, [cards]);
+
+  if (loading) {
+    return o.jsx("div", {
+      style: { padding: 40, color: TXT_DIM, textAlign: "center" },
+      children: "Carregando dados…",
+    });
+  }
+  if (err) {
+    return o.jsx("div", {
+      style: { padding: 40, color: "#f87171" },
+      children: `Erro ao carregar: ${err}`,
+    });
+  }
+
+  // ── Layout ──
+  return o.jsxs("div", {
+    style: { padding: 16, color: TXT, background: "#0a0a0a", minHeight: "100%" },
+    children: [
+      // Header
+      o.jsxs("div", {
+        style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+        children: [
+          o.jsxs("div", {
+            children: [
+              o.jsx("div", {
+                style: { fontSize: "1.1rem", fontWeight: 700, color: ACCENT },
+                children: "📊 Relatórios Operacional",
+              }),
+              o.jsx("div", {
+                style: { fontSize: "0.65rem", color: TXT_DIM, marginTop: 2 },
+                children: "Performance e acompanhamento — 10 templates rápidos + builder com filtros",
+              }),
+            ],
+          }),
+          o.jsxs("div", {
+            style: { display: "flex", gap: 6 },
+            children: [
+              o.jsx(Btn, { label: "↻ Recarregar", small: true, onClick: () => { setLoading(true); window.location.reload(); } }),
+              o.jsx(Btn, { label: "🧹 Limpar filtros", small: true, onClick: resetFilters }),
+              o.jsx(Btn, { label: "📥 Exportar CSV", color: "#10b981", active: true, small: true, onClick: exportCsv }),
+            ],
+          }),
+        ],
+      }),
+
+      // Templates pré-prontos
+      o.jsxs("div", {
+        style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 10, marginBottom: 12 },
+        children: [
+          o.jsx("div", {
+            style: { fontSize: "0.55rem", color: TXT_MUTED, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 },
+            children: "Templates pré-prontos (clique pra aplicar)",
+          }),
+          o.jsxs("div", {
+            style: { display: "flex", flexWrap: "wrap", gap: 6 },
+            children: [
+              o.jsx(Btn, { label: "🪵 Forro", small: true, color: "#a37854", onClick: () => applyTemplate("forro") }),
+              o.jsx(Btn, { label: "🏠 Piso", small: true, color: "#a37854", onClick: () => applyTemplate("piso") }),
+              o.jsx(Btn, { label: "🌳 Deck", small: true, color: "#7a5a3a", onClick: () => applyTemplate("deck") }),
+              o.jsx(Btn, { label: "🪟 Painel", small: true, color: "#22c55e", onClick: () => applyTemplate("painel") }),
+              o.jsx(Btn, { label: "🪑 Marcenaria", small: true, color: "#a855f7", onClick: () => applyTemplate("marcenaria") }),
+              o.jsx(Btn, { label: "🪜 Escada", small: true, color: "#f59e0b", onClick: () => applyTemplate("escada") }),
+              o.jsx(Btn, { label: "🚪 Porta", small: true, color: "#3b82f6", onClick: () => applyTemplate("porta") }),
+              o.jsx("div", { style: { width: 1, background: BORDER, margin: "0 4px" } }),
+              o.jsx(Btn, { label: "🔥 SLA crítico", small: true, color: "#ef4444", onClick: () => applyTemplate("sla_critico") }),
+              o.jsx(Btn, { label: "⚠️ SLA atenção", small: true, color: "#f59e0b", onClick: () => applyTemplate("sla_warning") }),
+              o.jsx("div", { style: { width: 1, background: BORDER, margin: "0 4px" } }),
+              o.jsx(Btn, { label: "📍 Só SP", small: true, color: "#06b6d4", onClick: () => applyTemplate("sp") }),
+              o.jsx(Btn, { label: "🛫 Fora SP", small: true, color: "#06b6d4", onClick: () => applyTemplate("fora_sp") }),
+              o.jsx("div", { style: { width: 1, background: BORDER, margin: "0 4px" } }),
+              o.jsx(Btn, { label: "👁 1ª Vistoria", small: true, color: "#8b5cf6", onClick: () => applyTemplate("primeira_vistoria") }),
+              o.jsx(Btn, { label: "📅 Cronograma Final", small: true, color: "#8b5cf6", onClick: () => applyTemplate("cronograma_final") }),
+              o.jsx(Btn, { label: "✅ Obras Liberadas", small: true, color: "#10b981", onClick: () => applyTemplate("obras_liberadas") }),
+              o.jsx(Btn, { label: "🏁 Finalizadas no mês", small: true, color: "#10b981", onClick: () => applyTemplate("finalizadas_mes") }),
+            ],
+          }),
+        ],
+      }),
+
+      // Métricas
+      o.jsxs("div", {
+        style: { display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" },
+        children: [
+          o.jsx(MetricCard, { label: "Obras filtradas", value: metrics.total, color: ACCENT }),
+          o.jsx(MetricCard, { label: "Ativas", value: metrics.ativas, sub: `${metrics.finalizadas} finalizadas`, color: "#3b82f6" }),
+          o.jsx(MetricCard, { label: "SLA Crítico", value: metrics.critico, sub: `${metrics.warning} atenção`, color: "#ef4444" }),
+          o.jsx(MetricCard, { label: "Valor total", value: fmtBRL(metrics.totalValor), color: "#10b981" }),
+        ],
+      }),
+
+      // Filtros do Builder
+      o.jsxs("div", {
+        style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 12, marginBottom: 12 },
+        children: [
+          o.jsx("div", {
+            style: { fontSize: "0.55rem", color: TXT_MUTED, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 },
+            children: "🔧 Builder de filtros",
+          }),
+
+          // Busca livre + datas + SLA + responsável
+          o.jsxs("div", {
+            style: { display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" },
+            children: [
+              o.jsx("input", {
+                type: "search", placeholder: "🔍 Buscar (título / cliente / obra)",
+                value: search,
+                onChange: (e) => { setSearch(e.target.value); setPage(0); },
+                style: { flex: "2 1 200px", padding: "6px 8px", borderRadius: 4, background: BG_CARD, border: `1px solid ${BORDER}`, color: TXT, fontSize: "0.65rem" },
+              }),
+              o.jsx("input", {
+                type: "text", placeholder: "Responsável", value: respQuery,
+                onChange: (e) => { setRespQuery(e.target.value); setPage(0); },
+                style: { flex: "1 1 120px", padding: "6px 8px", borderRadius: 4, background: BG_CARD, border: `1px solid ${BORDER}`, color: TXT, fontSize: "0.65rem" },
+              }),
+              o.jsx("select", {
+                value: slaSel, onChange: (e) => { setSlaSel(e.target.value); setPage(0); },
+                style: { padding: "6px 8px", borderRadius: 4, background: BG_CARD, border: `1px solid ${BORDER}`, color: TXT, fontSize: "0.65rem" },
+                children: SLA_OPTS.map((s) => o.jsx("option", { value: s.v, children: s.l }, s.v)),
+              }),
+              o.jsx("input", {
+                type: "date", value: dateFrom, onChange: (e) => setDateFrom(e.target.value),
+                title: "Criado a partir de",
+                style: { padding: "6px 8px", borderRadius: 4, background: BG_CARD, border: `1px solid ${BORDER}`, color: TXT, fontSize: "0.65rem" },
+              }),
+              o.jsx("input", {
+                type: "date", value: dateTo, onChange: (e) => setDateTo(e.target.value),
+                title: "Criado até",
+                style: { padding: "6px 8px", borderRadius: 4, background: BG_CARD, border: `1px solid ${BORDER}`, color: TXT, fontSize: "0.65rem" },
+              }),
+            ],
+          }),
+
+          // Multi-select: Características
+          o.jsxs("div", {
+            style: { marginBottom: 6 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.55rem", color: TXT_MUTED, marginBottom: 4 }, children: "CARACTERÍSTICAS" }),
+              o.jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" }, children:
+                CARACTERISTICAS.map((t) => o.jsx(Chip, {
+                  label: t,
+                  count: allUniqueTags.get(t) || 0,
+                  active: tagsSel.has(t),
+                  onClick: () => {
+                    const next = new Set(tagsSel);
+                    if (next.has(t)) next.delete(t); else next.add(t);
+                    setTagsSel(next); setPage(0);
+                  },
+                }, t))
+              }),
+            ],
+          }),
+
+          // Multi-select: Fases
+          o.jsxs("div", {
+            style: { marginBottom: 6 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.55rem", color: TXT_MUTED, marginBottom: 4 }, children: "FASES DO KANBAN" }),
+              o.jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" }, children:
+                cols.map((c) => o.jsx(Chip, {
+                  label: c.title,
+                  count: cards.filter((x) => x.column_id === c.id).length,
+                  active: phasesSel.has(c.id),
+                  color: c.color,
+                  onClick: () => {
+                    const next = new Set(phasesSel);
+                    if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+                    setPhasesSel(next); setPage(0);
+                  },
+                }, c.id))
+              }),
+            ],
+          }),
+
+          // Multi-select: Estados
+          o.jsxs("div", {
+            style: { marginBottom: 6 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.55rem", color: TXT_MUTED, marginBottom: 4 }, children: "REGIÃO" }),
+              o.jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" }, children:
+                ESTADOS_BR.map((e) => o.jsx(Chip, {
+                  label: e,
+                  count: allUniqueTags.get(e) || 0,
+                  active: estadosSel.has(e),
+                  onClick: () => {
+                    const next = new Set(estadosSel);
+                    if (next.has(e)) next.delete(e); else next.add(e);
+                    setEstadosSel(next); setPage(0);
+                  },
+                }, e))
+              }),
+            ],
+          }),
+
+          // Multi-select: Fiscais
+          o.jsxs("div", {
+            children: [
+              o.jsx("div", { style: { fontSize: "0.55rem", color: TXT_MUTED, marginBottom: 4 }, children: "FISCAL" }),
+              o.jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" }, children:
+                fiscais.map((f) => o.jsx(Chip, {
+                  label: (f.nome || "").trim(),
+                  count: cards.filter((x) => {
+                    const fc = ((x.details && x.details.fiscal) || "").toUpperCase();
+                    return fc.includes((f.nome || "").trim().toUpperCase());
+                  }).length,
+                  active: fiscaisSel.has((f.nome || "").trim()),
+                  onClick: () => {
+                    const n = (f.nome || "").trim();
+                    const next = new Set(fiscaisSel);
+                    if (next.has(n)) next.delete(n); else next.add(n);
+                    setFiscaisSel(next); setPage(0);
+                  },
+                }, f.id))
+              }),
+            ],
+          }),
+        ],
+      }),
+
+      // Painéis agregados (3 colunas)
+      o.jsxs("div", {
+        style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10, marginBottom: 12 },
+        children: [
+          // Distribuição por fase
+          o.jsxs("div", {
+            style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 10 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.6rem", fontWeight: 700, color: ACCENT, marginBottom: 8 }, children: "📊 Por fase do kanban" }),
+              o.jsx("div", { children: distPorFase.map((d) => {
+                const maxQ = Math.max(1, ...distPorFase.map((x) => x.qtd));
+                const pct = (d.qtd / maxQ) * 100;
+                return o.jsxs("div", {
+                  style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 3, fontSize: "0.6rem" },
+                  children: [
+                    o.jsx("div", { style: { width: 130, color: TXT_DIM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: d.col.title }),
+                    o.jsx("div", {
+                      style: { flex: 1, height: 12, background: BG_CARD, borderRadius: 2, position: "relative" },
+                      children: o.jsx("div", { style: { width: `${pct}%`, height: "100%", background: d.col.color || ACCENT, borderRadius: 2 } }),
+                    }),
+                    o.jsx("div", { style: { width: 28, textAlign: "right", color: TXT, fontWeight: 600 }, children: d.qtd }),
+                  ],
+                }, d.col.id);
+              }) }),
+            ],
+          }),
+
+          // Distribuição por característica
+          o.jsxs("div", {
+            style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 10 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.6rem", fontWeight: 700, color: ACCENT, marginBottom: 8 }, children: "🏷 Por característica" }),
+              o.jsx("div", { children: distPorCaract.map((d) => {
+                const maxQ = Math.max(1, ...distPorCaract.map((x) => x.qtd));
+                const pct = (d.qtd / maxQ) * 100;
+                return o.jsxs("div", {
+                  style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 3, fontSize: "0.6rem" },
+                  children: [
+                    o.jsx("div", { style: { width: 90, color: TXT_DIM }, children: d.tag }),
+                    o.jsx("div", { style: { flex: 1, height: 12, background: BG_CARD, borderRadius: 2 },
+                      children: o.jsx("div", { style: { width: `${pct}%`, height: "100%", background: "#a37854", borderRadius: 2 } }),
+                    }),
+                    o.jsx("div", { style: { width: 28, textAlign: "right", color: TXT, fontWeight: 600 }, children: d.qtd }),
+                  ],
+                }, d.tag);
+              }) }),
+            ],
+          }),
+
+          // Por estado
+          o.jsxs("div", {
+            style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 10 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.6rem", fontWeight: 700, color: ACCENT, marginBottom: 8 }, children: "📍 Por região" }),
+              distPorEstado.length === 0
+                ? o.jsx("div", { style: { fontSize: "0.6rem", color: TXT_MUTED }, children: "—" })
+                : o.jsx("div", { children: distPorEstado.map(([e, n]) => {
+                    const maxN = Math.max(1, ...distPorEstado.map((x) => x[1]));
+                    const pct = (n / maxN) * 100;
+                    return o.jsxs("div", {
+                      style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 3, fontSize: "0.6rem" },
+                      children: [
+                        o.jsx("div", { style: { width: 60, color: TXT_DIM }, children: e }),
+                        o.jsx("div", { style: { flex: 1, height: 12, background: BG_CARD, borderRadius: 2 },
+                          children: o.jsx("div", { style: { width: `${pct}%`, height: "100%", background: "#06b6d4", borderRadius: 2 } }),
+                        }),
+                        o.jsx("div", { style: { width: 28, textAlign: "right", color: TXT, fontWeight: 600 }, children: n }),
+                      ],
+                    }, e);
+                  }) }),
+            ],
+          }),
+
+          // Backlog por fiscal
+          o.jsxs("div", {
+            style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 10 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.6rem", fontWeight: 700, color: ACCENT, marginBottom: 8 }, children: "👤 Backlog por fiscal" }),
+              o.jsx("div", { children: distPorFiscal.slice(0, 10).map(([f, n]) => {
+                const maxN = Math.max(1, ...distPorFiscal.map((x) => x[1]));
+                const pct = (n / maxN) * 100;
+                return o.jsxs("div", {
+                  style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 3, fontSize: "0.6rem" },
+                  children: [
+                    o.jsx("div", { style: { width: 130, color: TXT_DIM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: f }),
+                    o.jsx("div", { style: { flex: 1, height: 12, background: BG_CARD, borderRadius: 2 },
+                      children: o.jsx("div", { style: { width: `${pct}%`, height: "100%", background: "#8b5cf6", borderRadius: 2 } }),
+                    }),
+                    o.jsx("div", { style: { width: 28, textAlign: "right", color: TXT, fontWeight: 600 }, children: n }),
+                  ],
+                }, f);
+              }) }),
+            ],
+          }),
+
+          // Carga por responsável
+          o.jsxs("div", {
+            style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 10 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.6rem", fontWeight: 700, color: ACCENT, marginBottom: 8 }, children: "💼 Carga por responsável" }),
+              o.jsx("div", { children: distPorResp.slice(0, 10).map(([r, n]) => {
+                const maxN = Math.max(1, ...distPorResp.map((x) => x[1]));
+                const pct = (n / maxN) * 100;
+                return o.jsxs("div", {
+                  style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 3, fontSize: "0.6rem" },
+                  children: [
+                    o.jsx("div", { style: { width: 130, color: TXT_DIM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: r }),
+                    o.jsx("div", { style: { flex: 1, height: 12, background: BG_CARD, borderRadius: 2 },
+                      children: o.jsx("div", { style: { width: `${pct}%`, height: "100%", background: "#10b981", borderRadius: 2 } }),
+                    }),
+                    o.jsx("div", { style: { width: 28, textAlign: "right", color: TXT, fontWeight: 600 }, children: n }),
+                  ],
+                }, r);
+              }) }),
+            ],
+          }),
+
+          // Tempo médio em fase (proxy)
+          o.jsxs("div", {
+            style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 10 },
+            children: [
+              o.jsx("div", { style: { fontSize: "0.6rem", fontWeight: 700, color: ACCENT, marginBottom: 4 }, children: "⏱ Tempo médio na fase (proxy)" }),
+              o.jsx("div", { style: { fontSize: "0.5rem", color: TXT_MUTED, marginBottom: 6 }, children: "dias desde última atualização" }),
+              o.jsx("div", { children: tempoMedioFase.map((d) => {
+                const cor = d.dias > 30 ? "#ef4444" : d.dias > 14 ? "#f59e0b" : "#10b981";
+                return o.jsxs("div", {
+                  style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 3, fontSize: "0.6rem" },
+                  children: [
+                    o.jsx("div", { style: { width: 130, color: TXT_DIM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: d.col.title }),
+                    o.jsxs("div", { style: { flex: 1, color: cor, fontWeight: 700, textAlign: "right" }, children: [d.dias, "d"] }),
+                    o.jsx("div", { style: { width: 28, textAlign: "right", color: TXT_MUTED }, children: `(${d.n})` }),
+                  ],
+                }, d.col.title);
+              }) }),
+            ],
+          }),
+        ],
+      }),
+
+      // Tabela detalhada
+      o.jsxs("div", {
+        style: { background: BG_PANEL, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 0, overflow: "hidden" },
+        children: [
+          o.jsxs("div", {
+            style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: `1px solid ${BORDER}` },
+            children: [
+              o.jsxs("div", {
+                style: { fontSize: "0.6rem", fontWeight: 700, color: ACCENT },
+                children: [`📋 Tabela detalhada (${filtered.length} obras filtradas)`],
+              }),
+              o.jsxs("div", {
+                style: { display: "flex", gap: 6, alignItems: "center" },
+                children: [
+                  o.jsx(Btn, { label: "‹", small: true, onClick: () => setPage(Math.max(0, page - 1)) }),
+                  o.jsx("span", { style: { fontSize: "0.6rem", color: TXT_DIM }, children: `Pág ${page + 1} / ${totalPages}` }),
+                  o.jsx(Btn, { label: "›", small: true, onClick: () => setPage(Math.min(totalPages - 1, page + 1)) }),
+                ],
+              }),
+            ],
+          }),
+          o.jsx("div", {
+            style: { overflowX: "auto", maxHeight: 600, overflowY: "auto" },
+            children: o.jsxs("table", {
+              style: { width: "100%", borderCollapse: "collapse", fontSize: "0.6rem" },
+              children: [
+                o.jsx("thead", {
+                  style: { position: "sticky", top: 0, background: BG_CARD, zIndex: 1 },
+                  children: o.jsxs("tr", {
+                    children: [
+                      ["Obra/Cliente", "Fase", "Caract.", "Estado", "Fiscal", "Responsável", "SLA", "Valor", "Atualizado"].map((h) =>
+                        o.jsx("th", { style: { padding: "6px 8px", textAlign: "left", color: TXT_MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: `1px solid ${BORDER}` }, children: h }, h)
+                      ),
+                    ],
+                  }),
+                }),
+                o.jsx("tbody", {
+                  children: pageRows.map((c) => {
+                    const col = colsById.get(c.column_id);
+                    const tags = c.tags || [];
+                    const caract = tags.filter((t) => CARACTERISTICAS.includes(t));
+                    const ests = tags.filter((t) => ESTADOS_BR.includes(t));
+                    const slaColor = c.sla_status === "critical" ? "#ef4444" : c.sla_status === "warning" ? "#f59e0b" : "#10b981";
+                    return o.jsxs("tr", {
+                      style: { borderBottom: `1px solid ${BORDER}` },
+                      children: [
+                        o.jsx("td", { style: { padding: "6px 8px", color: TXT, fontWeight: 500 }, children: c.title || c.obra || "—" }),
+                        o.jsx("td", { style: { padding: "6px 8px", color: col && col.color ? col.color : TXT_DIM }, children: (col && col.title) || "?" }),
+                        o.jsx("td", { style: { padding: "6px 8px", color: TXT_DIM }, children: caract.join(", ") || "—" }),
+                        o.jsx("td", { style: { padding: "6px 8px", color: TXT_DIM }, children: ests.join(", ") || "—" }),
+                        o.jsx("td", { style: { padding: "6px 8px", color: TXT_DIM }, children: (c.details && c.details.fiscal) || "—" }),
+                        o.jsx("td", { style: { padding: "6px 8px", color: TXT_DIM }, children: c.responsavel || "—" }),
+                        o.jsx("td", { style: { padding: "6px 8px", color: slaColor, fontWeight: 700 }, children: c.sla_status || "—" }),
+                        o.jsx("td", { style: { padding: "6px 8px", color: TXT_DIM, textAlign: "right" }, children: c.value || "—" }),
+                        o.jsx("td", { style: { padding: "6px 8px", color: TXT_MUTED }, children: fmtDate(c.updated_at) }),
+                      ],
+                    }, c.id);
+                  }),
+                }),
+              ],
+            }),
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+export { RelatoriosOperacionalPage as R };

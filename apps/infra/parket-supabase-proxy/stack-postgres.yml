@@ -1,0 +1,27 @@
+version: "3.9"
+networks:
+  parket-api_internal:
+    external: true
+
+# Adiciona Postgres LOCAL pro GoTrue self-host conseguir criar tabelas
+# sem restrição (não tem como mexer no schema auth do Supabase).
+# Restaura dump do schema auth + dados clonados.
+
+services:
+  pg:
+    image: postgres:17-alpine
+    networks: [parket-api_internal]
+    environment:
+      POSTGRES_PASSWORD: "${LOCAL_PG_PASSWORD}"
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - /root/parket-supabase-proxy/dump:/dump:ro
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      resources: { limits: { memory: 512M } }
+
+volumes:
+  pg_data:

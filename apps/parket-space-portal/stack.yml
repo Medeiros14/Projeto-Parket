@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  web:
+    image: parket-space-portal:latest
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy: { condition: any }
+      update_config: { parallelism: 1, delay: 5s, order: start-first }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        - "traefik.constraint-label=network_public"
+
+        # priority 150: acima do golden dashboard (~84 implícita) e abaixo
+        # de space/v2 (200) e space/emerg (1000) — não afeta os outros serviços.
+        - "traefik.http.routers.spaceportal.rule=Host(`space.parket.works`)"
+        - "traefik.http.routers.spaceportal.priority=150"
+        - "traefik.http.routers.spaceportal.entrypoints=websecure"
+        - "traefik.http.routers.spaceportal.tls=true"
+        - "traefik.http.routers.spaceportal.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.spaceportal.service=spaceportal"
+
+        - "traefik.http.routers.spaceportal-http.rule=Host(`space.parket.works`)"
+        - "traefik.http.routers.spaceportal-http.priority=150"
+        - "traefik.http.routers.spaceportal-http.entrypoints=web"
+        - "traefik.http.routers.spaceportal-http.middlewares=spaceportal-https-redirect"
+        - "traefik.http.routers.spaceportal-http.service=spaceportal"
+
+        - "traefik.http.services.spaceportal.loadbalancer.server.port=80"
+
+        - "traefik.http.middlewares.spaceportal-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.spaceportal-https-redirect.redirectscheme.permanent=true"
+
+networks:
+  network_public:
+    external: true

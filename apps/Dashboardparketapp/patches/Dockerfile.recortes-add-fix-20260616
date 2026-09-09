@@ -1,0 +1,2 @@
+FROM parket-dashboard:golden
+COPY orcamento-simulador-tab-MARCFIX22.js /usr/share/nginx/html/assets/orcamento-simulador-tab-MARCFIX22.js

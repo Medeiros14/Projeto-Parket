@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<title>📅 Previsão de Obras</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0a0a0a; color: #e8e6e1; font-family: Inter, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { padding: 24px; }
+  h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  h1 .accent { color: #B8AA9A; }
+  p.sub { font-size: 11px; color: #888; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+  .card { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 16px; }
+  .card-title { font-size: 12px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .card-title .badge { background: #B8AA9A; color: #0a0a0a; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
+  .empty { font-size: 11px; color: #888; padding: 12px; text-align: center; }
+  .obra { display: flex; gap: 10px; padding: 10px 8px; border-bottom: 1px solid #222; align-items: flex-start; }
+  .obra:last-child { border-bottom: none; }
+  .obra-data { width: 56px; flex-shrink: 0; text-align: center; padding: 6px 0; background: #1f1f1f; border-radius: 6px; }
+  .obra-data .dia { font-size: 18px; font-weight: 800; line-height: 1; color: #B8AA9A; }
+  .obra-data .mes { font-size: 9px; color: #888; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+  .obra-info { flex: 1; min-width: 0; }
+  .obra-info .nome { font-size: 12px; font-weight: 600; color: #fff; }
+  .obra-info .meta { font-size: 10px; color: #888; margin-top: 4px; line-height: 1.5; }
+  .obra-info .meta .pkt { color: #B8AA9A; font-weight: 600; }
+  .obra-dias { font-size: 10px; padding: 3px 8px; border-radius: 999px; font-weight: 700; align-self: center; flex-shrink: 0; }
+  .obra-actions { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex-shrink: 0; }
+  .btn-abrir { font-size: 9px; font-weight: 700; padding: 4px 8px; border-radius: 5px; background: #B8AA9A; color: #0a0a0a; border: none; cursor: pointer; white-space: nowrap; transition: background 0.15s; text-decoration: none; display: inline-block; }
+  .btn-abrir:hover { background: #d6c8b6; }
+  .urgente { background: #3F1D1D; color: #F87171; }
+  .atencao { background: #422006; color: #FCD34D; }
+  .ok { background: #022C22; color: #34D399; }
+  .vencida { background: #1F2937; color: #9CA3AF; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat { background: #161616; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px 12px; }
+  .stat .label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .stat .value { font-size: 22px; font-weight: 800; margin-top: 2px; color: #B8AA9A; }
+  .loading { color: #888; font-size: 12px; padding: 30px; text-align: center; }
+  .err { color: #F87171; padding: 16px; background: #3F1D1D; border-radius: 8px; font-size: 11px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<h1>📅 <span class="accent">Previsão</span> de Obras</h1>
+<p class="sub">Datas extraídas dos cards do Operacional (cronograma_pmo · vistoria · sla)</p>
+
+<div class="stats" id="stats" style="display:none">
+  <div class="stat"><div class="label">Iniciam ≤ 15d</div><div class="value" id="cnt-ini">—</div></div>
+  <div class="stat"><div class="label">Vencem ≤ 7d</div><div class="value" id="cnt-fim">—</div></div>
+  <div class="stat"><div class="label">Atrasadas</div><div class="value" id="cnt-atrasada">—</div></div>
+  <div class="stat"><div class="label">Total operacional</div><div class="value" id="cnt-total">—</div></div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card-title">⏱️ Iniciam em até 15 dias <span class="badge" id="b-ini">0</span></div>
+    <div id="list-ini"><div class="loading">Carregando…</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🏁 Finalizam em até 7 dias <span class="badge" id="b-fim">0</span></div>
+    <div id="list-fim"><div class="loading">Carregando…</div></div>
+  </div>
+</div>
+
+<div id="err" class="err" style="display:none"></div>
+<pre id="dbg" style="display:none;font-size:9px;color:#666;margin-top:12px;font-family:monospace;white-space:pre-wrap"></pre>
+
+<script>
+const SUPA_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+
+function getJWT() {
+  // Tenta vários formatos conhecidos do Supabase Auth no localStorage
+  try {
+    const keys = Object.keys(localStorage);
+    for (const k of keys) {
+      if (!/sb-|supabase|auth/i.test(k)) continue;
+      try {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        // Tenta parsear como JSON, ou como string puro de token
+        if (raw.startsWith("eyJ")) return raw; // já é JWT bruto
+        const v = JSON.parse(raw);
+        const candidates = [
+          v?.access_token,
+          v?.currentSession?.access_token,
+          Array.isArray(v) ? v[0] : null,
+          v?.[0],
+        ];
+        for (const c of candidates) if (typeof c === "string" && c.startsWith("eyJ")) return c;
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
+
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function daysFromToday(iso) { return Math.round((new Date(iso + "T12:00:00") - new Date(todayISO() + "T12:00:00")) / 86400000); }
+function fmtDataCard(iso) {
+  const d = new Date(iso + "T12:00:00");
+  return { dia: d.getDate(), mes: MESES[d.getMonth()] };
+}
+
+// Tenta extrair data ISO de qualquer formato comum dentro do sla/details
+function parseDate(v) {
+  if (!v || typeof v !== "string") return null;
+  const t = v.trim();
+  // ISO YYYY-MM-DD
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  // dd.mm.yyyy ou dd/mm/yyyy
+  m = t.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
+  if (m) return `${m[3]}-${String(m[2]).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`;
+  return null;
+}
+
+// Extrai data de início e término de um card.
+// Prioridade início: details.previsao_inicio → prev_inicio → prazo_inicio → mín(cronograma_pmo) → vistoria_1
+// Prioridade término: details.prazo_fim → entrega → máx(cronograma_pmo) → sla
+function extrairDatas(card) {
+  const det = card.details || {};
+  const itens = (det.cronograma_pmo && det.cronograma_pmo.itens) || [];
+  const validos = itens.filter(i => i && i.status !== "cancelado");
+  const inicios = validos.map(i => parseDate(i.data_inicio)).filter(Boolean).sort();
+  const terminos = validos.map(i => parseDate(i.data_termino)).filter(Boolean).sort();
+  const inicio = parseDate(det.previsao_inicio)
+    || parseDate(det.prev_inicio)
+    || parseDate(det.prazo_inicio)
+    || inicios[0]
+    || parseDate(det.vistoria_1)
+    || null;
+  const termino = parseDate(det.prazo_fim)
+    || parseDate(det.entrega)
+    || terminos[terminos.length - 1]
+    || parseDate(card.sla)
+    || null;
+  return { inicio, termino };
+}
+
+function rotuloDias(dias) {
+  if (dias < 0) return `${Math.abs(dias)}d atrasada`;
+  if (dias === 0) return "hoje";
+  if (dias === 1) return "amanhã";
+  return `em ${dias}d`;
+}
+
+function badgeClasse(dias, tipo) {
+  if (dias < 0) return "vencida";
+  if (tipo === "fim") {
+    if (dias <= 2) return "urgente";
+    if (dias <= 5) return "atencao";
+    return "ok";
+  }
+  if (dias <= 3) return "urgente";
+  if (dias <= 7) return "atencao";
+  return "ok";
+}
+
+function renderObra(card, dataKey, tipo) {
+  const datas = extrairDatas(card);
+  const data = datas[dataKey];
+  if (!data) return "";
+  const dt = fmtDataCard(data);
+  const dias = daysFromToday(data);
+  const det = card.details || {};
+  const equipes = Array.isArray(det.prestadores) && det.prestadores.length
+    ? det.prestadores.map(p => p.nome).filter(Boolean).slice(0,3).join(", ")
+    : (Array.isArray(det.responsaveis) ? det.responsaveis.slice(0,3).join(", ") : "");
+  const cidade = det.cidade || (det.endereco ? det.endereco.split(",").pop().trim() : "");
+  const obraId = card.obra || "—";
+  const safeText = (s) => String(s || "").replace(/[<>"']/g, "");
+  return `
+    <div class="obra">
+      <div class="obra-data">
+        <div class="dia">${dt.dia}</div>
+        <div class="mes">${dt.mes}</div>
+      </div>
+      <div class="obra-info">
+        <div class="nome">${safeText(card.title)}</div>
+        <div class="meta">
+          <span class="pkt">${safeText(obraId)}</span>
+          ${cidade ? ` · ${safeText(cidade)}` : ""}
+          ${equipes ? ` · 👷 ${safeText(equipes)}` : ""}
+        </div>
+      </div>
+      <div class="obra-actions">
+        <span class="obra-dias ${badgeClasse(dias, tipo)}">${rotuloDias(dias)}</span>
+        <button class="btn-abrir" onclick="abrirCard('${safeText(card.parent_card_id || card.id)}')">Abrir projeto →</button>
+      </div>
+    </div>
+  `;
+}
+
+// Navega o parent (Space) pra Central do Cliente do projeto.
+window.abrirCard = function(cardId) {
+  try {
+    const target = `/central-do-cliente/${encodeURIComponent(cardId)}`;
+    if (window.top && window.top !== window) {
+      window.top.location.assign(target);
+    } else {
+      window.location.assign(target);
+    }
+  } catch (e) {
+    console.warn("abrirCard:", e);
+  }
+};
+
+async function carregar() {
+  const jwt = getJWT();
+  const debug = (msg) => {
+    const el = document.getElementById("dbg");
+    if (el) el.textContent += msg + "\n";
+  };
+  debug(`JWT detectado: ${jwt ? "SIM (" + jwt.length + " chars)" : "NÃO"}`);
+  if (!jwt) {
+    document.getElementById("err").style.display = "block";
+    document.getElementById("err").textContent = "Sessão não detectada — abra essa aba estando logado no Space.";
+    return;
+  }
+  const headers = {
+    apikey: ANON,
+    Authorization: `Bearer ${jwt}`,
+  };
+  try {
+    const url = `${SUPA_URL}/rest/v1/kanban_cards?select=id,title,obra,sla,sla_status,column_id,details,parent_card_id,updated_at&dept_id=eq.operacional&limit=2000`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const cards = await res.json();
+    debug(`Cards retornados: ${cards.length}`);
+    // Filtra cards "vivos" (não finalizados/cancelados)
+    const vivos = cards.filter(c => !["obras-finalizadas","reparos-concluidos"].includes(c.column_id));
+
+    const today = todayISO();
+    const hoje15 = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
+    const hoje7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+    const ini = [];
+    const fim = [];
+    const atrasadas = [];
+    for (const c of vivos) {
+      const datas = extrairDatas(c);
+      if (datas.inicio && datas.inicio >= today && datas.inicio <= hoje15) ini.push(c);
+      if (datas.termino) {
+        if (datas.termino < today) atrasadas.push(c);
+        else if (datas.termino <= hoje7) fim.push(c);
+      }
+    }
+    ini.sort((a, b) => extrairDatas(a).inicio.localeCompare(extrairDatas(b).inicio));
+    fim.sort((a, b) => extrairDatas(a).termino.localeCompare(extrairDatas(b).termino));
+    atrasadas.sort((a, b) => extrairDatas(a).termino.localeCompare(extrairDatas(b).termino));
+
+    document.getElementById("stats").style.display = "grid";
+    document.getElementById("cnt-ini").textContent = ini.length;
+    document.getElementById("cnt-fim").textContent = fim.length;
+    document.getElementById("cnt-atrasada").textContent = atrasadas.length;
+    document.getElementById("cnt-total").textContent = vivos.length;
+    document.getElementById("b-ini").textContent = ini.length;
+    document.getElementById("b-fim").textContent = fim.length + atrasadas.length;
+
+    document.getElementById("list-ini").innerHTML = ini.length === 0
+      ? `<div class="empty">Nenhuma obra com data de início programada nos próximos 15 dias.</div>`
+      : ini.map(c => renderObra(c, "inicio", "ini")).join("");
+
+    const fimHtml = [
+      ...atrasadas.map(c => renderObra(c, "termino", "fim")),
+      ...fim.map(c => renderObra(c, "termino", "fim")),
+    ];
+    document.getElementById("list-fim").innerHTML = fimHtml.length === 0
+      ? `<div class="empty">Nenhuma obra prevista pra finalizar na próxima semana.</div>`
+      : fimHtml.join("");
+  } catch (e) {
+    document.getElementById("err").style.display = "block";
+    document.getElementById("err").textContent = "Erro ao carregar: " + e.message;
+  }
+}
+
+carregar();
+</script>
+</body>
+</html>

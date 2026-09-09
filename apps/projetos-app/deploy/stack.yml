@@ -1,0 +1,122 @@
+version: "3.8"
+
+services:
+  api:
+    image: parket-projetos-api:latest
+    networks:
+      - network_public
+      - parket-api_internal
+      # Rede do ai-squad: o relatorio.py busca o token OAuth do Claude no
+      # public.ai_accounts do parket-ai-squad_postgres (mesmo padrão do gestão).
+      - parket-ai-squad_parket_internal
+    environment:
+      # Nome qualificado do serviço: com a rede do ai-squad anexada, o alias
+      # curto "postgres" passou a resolver pro parket-ai-squad_postgres
+      # (10.0.3.x) e o login falhava. O nome completo desambigua.
+      PROJETOS_PG_HOST: parket-pg-local_postgres
+      PROJETOS_PG_PORT: "5432"
+      PROJETOS_PG_DB: postgres
+      PROJETOS_PG_USER: postgres
+      PROJETOS_PG_PASSWORD_FILE: /run/secrets/parket_pg_local_password
+      PROJETOS_CORS_ORIGINS: https://projetos.parket.works
+      PROJETOS_DATA_DIR: /data
+      TRELLO_KEY_FILE: /run/secrets/trello_key
+      TRELLO_TOKEN_FILE: /run/secrets/trello_token
+      TRELLO_BOARD: CsJmU6DM
+      SUPABASE_URL: https://hbxpilrxmitvzebluoom.supabase.co
+      SUPABASE_SERVICE_KEY_FILE: /run/secrets/supabase_service_key_hbx
+      PROJETOS_SESSION_SECRET_FILE: /run/secrets/projetos_session_secret
+      # Mesmo JWT_SECRET do serviço parket-chat_chat. O backend assina com ele
+      # o token que o widget do chat lê (o projetos não tem sessão Supabase).
+      PROJETOS_CHAT_JWT_SECRET_FILE: /run/secrets/chat_jwt_secret
+      # VAPID keys pro web-push (Fase 2 de notificações). Chaves geradas
+      # em 2026-08-20; NUNCA regenerar sem apagar trello_projetos.push_subs.
+      VAPID_PUBLIC_KEY: BNowERKP7ZIYDf3bz0CLYZHb7uurOH2dj_xLi3bYyUXf0Ri5jSsS-4sEjNWWXGvRP84_5kfggh6n68LB7S_5c9Y
+      VAPID_PRIVATE_KEY: 1f9NosM1kvaPE8mfjHBOjOfA1jYZmXjvPTu10LP9xCE
+      VAPID_SUBJECT: mailto:will.tape@gmail.com
+      # IA do Relatório: token OAuth vem do banco do ai-squad (claude_token.py);
+      # o secret abaixo é só fallback caso o banco esteja fora.
+      AI_ACCOUNTS_DSN: postgresql://parket:Mfcd62!!Mfcd62!!@parket-ai-squad_postgres:5432/parket_ai
+      CLAUDE_MODEL: claude-sonnet-4-5-20250929
+      ANTHROPIC_OAUTH_TOKEN_FILE: /run/secrets/teca_anthropic_oauth
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export PROJETOS_PG_PASSWORD=$$(cat $${PROJETOS_PG_PASSWORD_FILE})
+        export TRELLO_KEY=$$(cat $${TRELLO_KEY_FILE})
+        export TRELLO_TOKEN=$$(cat $${TRELLO_TOKEN_FILE})
+        export SUPABASE_SERVICE_KEY=$$(cat $${SUPABASE_SERVICE_KEY_FILE})
+        export PROJETOS_SESSION_SECRET=$$(cat $${PROJETOS_SESSION_SECRET_FILE})
+        export PROJETOS_CHAT_JWT_SECRET=$$(cat $${PROJETOS_CHAT_JWT_SECRET_FILE})
+        [ -f $${ANTHROPIC_OAUTH_TOKEN_FILE} ] && export ANTHROPIC_OAUTH_TOKEN=$$(cat $${ANTHROPIC_OAUTH_TOKEN_FILE})
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    volumes:
+      - /root/projetos-app/data:/data
+    secrets:
+      - parket_pg_local_password
+      - supabase_service_key_hbx
+      - trello_key
+      - trello_token
+      - projetos_session_secret
+      - chat_jwt_secret
+      - teca_anthropic_oauth
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+      mode: replicated
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+
+  web:
+    image: parket-projetos-web:latest
+    networks:
+      - network_public
+    volumes:
+      - /root/projetos-app/data:/srv/data:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+      mode: replicated
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        - traefik.http.routers.parket-projetos-http.rule=Host(`projetos.parket.works`)
+        - traefik.http.routers.parket-projetos-http.entrypoints=web
+        - traefik.http.routers.parket-projetos-http.middlewares=https-redirect
+        - traefik.http.routers.parket-projetos.rule=Host(`projetos.parket.works`)
+        - traefik.http.routers.parket-projetos.entrypoints=websecure
+        - traefik.http.routers.parket-projetos.tls=true
+        - traefik.http.routers.parket-projetos.tls.certresolver=letsencryptresolver
+        - traefik.http.services.parket-projetos.loadbalancer.server.port=80
+
+networks:
+  network_public:
+    external: true
+  parket-api_internal:
+    external: true
+  parket-ai-squad_parket_internal:
+    external: true
+
+secrets:
+  parket_pg_local_password:
+    external: true
+  supabase_service_key_hbx:
+    external: true
+  trello_key:
+    external: true
+  trello_token:
+    external: true
+  projetos_session_secret:
+    external: true
+  chat_jwt_secret:
+    external: true
+  teca_anthropic_oauth:
+    external: true
+    name: teca_anthropic_oauth_1783951912

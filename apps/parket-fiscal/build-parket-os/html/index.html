@@ -1,0 +1,2656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#050505" id="_pk_theme_color">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Parket Fiscal">
+<title>Parket Fiscal — Laudos</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<script>
+  /* Pré-hidratação — evita flash de tema no carregamento. */
+  (function(){
+    try {
+      var t = localStorage.getItem("parket-fiscal-theme");
+      var mode = (t === "light" ? "light" : "dark");
+      document.documentElement.setAttribute("data-theme", mode);
+      var m = document.getElementById("_pk_theme_color");
+      if (m) m.setAttribute("content", mode === "light" ? "#D8D3C7" : "#050505");
+    } catch(e){}
+  })();
+</script>
+
+<style>
+  /* ═════════════════════════════════════════════════════════════════════════
+     Parket Fiscal (verifica.parket.works)
+     Design alinhado ao PARKET_DESIGN_SYSTEM.md (SO Parket / Manual Navona)
+       → src/app/components/parket/ParketClientHub.tsx (DARK/LIGHT scheme)
+
+     Tipografia:
+       - Cinzel (400-600) → títulos (SEMPRE uppercase, PARKET_DESIGN_SYSTEM.md)
+       - Cinzel (400-600) → labels uppercase micro (categoria, tabs, badges)
+       - Inter (300-600) → body
+
+     Structural: cards sólidos, cantos retos, status badges tinted+border/44 alpha
+     ═════════════════════════════════════════════════════════════════════════ */
+  :root, :root[data-theme="dark"] {
+    --pk-bg:#050505;
+    --pk-panel:#030303;
+    --pk-card1:#0B0B0B;
+    --pk-card2:#101010;
+    --pk-border1:#1F1F1F;
+    --pk-border2:#2A2A2A;
+    --pk-text:#D8D3C7;
+    --pk-text-dim:#77736A;
+    --pk-text-muted:#5F5D58;
+    --pk-accent:#968473;
+    --pk-accent-dim:#7A6B5C;
+    --pk-status-ok:#968473;    --pk-status-ok-bg:rgba(150,132,115,0.09);
+    --pk-status-run:#C8BDB1;   --pk-status-run-bg:rgba(216,211,199,0.05);
+    --pk-status-warn:#C8922A;  --pk-status-warn-bg:rgba(185,130,42,0.10);
+    --pk-status-mut:#5F5D58;   --pk-status-mut-bg:rgba(95,93,88,0.10);
+    --pk-status-err:#9B4A5A;   --pk-status-err-bg:rgba(120,50,60,0.10);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    /* LIGHT alinhado ao Homebroker / valor / gestao / contrato — Sistema
+       Operacional Parket (Manual de Marca Navona). Valores pré-misturados
+       das opacidades canônicas sobre Bege Travertino pra garantir visual
+       idêntico ao das outras apps Parket.
+       bg #D8D3C7 · sidebar #CBC6BA · card #E7E3D9 · text #050505 · accent Walnut */
+    --pk-bg:#D8D3C7;              /* Bege Travertino */
+    --pk-panel:#CBC6BA;            /* Bege Travertino -15 lumens */
+    --pk-card1:#E7E3D9;            /* cardBg = Off White Mineral @ 0.55 sobre bg */
+    --pk-card2:#EFECE3;            /* cardHover = Off White Mineral @ 0.85 sobre bg */
+    --pk-border1:#C3BEB4;          /* border = Preto Navona @ 0.10 sobre bg */
+    --pk-border2:#A5A298;          /* borderHover = Preto Navona @ 0.24 sobre bg */
+    --pk-text:#050505;             /* Preto Navona */
+    --pk-text-dim:#77736A;         /* Cinza Pedra */
+    --pk-text-muted:#8E8B83;       /* Preto Navona @ 0.35 sobre bg */
+    --pk-accent:#60544D;           /* Walnut — accent light (mais contraste em bege) */
+    --pk-accent-dim:#40362F;       /* Walnut escurecido */
+    --pk-status-ok:#60544D;    --pk-status-ok-bg:rgba(96,84,77,0.10);
+    --pk-status-run:#77736A;   --pk-status-run-bg:rgba(119,115,106,0.10);
+    --pk-status-warn:#9E7238;  --pk-status-warn-bg:rgba(158,114,56,0.12);
+    --pk-status-mut:#8E8B83;   --pk-status-mut-bg:rgba(5,5,5,0.05);
+    --pk-status-err:#8E3D3D;   --pk-status-err-bg:rgba(142,61,61,0.10);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-synthesis-weight:none; }
+  html, body {
+    margin:0; padding:0;
+    background:var(--pk-bg); color:var(--pk-text);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    min-height:100vh; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    letter-spacing:0.02em;
+  }
+
+  /* Chat widget: FAB acima do bottom-nav (não sobrepor .bnav) */
+  :root { --pk-fab-bottom: 88px; }
+
+  /* ─── Header fixo ─────────────────── */
+  #_pkHeader {
+    position:sticky; top:0; z-index:100; background:var(--pk-panel);
+    border-bottom:1px solid var(--pk-border1);
+    padding:14px 20px 10px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  #_pkHeaderLeft { display:flex; flex-direction:column; gap:2px; }
+  #_pkBrand { font-family:'Cinzel',serif; font-size:13px; font-weight:300; color:var(--pk-text); letter-spacing:0.42em; text-transform:uppercase; }
+  #_pkSubtitle { font-family:'Cinzel',serif; font-size:9px; color:var(--pk-text-muted); letter-spacing:0.28em; text-transform:uppercase; margin-top:4px; }
+  #_pkHeaderRight { display:flex; align-items:center; gap:8px; }
+  #_pkThemeBtn {
+    background:transparent; border:1px solid var(--pk-border1); color:var(--pk-text-dim);
+    padding:7px 12px; font-family:'Cinzel',serif; font-size:9px; letter-spacing:0.22em; text-transform:uppercase;
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px; border-radius:0;
+    width:auto;
+  }
+  #_pkThemeBtn:hover { color:var(--pk-text); border-color:var(--pk-border2); }
+  #_pkThemeBtn svg { width:11px; height:11px; }
+  /* Alturas iguais no header (chip do user × botão tema) */
+  #_pkThemeBtn, #user_chip button { height:30px; box-sizing:border-box; }
+  #user_chip { display:flex; align-items:center; }
+  #user_chip .tag { display:inline-flex; align-items:center; height:22px; box-sizing:border-box; }
+  @media (max-width:720px){
+    #_pkHeader { padding:10px 12px 8px; gap:6px 8px; flex-wrap:wrap; }
+    #_pkBrand { font-size:11px; letter-spacing:0.3em; }
+    #_pkSubtitle { font-size:7.5px; letter-spacing:0.16em; margin-top:3px; }
+    #_pkHeaderRight { gap:6px; flex:1; justify-content:flex-end; min-width:0; }
+    #user_chip { min-width:0; }
+    #user_chip .tag { font-size:8px; padding:2px 6px; margin-right:4px !important; flex-shrink:0; }
+    #user_chip button { font-size:10px !important; padding:6px 8px !important; height:28px; white-space:nowrap; }
+    #_pkThemeBtn { width:28px; height:28px; padding:0; justify-content:center; gap:0; flex-shrink:0; }
+    #_pkThemeLabel { display:none; }
+
+    /* Stats sem estourar o card */
+    .wrap { padding:12px; }
+    .stats-row { gap:6px; }
+    .stat { padding:12px 4px; }
+    .stat .n { font-size:22px; }
+    .stat .l { font-size:8px; letter-spacing:0.08em; margin-top:6px; white-space:normal; line-height:1.4; }
+
+    /* Nomes nos cards: quebra linha em vez de cortar */
+    .lcard { padding:12px; gap:10px; }
+    .lcard .lcli { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .lcard .lsub { white-space:normal; letter-spacing:0.12em; }
+  }
+
+  /* .wrap agora só é wrapper interno */
+  .wrap { max-width: 620px; margin: 0 auto; padding: 16px 20px; }
+  .logo { display:none; }  /* legacy — Header agora é o #_pkHeader */
+  .sub  { display:none; }
+
+  /* ─── Tipografia hero (Cinzel serif — SO Parket) ───────────── */
+  .h1 { font-family:'Cinzel','Georgia',serif; font-size:21px; font-weight:400; color:var(--pk-text); margin: 16px 0 8px; line-height:1.15; letter-spacing:0.10em;text-transform:uppercase; }
+  .h2 { font-family:'Cinzel','Georgia',serif; font-size:15px; font-weight:400; color:var(--pk-text); margin: 16px 0 8px; line-height:1.2; letter-spacing:0.12em;text-transform:uppercase; }
+  .sect-title, .sect-h .t, .label {
+    font-family:'Cinzel',serif; font-size:10px; color:var(--pk-text-muted);
+    letter-spacing:0.24em; text-transform:uppercase; font-weight:500;
+  }
+  .sect-title { margin:18px 0 10px; }
+  .value { font-size: 14px; color:var(--pk-text); font-weight:400; margin-top:5px; letter-spacing:0.005em; }
+
+  /* ─── Cards sólidos estilo Command Center ───────────────────────────── */
+  .card { background:var(--pk-card1); border:1px solid var(--pk-border1); border-radius:0; padding:20px; margin-top:12px; }
+  .scard { background:var(--pk-card1); border:1px solid var(--pk-border1); border-radius:0; padding:16px 18px; margin-bottom:8px; }
+  .scard h3 { font-family:'Cinzel',serif; font-size:11px; margin:0 0 12px; color:var(--pk-text-muted); letter-spacing:0.24em; text-transform:uppercase; font-weight:500; }
+  .scard .rowi { display:flex; justify-content:space-between; padding:10px 0; border-top:1px solid var(--pk-border1); font-size:13px; gap:8px; }
+  .scard .rowi:first-of-type { border-top:none; padding-top:0; }
+  .scard .rowi .k { color:var(--pk-text-dim); letter-spacing:0.02em; }
+  .scard .rowi .v { color:var(--pk-text); font-weight:400; text-align:right; max-width:60%; letter-spacing:0.005em; }
+
+  /* ─── Botões ─────────────────────────────────────────────────────────── */
+  button, .btn {
+    background:transparent; border:1px solid var(--pk-border1); color:var(--pk-text-dim);
+    border-radius:0; padding:13px 18px; font-size:11px; font-weight:500; cursor:pointer; width:100%;
+    text-align:center; letter-spacing:0.18em; text-transform:uppercase;
+    font-family:'Inter',sans-serif; transition:border-color 120ms, color 120ms, background 120ms;
+  }
+  button:active { transform: scale(0.98); }
+  button:hover { color:var(--pk-text); border-color:var(--pk-border2); }
+  button.primary { background:var(--pk-accent); border-color:var(--pk-accent); color:var(--pk-bg); font-weight:500; letter-spacing:0.22em; font-size:12px; }
+  button.primary:hover { background:var(--pk-accent-dim); border-color:var(--pk-accent-dim); color:var(--pk-bg); }
+  button.danger  { background:transparent; border-color:var(--pk-status-err); color:var(--pk-status-err); }
+  button.ghost   { background:transparent; border-color:var(--pk-border1); color:var(--pk-text-dim); }
+
+  input, select, textarea {
+    width:100%; background:var(--pk-card2); border:1px solid var(--pk-border1); color:var(--pk-text);
+    border-radius:0; padding:12px 14px; font-size:14px; font-family:'Inter',sans-serif; letter-spacing:0.005em;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color:var(--pk-accent); background:var(--pk-card1); }
+
+  .err { color:var(--pk-status-err); font-size:12px; margin-top:10px; letter-spacing:0.02em; }
+  .ok  { color:var(--pk-status-ok); font-size:12px; margin-top:10px; letter-spacing:0.02em; }
+  .small { font-size: 11px; color: var(--pk-text-dim); letter-spacing:0.02em; }
+  .center { text-align:center; }
+
+  .spinner { display:inline-block; width:18px; height:18px; border:2px solid var(--pk-border1); border-top-color:var(--pk-accent); border-radius:50%; animation:spin 700ms linear infinite; }
+  @keyframes spin { to{ transform: rotate(360deg); } }
+  hr { border:none; border-top: 1px solid var(--pk-border1); margin: 14px 0; }
+
+  /* ─── Status badges — pattern exato do Command Center Obra ──────────── */
+  .pill, .tag, .stage-pill, .badge-warn {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 10px; border-radius:0;
+    font-family:'Cinzel',serif; font-size:10px; font-weight:500;
+    letter-spacing:0.18em; text-transform:uppercase;
+    border:1px solid transparent;
+  }
+  .pill { border-color:var(--pk-border1); color:var(--pk-text-dim); background:transparent; }
+  .badge-warn { background:var(--pk-status-warn-bg); border-color:rgba(200,146,42,0.28); color:var(--pk-status-warn); }
+
+  /* ─── Checklist / Rows ───────────────────────────────────────────────── */
+  .ck-row { display:flex; flex-direction:column; gap:6px; padding:12px 0; border-top:1px solid var(--pk-border1); }
+  .ck-row:first-child { border-top:none; padding-top:0; }
+  .ck-q { font-size:14px; color:var(--pk-text); line-height:1.5; letter-spacing:0.005em; }
+  .ck-btns { display:flex; gap:6px; }
+  .ck-btn {
+    flex:1; padding:10px 8px; border-radius:0; font-family:'Cinzel',serif; font-size:11px; font-weight:500; cursor:pointer;
+    border:1px solid var(--pk-border1); background:transparent; color:var(--pk-text-dim);
+    letter-spacing:0.20em; text-transform:uppercase;
+  }
+  .ck-btn.sim.on { background:var(--pk-status-ok-bg); border-color:rgba(150,132,115,0.36); color:var(--pk-status-ok); }
+  .ck-btn.nao.on { background:var(--pk-status-err-bg); border-color:rgba(155,74,90,0.36); color:var(--pk-status-err); }
+  .ck-btn.na.on  { background:var(--pk-status-mut-bg); border-color:rgba(95,93,88,0.36); color:var(--pk-status-mut); }
+  .ck-obs { font-size: 12px; background:var(--pk-card2); border:1px solid var(--pk-border1); color:var(--pk-text); border-radius:0; padding:9px 12px; }
+
+  .banner { padding:12px 14px; border-radius:0; font-family:'Cinzel',serif; font-size:10px; font-weight:500; text-align:center; margin-top:14px; letter-spacing:0.18em; text-transform:uppercase; border:1px solid; }
+  .banner.warn { background:var(--pk-status-warn-bg); border-color:rgba(200,146,42,0.28); color:var(--pk-status-warn); }
+  .banner.ok   { background:var(--pk-status-ok-bg); border-color:rgba(150,132,115,0.36); color:var(--pk-status-ok); }
+  .banner.err  { background:var(--pk-status-err-bg); border-color:rgba(155,74,90,0.36); color:var(--pk-status-err); }
+
+  /* ─── Bottom nav (mobile) ────────────────────────────────────────────── */
+  body { padding-bottom: 76px; }
+  .bnav {
+    position:fixed; bottom:0; left:0; right:0;
+    background:var(--pk-panel); backdrop-filter:blur(10px);
+    border-top:1px solid var(--pk-border1);
+    display:flex; justify-content:space-around; padding:10px 0 16px; z-index:90;
+  }
+  .bnav-item {
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    font-family:'Cinzel',serif; font-size:11px; color:var(--pk-text-muted);
+    padding:8px 18px; cursor:pointer; font-weight:500; text-transform:uppercase; letter-spacing:0.24em;
+    background:none; border:none; width:auto; border-radius:0;
+  }
+  .bnav-item.on { color:var(--pk-accent); }
+  .bnav-item .ico { display:none; }
+
+  /* ─── Jornada ────────────────────────────────────────────────────────── */
+  .jh-tabs {
+    display:flex; gap:0; margin-bottom:14px; background:transparent;
+    border-bottom:1px solid var(--pk-border1); padding:0;
+  }
+  .jh-tab {
+    flex:1; padding:13px 10px; text-align:center; font-family:'Cinzel',serif;
+    font-size:11px; font-weight:500; color:var(--pk-text-muted); border-radius:0;
+    cursor:pointer; border:none; background:transparent; width:auto;
+    letter-spacing:0.22em; text-transform:uppercase;
+    border-bottom:1px solid transparent; margin-bottom:-1px;
+  }
+  .jh-tab.on { color:var(--pk-accent); border-bottom-color:var(--pk-accent); }
+
+  .obracard {
+    background:var(--pk-card1); border:1px solid var(--pk-border1); border-radius:0;
+    padding:14px 16px; margin-bottom:8px; cursor:pointer;
+    display:flex; gap:12px; align-items:flex-start;
+    transition:background 120ms, border-color 120ms;
+  }
+  .obracard:hover { background:var(--pk-card2); border-color:var(--pk-border2); }
+  .obracard:active { background:var(--pk-card2); }
+  .stage-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; margin-top:8px; }
+  .obracard .info { flex:1; min-width:0; }
+  .obracard .code { font-family:'Cinzel',serif; font-size:10px; color:var(--pk-accent); font-weight:500; letter-spacing:0.24em; text-transform:uppercase; }
+  .obracard .cli  { font-family:'Cinzel',serif; font-size:13px; color:var(--pk-text); font-weight:400; margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.2; letter-spacing:0.08em;text-transform:uppercase; }
+  .obracard .meta { font-size:12px; color:var(--pk-text-dim); margin-top:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; letter-spacing:0.005em; }
+
+  .jheader {
+    background:var(--pk-card1); border:1px solid var(--pk-border1); border-radius:0;
+    padding:22px 20px; margin-bottom:16px;
+  }
+  .jheader .jh-code { font-family:'Cinzel',serif; font-size:10px; color:var(--pk-accent); font-weight:500; letter-spacing:0.28em; text-transform:uppercase; }
+  .jheader .jh-cli  { font-family:'Cinzel',serif; font-size:19px; color:var(--pk-text); font-weight:400; margin-top:8px; letter-spacing:0.10em;text-transform:uppercase; line-height:1.15; }
+  .jheader .jh-addr { font-size:12px; color:var(--pk-text-dim); margin-top:8px; letter-spacing:0.02em; line-height:1.5; }
+  .jh-progress { margin-top:16px; }
+  .jh-progress .lbl { display:flex; justify-content:space-between; font-family:'Cinzel',serif; font-size:10px; color:var(--pk-text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.22em; }
+  .jh-progress .bar  { height:2px; background:var(--pk-border1); border-radius:0; overflow:hidden; }
+  .jh-progress .fill { height:100%; background:var(--pk-accent); border-radius:0; transition:width 0.5s; }
+
+  .now-card, .next-visit {
+    background:var(--pk-card1); border:1px solid var(--pk-border1); border-radius:0;
+    padding:20px; margin-bottom:14px; cursor:pointer;
+    transition:background 120ms;
+  }
+  .now-card:hover, .next-visit:hover { background:var(--pk-card2); }
+  .now-card .pre, .next-visit .pre { font-family:'Cinzel',serif; font-size:10px; color:var(--pk-accent); letter-spacing:0.28em; text-transform:uppercase; font-weight:500; }
+  .now-card .title, .next-visit .cli { font-family:'Cinzel',serif; font-size:16px; color:var(--pk-text); font-weight:400; margin-top:10px; letter-spacing:0.10em;text-transform:uppercase; line-height:1.2; }
+  .next-visit .obra { font-size:12px; color:var(--pk-text-dim); margin-top:5px; letter-spacing:0.02em; }
+  .next-visit .when { display:inline-block; margin-top:14px; padding:5px 12px; border-radius:0; background:var(--pk-status-ok-bg); border:1px solid rgba(150,132,115,0.36); color:var(--pk-status-ok); font-family:'Cinzel',serif; font-size:10px; font-weight:500; letter-spacing:0.20em; text-transform:uppercase; }
+  .now-card .meta { display:flex; gap:16px; margin-top:14px; flex-wrap:wrap; }
+  .now-card .mi { display:flex; flex-direction:column; gap:3px; }
+  .now-card .ml { font-family:'Cinzel',serif; font-size:9px; color:var(--pk-text-muted); text-transform:uppercase; letter-spacing:0.24em; }
+  .now-card .mv { font-size:13px; color:var(--pk-text); font-weight:400; letter-spacing:0.005em; }
+
+  /* ─── Home stats — 3 colunas com números serif elegantes ──────────── */
+  .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+  .stat { background:var(--pk-card1); border:1px solid var(--pk-border1); border-radius:0; padding:14px 8px; text-align:center; }
+  .stat .n { font-family:'Cinzel',serif; font-size:26px; font-weight:400; color:var(--pk-text); line-height:1; letter-spacing:0.005em; font-variant-numeric: tabular-nums; }
+  .stat .l { font-family:'Cinzel',serif; font-size:9px; color:var(--pk-text-muted); text-transform:uppercase; letter-spacing:0.24em; margin-top:10px; font-weight:500; }
+  .stat.warn .n { color:var(--pk-status-warn); }
+  .stat.info .n { color:var(--pk-text-dim); }
+  .stat.ok   .n { color:var(--pk-accent); }
+  /* .ok genérica (msg de sucesso, linha ~192) vazava margin/font pro card */
+  .stat.ok { margin-top:0; font-size:inherit; letter-spacing:normal; color:inherit; }
+
+  .sect-h { display:flex; align-items:center; justify-content:space-between; padding:0 4px; margin:22px 0 10px; }
+  .sect-h .t { font-family:'Cinzel',serif; font-size:10px; color:var(--pk-text-muted); letter-spacing:0.24em; text-transform:uppercase; font-weight:500; }
+  .sect-h .n { font-family:'Cinzel',serif; font-size:10px; color:var(--pk-text-muted); font-weight:500; font-variant-numeric:tabular-nums; letter-spacing:0.18em; }
+
+  .lcard { background:var(--pk-card1); border:1px solid var(--pk-border1); border-radius:0; padding:12px 14px; margin-bottom:4px; cursor:pointer; display:flex; gap:12px; align-items:center; transition:background 120ms; }
+  .lcard:hover { background:var(--pk-card2); }
+  .lcard .lcli { font-family:'Cinzel',serif; font-size:12px; font-weight:400; color:var(--pk-text); line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:0.08em;text-transform:uppercase; }
+  .lcard .lsub { font-family:'Cinzel',serif; font-size:10px; color:var(--pk-text-muted); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:0.20em; text-transform:uppercase; }
+  .lcard .lbody { flex:1; min-width:0; }
+  .lcard .ldot  { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .lcard .larrow { color:var(--pk-text-muted); font-size:14px; flex-shrink:0; }
+
+  /* ─── Calendário ─────────────────────────────────────────────────────── */
+  .cal-wrap { background:var(--pk-card1); border:1px solid var(--pk-border1); border-radius:0; padding:16px; margin-bottom:14px; }
+  .cal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; }
+  .cal-title { font-family:'Cinzel',serif; font-size:12px; font-weight:500; color:var(--pk-text); text-transform:uppercase; letter-spacing:0.24em; }
+  .cal-nav { display:flex; gap:4px; }
+  .cal-btn { background:transparent; border:1px solid var(--pk-border1); color:var(--pk-text); width:30px; height:30px; padding:0; border-radius:0; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .cal-btn.today { width:auto; padding:0 14px; font-family:'Cinzel',serif; font-size:10px; font-weight:500; color:var(--pk-accent); border-color:var(--pk-border1); letter-spacing:0.24em; text-transform:uppercase; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-dow { font-family:'Cinzel',serif; font-size:9px; color:var(--pk-text-muted); text-align:center; text-transform:uppercase; letter-spacing:0.24em; padding:6px 0; font-weight:500; }
+  .cal-cell { aspect-ratio:1; background:transparent; border:1px solid transparent; border-radius:0; padding:4px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; cursor:pointer; position:relative; min-height:44px; }
+  .cal-grid.cal-week { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .cal-grid.cal-week .cal-dow { font-size:9px; padding:8px 4px; }
+  .cal-grid.cal-week .cal-cell { aspect-ratio:auto; min-height:220px; align-items:stretch; justify-content:flex-start; padding:10px 8px; background:var(--pk-card1); border:1px solid var(--pk-border1); overflow:hidden; }
+  .cal-grid.cal-week .cal-cell.today { background:var(--pk-card2); border-top:2px solid var(--pk-accent); }
+  .cal-grid.cal-week .cal-cell.sel   { background:var(--pk-status-ok-bg); border-color:rgba(150,132,115,0.36); }
+  @media (max-width: 720px){
+    .cal-grid.cal-week { grid-template-columns:1fr; gap:4px; }
+    .cal-grid.cal-week .cal-dow { display:none; }
+    .cal-grid.cal-week .cal-cell { min-height:auto; padding:12px; }
+  }
+  .swipe-hint { display:none; font-family:'Cinzel',serif; font-size:9px; color:var(--pk-text-muted); text-align:center; padding:6px 0 10px; letter-spacing:0.22em; text-transform:uppercase; }
+  @media (max-width:720px){ .swipe-hint { display:block; } }
+  .cal-cell.muted { opacity:0.25; pointer-events:none; }
+  .cal-cell.today { border-color:var(--pk-border2); border-top:2px solid var(--pk-accent); }
+  .cal-cell.sel { background:var(--pk-status-ok-bg); border-color:rgba(150,132,115,0.36); }
+  .cal-cell.has { background:var(--pk-card1); }
+  .cal-cell .d { font-family:'Cinzel',serif; font-size:12px; color:var(--pk-text); font-weight:500; line-height:1; margin-top:2px; font-variant-numeric:tabular-nums; letter-spacing:0.05em; }
+  .cal-cell.today .d { color:var(--pk-accent); }
+  .cal-cell .dots { display:flex; gap:2px; margin-top:5px; flex-wrap:wrap; justify-content:center; }
+  .cal-cell .dot  { width:4px; height:4px; border-radius:50%; }
+  .cal-cell .more { font-family:'Cinzel',serif; font-size:8px; color:var(--pk-text-muted); margin-top:2px; letter-spacing:0.14em; }
+  .cal-legend { display:flex; gap:14px; justify-content:center; margin-top:14px; padding-top:12px; border-top:1px solid var(--pk-border1); font-family:'Cinzel',serif; font-size:9px; color:var(--pk-text-muted); flex-wrap:wrap; letter-spacing:0.22em; text-transform:uppercase; }
+  .cal-legend .lg { display:flex; gap:5px; align-items:center; }
+  .cal-legend .lg-dot { width:6px; height:6px; border-radius:50%; }
+
+  .tl-step { position:relative; margin-bottom:16px; padding-left:8px; }
+  .tl-step::before { content:""; position:absolute; left:-21px; top:6px; width:11px; height:11px; border-radius:50%; background:var(--pk-bg); border:1px solid var(--pk-border2); }
+  .tl-step.done::before { background:var(--pk-accent); border-color:var(--pk-accent); content:"✓"; color:var(--pk-bg); font-size:8px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; }
+  .tl-step.cur { background:var(--pk-status-ok-bg); margin-left:-8px; padding:10px; border-radius:0; border:1px solid rgba(150,132,115,0.36); }
+  .tl-step.cur::before { left:-30px; background:var(--pk-accent); border-color:var(--pk-accent); box-shadow:0 0 0 3px var(--pk-status-ok-bg); }
+  .tl-step .name { font-family:'Cinzel',serif; font-size:12px; color:var(--pk-text); font-weight:400; letter-spacing:0.08em;text-transform:uppercase; }
+  .tl-step .name.done { color:var(--pk-text-dim); font-weight:400; }
+  .tl-step .name.future { color:var(--pk-text-muted); font-weight:400; }
+  .tl-step.cur .name { color:var(--pk-text); font-size:13px; font-weight:500; }
+  .tl-step .date { font-family:'Cinzel',serif; font-size:10px; color:var(--pk-text-muted); margin-top:5px; letter-spacing:0.18em; }
+  .tl-step .resp { font-family:'Cinzel',serif; font-size:10px; color:var(--pk-accent); margin-top:5px; font-weight:500; letter-spacing:0.22em; text-transform:uppercase; }
+  .empty-state { padding:48px 16px; text-align:center; font-family:'Cinzel',serif; color:var(--pk-text-muted); font-size:11px; letter-spacing:0.24em; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<!-- ─── Header estilo Command Center - Obra Parket ─────────────────── -->
+<header id="_pkHeader">
+  <div id="_pkHeaderLeft">
+    <span id="_pkBrand">PARKET</span>
+    <span id="_pkSubtitle" data-role="sub">FISCAL · LAUDOS DE VISTORIA</span>
+  </div>
+  <div id="_pkHeaderRight">
+    <div id="user_chip"></div>
+    <button id="_pkThemeBtn" type="button" title="Alternar tema" aria-label="Alternar tema">
+      <svg id="_pkThemeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+      <span id="_pkThemeLabel">Claro</span>
+    </button>
+  </div>
+</header>
+
+<!-- Compat: alguns handlers legados referenciam #sub — escondido, mesmo id -->
+<span id="sub" style="display:none"></span>
+
+<div class="wrap">
+  <div id="root"></div>
+</div>
+
+<script>
+  /* Toggle Sun/Moon — persiste em localStorage e reflete no <html data-theme>. */
+  (function(){
+    var btn   = document.getElementById("_pkThemeBtn");
+    var icon  = document.getElementById("_pkThemeIcon");
+    var label = document.getElementById("_pkThemeLabel");
+    var meta  = document.getElementById("_pk_theme_color");
+    var SUN  = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>';
+    var MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+    function paint(){
+      var mode = document.documentElement.getAttribute("data-theme") || "dark";
+      if (icon)  icon.innerHTML   = mode === "dark" ? SUN : MOON;
+      if (label) label.textContent = mode === "dark" ? "Claro" : "Escuro";
+      if (meta)  meta.setAttribute("content", mode === "light" ? "#D8D3C7" : "#050505");
+    }
+    if (btn) btn.onclick = function(){
+      var cur = document.documentElement.getAttribute("data-theme") || "dark";
+      var next = cur === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem("parket-fiscal-theme", next); } catch(e){}
+      paint();
+    };
+    paint();
+  })();
+</script>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const SUPABASE_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { persistSession: true, storageKey: "parket-fiscal-auth", autoRefreshToken: true },
+});
+
+// API do gestão — checklist de início de obras (etapa 3 / Central do Cliente)
+const GESTAO_API = "https://gestao.parket.works";
+
+const root = document.getElementById("root");
+const userChip = document.getElementById("user_chip");
+
+function el(html){ const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstElementChild; }
+function esc(s){ return String(s||"").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c])); }
+function fmtDate(iso){ if (!iso) return ""; return new Date(iso).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}); }
+function fmtDateBR(iso){ if (!iso) return ""; return new Date(iso).toLocaleDateString("pt-BR"); }
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ Editor de foto — desenhar (estilo WhatsApp) + texto           ║
+// ║ Retorna File (jpeg comprimido) com a foto + desenhos          ║
+// ╚══════════════════════════════════════════════════════════════╝
+async function openPhotoEditor(file){
+  return new Promise(async (resolve) => {
+    // Carrega imagem
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result); r.onerror = () => rej(new Error("Falha ao ler"));
+      r.readAsDataURL(file);
+    });
+    const img = await new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im); im.onerror = () => rej(new Error("Img inválida"));
+      im.src = dataUrl;
+    });
+
+    // Modal fullscreen
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:10000;background:#000;display:flex;flex-direction:column";
+
+    // Top bar — cores + ferramentas
+    const top = document.createElement("div");
+    top.style.cssText = "background:rgba(0,0,0,0.6);padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap";
+    const COLORS = ["#FF3B30","#FFCC00","#34C759","#FFFFFF","#000000","#0A84FF"];
+    let curColor = "#FF3B30";
+    let curWidth = 4;
+    let mode = "pen"; // "pen" | "text"
+
+    const colorBtns = COLORS.map(c => {
+      const b = document.createElement("button");
+      b.style.cssText = `width:28px;height:28px;border-radius:50%;background:${c};border:2px solid ${c===curColor?"#fff":"transparent"};padding:0;cursor:pointer`;
+      b.onclick = (ev) => { ev.preventDefault(); curColor = c; colorBtns.forEach((bb,i) => bb.style.border = `2px solid ${COLORS[i]===curColor?"#fff":"transparent"}`); };
+      top.appendChild(b);
+      return b;
+    });
+
+    const sepDiv = document.createElement("div");
+    sepDiv.style.cssText = "width:1px;height:24px;background:rgba(255,255,255,0.2);margin:0 4px";
+    top.appendChild(sepDiv);
+
+    // Espessura
+    const wRange = document.createElement("input");
+    wRange.type = "range"; wRange.min = "2"; wRange.max = "20"; wRange.value = "4";
+    wRange.style.cssText = "width:80px";
+    wRange.oninput = () => { curWidth = parseInt(wRange.value); };
+    top.appendChild(wRange);
+
+    // Undo
+    const btnUndo = document.createElement("button");
+    btnUndo.textContent = "↶";
+    btnUndo.title = "Desfazer";
+    btnUndo.style.cssText = "background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;width:32px;height:32px;border-radius:0;font-size:18px;cursor:pointer;padding:0;margin-left:auto";
+    top.appendChild(btnUndo);
+
+    // Limpar
+    const btnClear = document.createElement("button");
+    btnClear.textContent = "✕";
+    btnClear.title = "Limpar desenhos";
+    btnClear.style.cssText = "background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;width:32px;height:32px;border-radius:0;cursor:pointer;padding:0";
+    top.appendChild(btnClear);
+
+    overlay.appendChild(top);
+
+    // Canvas
+    const canvasWrap = document.createElement("div");
+    canvasWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative";
+    overlay.appendChild(canvasWrap);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    // Save initial state pra reset
+    const baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // Canvas escala pra caber na tela
+    canvas.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;touch-action:none";
+    canvasWrap.appendChild(canvas);
+
+    // Stack pra undo (cada traço = snapshot)
+    const undoStack = [];
+    function saveSnapshot(){
+      undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      if (undoStack.length > 30) undoStack.shift();
+    }
+
+    btnUndo.onclick = (ev) => {
+      ev.preventDefault();
+      if (undoStack.length > 0){
+        const last = undoStack.pop();
+        ctx.putImageData(last, 0, 0);
+      }
+    };
+    btnClear.onclick = (ev) => {
+      ev.preventDefault();
+      undoStack.length = 0;
+      ctx.putImageData(baseImageData, 0, 0);
+    };
+
+    // Desenho com pointer events
+    let drawing = false;
+    let lastX = 0, lastY = 0;
+    function getCanvasPos(ev){
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (ev.clientX - rect.left) * scaleX;
+      const y = (ev.clientY - rect.top) * scaleY;
+      return { x, y };
+    }
+    canvas.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault();
+      const p = getCanvasPos(ev);
+      drawing = true;
+      saveSnapshot();
+      lastX = p.x; lastY = p.y;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = curColor;
+      ctx.lineWidth = curWidth * (canvas.width / canvas.getBoundingClientRect().width); // escala lineWidth
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + 0.1, p.y + 0.1);
+      ctx.stroke();
+      canvas.setPointerCapture(ev.pointerId);
+    });
+    canvas.addEventListener("pointermove", (ev) => {
+      if (!drawing) return;
+      ev.preventDefault();
+      const p = getCanvasPos(ev);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      lastX = p.x; lastY = p.y;
+    });
+    canvas.addEventListener("pointerup", () => { drawing = false; });
+    canvas.addEventListener("pointercancel", () => { drawing = false; });
+
+    // Bottom — comentário (estilo WhatsApp: input + botão enviar)
+    const bottom = document.createElement("div");
+    bottom.style.cssText = "background:rgba(0,0,0,0.7);padding:10px 12px;display:flex;flex-direction:column;gap:8px";
+
+    const commentRow = document.createElement("div");
+    commentRow.style.cssText = "display:flex;gap:8px;align-items:flex-end";
+
+    const commentInput = document.createElement("textarea");
+    commentInput.placeholder = "Adicionar comentário…";
+    commentInput.rows = 1;
+    commentInput.style.cssText = "flex:1;padding:10px 12px;border-radius:0;background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:14px;font-family:inherit;resize:none;outline:none;max-height:80px;line-height:1.4";
+    commentInput.addEventListener("input", () => {
+      commentInput.style.height = "auto";
+      commentInput.style.height = Math.min(80, commentInput.scrollHeight) + "px";
+    });
+    commentRow.appendChild(commentInput);
+
+    bottom.appendChild(commentRow);
+
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display:flex;gap:10px";
+    const btnCancel = document.createElement("button");
+    btnCancel.textContent = "Cancelar";
+    btnCancel.style.cssText = "flex:1;padding:12px;border-radius:0;background:rgba(255,255,255,0.1);border:none;color:#fff;font-weight:600;cursor:pointer";
+    btnCancel.onclick = () => { document.body.removeChild(overlay); resolve(null); };
+    const btnDone = document.createElement("button");
+    btnDone.textContent = "✓ Pronto";
+    btnDone.style.cssText = "flex:2;padding:12px;border-radius:0;background:var(--pk-accent);border:none;color:#000;font-weight:700;cursor:pointer";
+    btnDone.onclick = () => {
+      const comentario = commentInput.value.trim();
+      canvas.toBlob((blob) => {
+        document.body.removeChild(overlay);
+        if (!blob){ resolve(null); return; }
+        const newFile = new File([blob], file.name || "foto.jpg", { type: "image/jpeg", lastModified: Date.now() });
+        resolve({ file: newFile, comentario });
+      }, "image/jpeg", 0.85);
+    };
+    btnRow.appendChild(btnCancel);
+    btnRow.appendChild(btnDone);
+    bottom.appendChild(btnRow);
+
+    overlay.appendChild(bottom);
+
+    document.body.appendChild(overlay);
+  });
+}
+
+// ── Compressão de foto (lado maior ~1280, jpeg 0.7, ~700KB) ──
+async function compressPhoto(file){
+  const dataUrl = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result); r.onerror = () => rej(new Error("Falha ao ler"));
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im); im.onerror = () => rej(new Error("Imagem inválida"));
+    im.src = dataUrl;
+  });
+  const MAX = 1280;
+  let w = img.naturalWidth, h = img.naturalHeight;
+  if (w > MAX || h > MAX){ if (w >= h){ h = Math.round(h * MAX / w); w = MAX; } else { w = Math.round(w * MAX / h); h = MAX; } }
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+  let q = 0.72, out = canvas.toDataURL("image/jpeg", q);
+  while (out.length > 700_000 && q > 0.35){ q -= 0.1; out = canvas.toDataURL("image/jpeg", q); }
+  return out;
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ Catálogo de PERGUNTAS por tipo de laudo / serviço             ║
+// ║ Espelha o que existe em laudos-vistorias-tab-v1.js (852l)     ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const TIPOS = {
+  "1vistoria": { label: "1ª Vistoria", servicosKeys: ["piso","deck","forro","painel","porta","escada"], hasForroExtra: true },
+  "2vistoria": { label: "2ª Vistoria", servicosKeys: ["piso","deck","forro","painel","porta","escada","bancos"], hasForroExtra: true, hasLiberacao: true },
+  "acompanhamento": { label: "Acompanhamento" },
+  "entrega": { label: "Entrega" },
+  "reparo": { label: "Reparo" },
+};
+
+const CK = {
+  "1vistoria": {
+    piso: ["Encontra-se nivelado e sem ondulações", "Encontra-se liso", "Apresenta arenoso", "Apresenta buracos ou calombos", "Pisos frios finalizados", "A espessura deixada para o nosso piso está de acordo com o nível dos pisos frios", "Baguetes finalizadas", "Tem espaço para dilatação do rodapé invertido", "Soleiras finalizadas", "Hidráulica está finalizada", "Elétrica está finalizada", "Gesso finalizado", "Massa corrida finalizada", "Primeira demão de tinta finalizada", "Portas instaladas", "Janelas instaladas", "Vidros e esquadrias instalados", "Realizada medição final", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Umidade no contrapiso", "Área liberada para instalação?"],
+    deck: ["Hidráulica está finalizada", "Elétrica está finalizada", "Pisos frios finalizados", "Alçapões no contrapiso", "Espessura deixada para nosso material acabado está de acordo", "Estrutura metálica finalizada (caso tenha)", "Tem encontro com piscinas/spas", "Tem escada na área de instalação do deck", "Vidros e esquadrias instalados", "Realizada a medição final", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Área liberada para instalação?"],
+    forro: ["Laje finalizada", "A laje tem alguma especificação", "Área de instalação do forro tem encontro com outros tipos de forros", "Vai ter cortineiro/sanca", "Vai ter beiral", "Estrutura do beiral finalizada", "Paredes finalizadas", "Portas instaladas", "Janelas instaladas", "Vidros e esquadrias instalados", "Hidráulica está finalizada", "Elétrica está finalizada", "Realizada a medição final", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Existe necessidade de andaime e escada", "Umidade na laje", "Área liberada para instalação?", "Projeto confere com a obra"],
+    painel: ["Parede estruturada", "Parede requadrada", "Parede sem buracos", "Parede masseada", "Existe encontro com outros materiais", "Rodapé finalizado", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Existe necessidade de andaime e escada", "Caso forro e piso não sejam Parket: Forro finalizado", "Caso forro e piso não sejam Parket: Piso finalizado", "Realizada a medição final"],
+    porta: ["Vão estruturado", "Vão requadrado", "Vão acabado e masseado", "Existe necessidade de andaime e escada", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Caso forro e piso não sejam Parket: Forro finalizado", "Caso forro e piso não sejam Parket: Piso finalizado", "Realizada a medição final"],
+    escada: ["Escada requadrada e em prumo", "Sem calombos", "Sem porosidade", "Nivelado", "Escada em ferro", "Medidas conferem com projeto", "Realizada a medição final", "Área de instalação livre de objetos e pessoas", "Caçamba disponível", "Existe necessidade de andaime e escada"],
+  },
+  "2vistoria": {
+    liberacao: ["Área liberada para instalação?", "Andaimes em obra", "Insumos e material em obra"],
+    piso: ["O contrapiso está apto à instalação", "Pisos frios finalizados", "A espessura deixada para o nosso piso está de acordo com o nível dos pisos frios", "Baguetes/soleiras finalizadas", "Tem espaço para dilatação do rodapé invertido", "Hidráulica está finalizada", "Elétrica está finalizada", "Gesso/massa corrida e pintura finalizado", "Portas/janelas/vidros e esquadrias instalados", "Realizada medição", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Umidade no contrapiso", "Área liberada para instalação?"],
+    deck: ["Hidráulica está finalizada", "Elétrica está finalizada", "Pisos frios finalizados", "Alçapões no contrapiso", "Espessura deixada para nosso material acabado está de acordo", "Estrutura metálica finalizada (caso tenha)", "Tem encontro com piscinas/spas", "Tem escada na área de instalação do deck", "Vidros e esquadrias instalados", "Realizada a medição final", "Caçamba disponível", "Área de instalação livre de objetos e pessoas"],
+    forro: ["Laje finalizada", "A laje tem alguma especificação", "Área de instalação do forro tem encontro com outros tipos de forros", "Vai ter cortineiro/sanca", "Estrutura do beiral finalizada", "Paredes finalizadas", "Caixilhos ou contramarco instalados", "Hidráulica está finalizada", "Elétrica está finalizada", "Dutos/grelhas de ar instalados", "Realizada a medição final", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Existe necessidade de andaime e escada", "Umidade na laje", "Área liberada para instalação?", "Projeto confere com a obra"],
+    painel: ["Parede estruturada", "Parede requadrada", "Parede sem buracos", "Parede masseada", "Existe encontro com outros materiais", "Rodapé finalizado", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Existe necessidade de andaime e escada", "Caso forro e piso não sejam Parket: Forro finalizado", "Caso forro e piso não sejam Parket: Piso finalizado", "Realizada a medição final"],
+    porta: ["Vão estruturado", "Vão requadrado", "Vão acabado e masseado", "Existe necessidade de andaime e escada", "Caçamba disponível", "Área de instalação livre de objetos e pessoas", "Caso forro e piso não sejam Parket: Forro finalizado", "Caso forro e piso não sejam Parket: Piso finalizado", "Realizada a medição final"],
+    escada: ["Escada requadrada e em prumo", "Sem calombos", "Sem porosidade", "Nivelado", "Escada em ferro", "Medidas conferem com projeto", "Realizada a medição final", "Área de instalação livre de objetos e pessoas", "Caçamba disponível", "Existe necessidade de andaime e escada"],
+    bancos: ["Existe estrutura para o banco", "Caso haja estrutura, está finalizada", "Contrapiso está nivelado", "Possui encontro com algum material", "Medidas conferem com projeto", "Realizada a medição final", "Área de instalação livre de objetos e pessoas", "Caçamba disponível", "Existe necessidade de andaime e escada"],
+  },
+  acompanhamento: {
+    equipe: ["Uniformizados", "Postura em obra", "Uso de EPI"],
+    produtividade: ["Tem alguma frente de trabalho travada por conta da engenharia", "Falta algum insumo", "Falta algum material", "As partes instaladas estão de acordo"],
+  },
+  entrega: {
+    qualidade: ["A instalação está na qualidade esperada e padrões Parket?", "Tivemos muitas ocorrências ao longo da obra?", "A obra foi entregue dentro do prazo?", "O cliente está satisfeito com a entrega?"],
+  },
+  reparo: {
+    tipo: ["Mal uso do material", "Reparo Parket"],
+    materiais: ["Possui material em obra", "Possui insumos em obra"],
+  },
+};
+
+const FORRO_EXTRA = [
+  { key: "tipo_laje", label: "Qual o tipo de laje?" },
+  { key: "reforco_necessario", label: "Será necessário algum reforço?" },
+  { key: "insumos_necessarios", label: "Quais insumos serão necessários?" },
+];
+const ACOMP_TEXT = [
+  { key: "materiais_falta", label: "Lista os materiais em falta" },
+  { key: "insumos_falta", label: "Lista os insumos em falta" },
+  { key: "metragem_areas", label: "Metragem realizada e áreas finalizadas" },
+  { key: "ocorrencias", label: "Ocorrências" },
+];
+const ENTREGA_TEXT = [
+  { key: "descritivo_sistema", label: "Descritivo do sistema" },
+  { key: "descritivo_material", label: "Descritivo do material" },
+  { key: "ocorrencias", label: "Ocorrências" },
+];
+const REPARO_TEXT = [
+  { key: "descritivo_reparo", label: "Descritivo dos serviços e materiais com problema" },
+  { key: "sistema_instalacao", label: "Descritivo do sistema de instalação necessário" },
+  { key: "obs_solucao", label: "Observações para solução" },
+];
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ Estado global da app                                          ║
+// ╚══════════════════════════════════════════════════════════════╝
+let _user = null;     // user do Supabase (auth)
+let _fiscal = null;   // row do fiscal_equipe (se logou como fiscal)
+let _isAdmin = false; // role admin/superadmin OU tem dept_permissions.obras (vê tudo + cria como qualquer fiscal)
+let _adminProfile = null; // {full_name, email}
+let _fiscaisLista = []; // lista de todos fiscais ativos (admin usa pra operar como)
+let _operandoComoId = null; // id do fiscal_equipe que admin selecionou pra criar laudos
+let _rtChannel = null; // canal realtime ativo (recriado a cada render de Home/Agenda)
+let _rtView = null;    // qual view registrou o canal ("home" | "agenda")
+
+// Recria subscription pro Supabase realtime — dispara o callback ao mudar laudos/agenda.
+// Re-renderiza a view atual quando algo muda no Space.
+function subscribeFiscalRealtime(view, onChange){
+  if (_rtChannel){ try { sb.removeChannel(_rtChannel); } catch(_){} _rtChannel = null; }
+  _rtView = view;
+  _rtChannel = sb.channel("fiscal_rt_" + view)
+    .on("postgres_changes", { event: "*", schema: "public", table: "fiscal_laudos" }, () => onChange())
+    .on("postgres_changes", { event: "*", schema: "public", table: "fiscal_agenda" }, () => onChange())
+    .subscribe();
+}
+
+// Cancela canal realtime. Chamado por views que NÃO são Home/Agenda — sem isso
+// o callback antigo continua escutando mudanças em fiscal_laudos e dispara
+// renderHome() (que joga o usuário de volta pra tela inicial no meio de uma edição).
+function unsubscribeFiscalRealtime(){
+  if (_rtChannel){ try { sb.removeChannel(_rtChannel); } catch(_){} _rtChannel = null; }
+  _rtView = null;
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ Boot — checa sessão                                           ║
+// ╚══════════════════════════════════════════════════════════════╝
+async function boot(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return renderLogin();
+  _user = session.user;
+
+  // 1) Tenta como fiscal
+  const { data: fiscalRow } = await sb.from("fiscal_equipe").select("*").eq("user_id", _user.id).maybeSingle();
+  if (fiscalRow && fiscalRow.ativo){
+    _fiscal = fiscalRow;
+  }
+
+  // 2) Checa se é admin/superadmin OU tem dept_permissions.obras
+  //    Qualquer um deles entra em modo "admin" (vê tudo, cria como qualquer fiscal)
+  const { data: profile } = await sb.from("user_profiles")
+    .select("full_name, email, role, dept_permissions")
+    .eq("id", _user.id)
+    .maybeSingle();
+  const isRoleAdmin = profile && (profile.role === "admin" || profile.role === "superadmin");
+  const hasObras = profile && profile.dept_permissions && profile.dept_permissions.obras != null;
+  // Fiscal cadastrado SEMPRE opera em modo fiscal (só vê o dele) — dept_permissions.obras
+  // não eleva quem é fiscal; só role admin/superadmin de verdade.
+  if (isRoleAdmin || (!_fiscal && hasObras)){
+    _isAdmin = true;
+    _adminProfile = profile;
+  }
+
+  // 3) Se não é fiscal nem tem acesso (admin/obras) → bloqueia
+  if (!_fiscal && !_isAdmin){
+    await sb.auth.signOut();
+    return renderLogin("Sem permissão. Você precisa ser fiscal cadastrado, admin, ou ter acesso ao depto Obras.");
+  }
+
+  // 4) Se é admin, carrega lista de fiscais pro dropdown "operando como"
+  if (_isAdmin){
+    const { data: fis } = await sb.from("fiscal_equipe").select("id, nome, email, ativo").eq("ativo", true).order("nome");
+    _fiscaisLista = fis || [];
+    // Default: se também é fiscal, opera como ele mesmo. Senão, primeiro da lista.
+    _operandoComoId = (_fiscal && _fiscal.id) || (_fiscaisLista[0] && _fiscaisLista[0].id) || null;
+  }
+
+  renderUserChip();
+  renderBottomNav();
+  // Inicializa stack de navegação com home
+  _navStack = [{ view: "home" }];
+  try { history.replaceState({ view: "home", idx: 0 }, "", "#home"); } catch {}
+  renderHome();
+
+  // Captura erros globais pra evitar que o WebView do APK feche por exception
+  // não-tratada (era um dos sintomas do "crash ao trocar de aba").
+  window.addEventListener("error", (ev) => {
+    try {
+      console.error("[GLOBAL ERR]", ev.error || ev.message);
+      const errEl = document.createElement("div");
+      errEl.style.cssText = "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#dc2626;color:#fff;padding:10px 16px;border-radius:0;font-size:12px;z-index:99999;max-width:90%";
+      errEl.textContent = "Erro: " + ((ev.error && ev.error.message) || ev.message || "desconhecido");
+      document.body.appendChild(errEl);
+      setTimeout(() => errEl.remove(), 6000);
+    } catch {}
+    ev.preventDefault();
+    return true;
+  });
+  window.addEventListener("unhandledrejection", (ev) => {
+    try { console.error("[UNHANDLED PROMISE]", ev.reason); } catch {}
+    ev.preventDefault();
+  });
+}
+
+function renderUserChip(){
+  const nome = _fiscal ? _fiscal.nome : (_adminProfile?.full_name || _user.email);
+  // Badge: ADMIN se role admin/superadmin, OBRAS se só tem dept_permissions.obras
+  let badgeHtml = "";
+  if (_isAdmin){
+    const isRealAdmin = _adminProfile && (_adminProfile.role === "admin" || _adminProfile.role === "superadmin");
+    const labelTag = isRealAdmin ? "ADMIN" : "OBRAS";
+    badgeHtml = `<span class="tag" style="background:rgba(150,132,115,0.2);color:var(--pk-accent);margin-right:6px">${labelTag}</span>`;
+  }
+  userChip.innerHTML = `${badgeHtml}<button class="ghost" id="_logout_btn" style="width:auto;padding:6px 10px;font-size:11px">${esc(nome)} · sair</button>`;
+  document.getElementById("_logout_btn").onclick = async () => {
+    await sb.auth.signOut();
+    location.reload();
+  };
+}
+
+/** Helper: id do fiscal sendo "operado". Usado pra criar laudos. */
+function fiscalAtualId(){
+  if (_isAdmin) return _operandoComoId;
+  return _fiscal && _fiscal.id;
+}
+function fiscalAtualNome(){
+  if (_isAdmin){
+    const f = _fiscaisLista.find(x => x.id === _operandoComoId);
+    return f ? f.nome : "—";
+  }
+  return _fiscal && _fiscal.nome;
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ HISTORY NAVIGATION — botão "voltar" do Android/navegador        ║
+// ║ funciona dentro do app em vez de sair. Empurra cada tela ao    ║
+// ║ history.state e responde ao popstate.                           ║
+// ╚══════════════════════════════════════════════════════════════╝
+let _navStack = [];
+function navTo(view, params){
+  _navStack.push({ view, params });
+  try { history.pushState({ view, params, idx: _navStack.length - 1 }, "", "#" + view); } catch {}
+  dispatchView(view, params);
+}
+function dispatchView(view, params){
+  switch (view) {
+    case "home":         return renderHome();
+    case "calendario":   return renderCalendario();
+    case "editar":       return renderEditarLaudo(params && params.id);
+    case "novo":         return renderNovoLaudo(params && params.preset);
+    case "login":        return renderLogin(params && params.msg);
+    default:             return renderHome();
+  }
+}
+window.addEventListener("popstate", (ev) => {
+  // Botão voltar — vai pra entrada anterior do stack
+  if (_navStack.length > 1) {
+    _navStack.pop();
+    const prev = _navStack[_navStack.length - 1];
+    dispatchView(prev.view, prev.params);
+  } else {
+    // Já estamos na home — mantém o app aberto, não sai
+    history.pushState({ view: "home", idx: 0 }, "", "#home");
+    if (_navStack.length === 0) _navStack.push({ view: "home" });
+    renderHome();
+  }
+});
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ LOGIN                                                          ║
+// ╚══════════════════════════════════════════════════════════════╝
+function renderLogin(msg){
+  root.innerHTML = "";
+  userChip.innerHTML = "";
+  const bnav = document.getElementById("_bnav"); if (bnav) bnav.remove();
+  const card = el(`<div class="card">
+    <div class="h1">Entrar</div>
+    <div class="small" style="margin:4px 0 12px">Use o email e senha que o admin cadastrou.</div>
+    ${msg ? `<div class="banner err">${esc(msg)}</div>` : ""}
+    <div class="label">Email</div>
+    <input id="_email" type="email" autocomplete="email" placeholder="seu@email.com" style="margin-top:4px"/>
+    <div style="height:10px"></div>
+    <div class="label">Senha</div>
+    <div style="position:relative;margin-top:4px">
+      <input id="_pw" type="password" autocomplete="current-password" placeholder="••••••" style="padding-right:92px"/>
+      <button type="button" id="_pw_toggle" aria-label="Mostrar senha"
+        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:1px solid var(--pk-border2);border-radius:0;color:var(--pk-text-dim);font-size:10px;font-weight:700;letter-spacing:0.08em;width:auto;height:28px;padding:0 10px;cursor:pointer;display:flex;align-items:center;justify-content:center">MOSTRAR</button>
+    </div>
+    <div style="height:14px"></div>
+    <button class="primary" id="_login">Entrar</button>
+    <div id="_msg"></div>
+  </div>`);
+  root.appendChild(card);
+  // Toggle "olho" pra mostrar/ocultar senha
+  const _pwEl = document.getElementById("_pw");
+  const _pwBtn = document.getElementById("_pw_toggle");
+  _pwBtn.onclick = () => {
+    const isPw = _pwEl.type === "password";
+    _pwEl.type = isPw ? "text" : "password";
+    _pwBtn.textContent = isPw ? "OCULTAR" : "MOSTRAR";
+    _pwBtn.setAttribute("aria-label", isPw ? "Ocultar senha" : "Mostrar senha");
+  };
+  // APK removido — não distribuímos mais via download direto
+  document.getElementById("_login").onclick = async () => {
+    const email = document.getElementById("_email").value.trim();
+    const pw = document.getElementById("_pw").value;
+    const msgEl = document.getElementById("_msg");
+    if (!email || !pw){ msgEl.innerHTML = `<div class="err">Preencha email e senha.</div>`; return; }
+    msgEl.innerHTML = `<div class="small"><span class="spinner"></span> Entrando…</div>`;
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if (error){
+      msgEl.innerHTML = `<div class="err">${esc(error.message || "Falha no login")}</div>`;
+      return;
+    }
+    boot();
+  };
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ HOME — agenda do fiscal + obras                               ║
+// ╚══════════════════════════════════════════════════════════════╝
+async function renderHome(){
+  root.innerHTML = `<div class="card center"><span class="spinner"></span><div class="small" style="margin-top:8px">Carregando agenda…</div></div>`;
+  subscribeFiscalRealtime("home", () => { if (_rtView === "home") renderHome(); });
+
+  // Pro admin, o dropdown "operando como" também FILTRA o que vê.
+  // Pro fiscal, sempre vê só o dele.
+  const filtroFiscalId = _isAdmin ? _operandoComoId : (_fiscal && _fiscal.id);
+
+  const hoje = new Date();
+  const inicioSemana = new Date(hoje); inicioSemana.setDate(hoje.getDate() - 60);
+  const fimSemana = new Date(hoje); fimSemana.setDate(hoje.getDate() + 180);
+
+  let qAgenda = sb.from("fiscal_agenda")
+    .select("id, card_id, fiscal_id, tipo, data_inicio, data_fim, obra, cliente, status, notas")
+    .gte("data_inicio", inicioSemana.toISOString())
+    .lte("data_inicio", fimSemana.toISOString())
+    .order("data_inicio", { ascending: true });
+  if (filtroFiscalId) qAgenda = qAgenda.eq("fiscal_id", filtroFiscalId);
+  const { data: agenda, error: e1 } = await qAgenda;
+
+  if (e1){
+    root.innerHTML = `<div class="card"><div class="err">Erro: ${esc(e1.message)}</div></div>`;
+    return;
+  }
+
+  let qLaudos = sb.from("fiscal_laudos")
+    .select("id, card_id, fiscal_id, fiscal_nome, obra, cliente, tipo, status, data_vistoria, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(60);
+  if (filtroFiscalId) qLaudos = qLaudos.eq("fiscal_id", filtroFiscalId);
+  const { data: laudos } = await qLaudos;
+
+  // Obras vinculadas ao fiscal = cards com laudo/agenda dele + cards onde ele
+  // é fiscal responsável (kanban_cards.details.fiscais — vínculo do gestão)
+  let obras = [];
+  if (filtroFiscalId){
+    const cardIds = new Set([
+      ...(agenda || []).map(a => a.card_id).filter(Boolean),
+      ...(laudos || []).map(l => l.card_id).filter(Boolean),
+    ]);
+    const byId = new Map();
+    if (cardIds.size > 0){
+      const { data: kc } = await sb.from("kanban_cards")
+        .select("id, title, obra, column_id, dept_id, responsavel")
+        .in("id", Array.from(cardIds));
+      for (const o of (kc || [])) byId.set(o.id, o);
+    }
+    const { data: kcResp } = await sb.from("kanban_cards")
+      .select("id, title, obra, column_id, dept_id, responsavel")
+      .contains("details->fiscais", JSON.stringify([{ id: filtroFiscalId }]));
+    for (const o of (kcResp || [])) byId.set(o.id, { ...(byId.get(o.id) || o), _resp: true });
+    obras = Array.from(byId.values());
+  }
+
+  root.innerHTML = "";
+
+  // Admin: seletor "operando como" no topo
+  if (_isAdmin){
+    const opts = _fiscaisLista.map(f => `<option value="${f.id}" ${f.id===_operandoComoId?"selected":""}>${esc(f.nome)}</option>`).join("");
+    root.appendChild(el(`<div class="card" style="padding:10px 12px;margin-top:0">
+      <div class="label">Operando como (fiscal)</div>
+      <select id="_op_como" style="margin-top:4px">${opts}</select>
+    </div>`));
+    document.getElementById("_op_como").onchange = (e) => {
+      _operandoComoId = e.target.value;
+      renderHome();
+    };
+  }
+
+  // ── Stats row + Novo laudo ──
+  const paraFazer = (laudos || []).filter(l => l.status === "pendente" || l.status === "em_andamento");
+  const concluidos = (laudos || []).filter(l => l.status === "concluido" || l.status === "cancelado");
+  const agora = Date.now();
+  const agendaFut = (agenda || []).filter(a => new Date(a.data_inicio).getTime() >= agora - 12*3600*1000);
+
+  const statsEl = el(`<div class="stats-row">
+    <div class="stat warn" data-goto="paraFazer" style="cursor:pointer"><div class="n">${paraFazer.length}</div><div class="l">Pendentes</div></div>
+    <div class="stat info" data-goto="proximas" style="cursor:pointer"><div class="n">${agendaFut.length}</div><div class="l">Próx. visitas</div></div>
+    <div class="stat ok" data-goto="concluidos" style="cursor:pointer"><div class="n">${concluidos.length}</div><div class="l">Concluídos</div></div>
+  </div>`);
+  statsEl.querySelectorAll(".stat").forEach(s => {
+    s.onclick = async () => {
+      const key = s.dataset.goto;
+      _homeOpen[key] = true;
+      await renderHome();
+      const head = root.querySelector(`[data-sect="${key}"]`);
+      if (head) head.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+  root.appendChild(statsEl);
+
+  // Próxima visita (destaque)
+  const proxima = agendaFut.slice().sort((a,b) => new Date(a.data_inicio) - new Date(b.data_inicio))[0];
+  if (proxima){
+    const tipoLabel = (TIPOS[proxima.tipo] && TIPOS[proxima.tipo].label) || proxima.tipo || "Visita";
+    const whenLabel = fmtDate(proxima.data_inicio);
+    const nv = el(`<div class="next-visit">
+      <div class="pre">PRÓXIMA VISITA</div>
+      <div class="cli">${esc(proxima.cliente || proxima.obra || "—")}</div>
+      ${proxima.obra && proxima.cliente ? `<div class="obra">${esc(proxima.obra)}</div>` : ""}
+      <div class="when">${esc(tipoLabel)} · ${whenLabel}</div>
+    </div>`);
+    nv.onclick = () => renderNovoLaudo({ agenda_id: proxima.id, card_id: proxima.card_id, obra: proxima.obra, cliente: proxima.cliente, tipo: proxima.tipo });
+    root.appendChild(nv);
+  }
+
+  // Botão "novo laudo" — full width (APK removido a pedido)
+  root.appendChild(el(`<div style="margin-bottom:14px">
+    <button class="primary" id="_novo">Novo laudo</button>
+  </div>`));
+  document.getElementById("_novo").onclick = () => renderNovoLaudo(null);
+
+  // ── Helpers de card ──
+  function renderLaudoCard(l){
+    const tipoLabel = (TIPOS[l.tipo] && TIPOS[l.tipo].label) || l.tipo;
+    let color = "#9CA3AF";
+    if (l.status === "concluido") color = "#34D399";
+    else if (l.status === "em_andamento") color = "#3B82F6";
+    else if (l.status === "pendente") color = "#FBBF24";
+    const subFiscal = _isAdmin && l.fiscal_nome ? ` · ${esc(l.fiscal_nome)}` : "";
+    const when = l.data_vistoria ? fmtDate(l.data_vistoria) : fmtDate(l.updated_at);
+    const c = el(`<div class="lcard">
+      <div class="ldot" style="background:${color}"></div>
+      <div class="lbody">
+        <div class="lcli">${esc(l.cliente || l.obra || "—")}</div>
+        <div class="lsub">${esc(tipoLabel)} · ${when}${subFiscal}</div>
+      </div>
+      <div class="larrow">›</div>
+    </div>`);
+    c.onclick = () => renderEditarLaudo(l.id);
+    return c;
+  }
+  function renderAgendaCard(a){
+    const tipoLabel = (TIPOS[a.tipo] && TIPOS[a.tipo].label) || a.tipo || "Visita";
+    const c = el(`<div class="lcard">
+      <div class="ldot" style="background:var(--pk-accent)"></div>
+      <div class="lbody">
+        <div class="lcli">${esc(a.cliente || a.obra || "—")}</div>
+        <div class="lsub">${esc(tipoLabel)} · ${fmtDate(a.data_inicio)}</div>
+      </div>
+      <div class="larrow">›</div>
+    </div>`);
+    c.onclick = () => renderNovoLaudo({ agenda_id: a.id, card_id: a.card_id, obra: a.obra, cliente: a.cliente, tipo: a.tipo });
+    return c;
+  }
+  function renderObraCard(o, lds, ag){
+    const ldsFeitos = lds.filter(l => l.status === "concluido").length;
+    const ldsPend = lds.filter(l => l.status === "pendente" || l.status === "em_andamento").length;
+    const tagsHtml = [
+      o._resp ? `<span class="tag" style="background:rgba(52,211,153,0.15);color:#34D399">responsável</span>` : "",
+      ag.length ? `<span class="tag" style="background:rgba(150,132,115,0.15);color:var(--pk-accent)">${ag.length} agenda</span>` : "",
+      ldsPend > 0 ? `<span class="tag" style="background:rgba(245,158,11,0.18);color:#FBBF24">${ldsPend} pend.</span>` : "",
+      ldsFeitos > 0 ? `<span class="tag" style="background:rgba(52,211,153,0.15);color:#34D399">${ldsFeitos} feito${ldsFeitos!==1?"s":""}</span>` : "",
+    ].filter(Boolean).join(" ");
+    const c = el(`<div class="lcard" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;gap:10px;align-items:center;width:100%">
+        <div class="lbody">
+          <div class="lcli">${esc(o.title || "—")}</div>
+          <div class="lsub">${esc(o.obra || "—")} · ${esc(o.column_id || "")}</div>
+        </div>
+        <div class="larrow">›</div>
+      </div>
+      ${tagsHtml ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">${tagsHtml}</div>` : ""}
+    </div>`);
+    c.onclick = () => renderObraDetail(o.id);
+    return c;
+  }
+
+  // ── Helper: seção colapsável (lembra estado por chave em _homeOpen)
+  // Click no header → toggle expand/collapse. Default = todas COLAPSADAS pra
+  // limpar a Home. State persiste entre re-renders (real-time também).
+  function renderSection(key, titulo, count, items, renderItem, titleColor){
+    if (!items || items.length === 0) return;
+    if (_homeOpen[key] === undefined) _homeOpen[key] = false;
+    const open = _homeOpen[key];
+    const head = el(`<div class="sect-h" data-sect="${key}" style="cursor:pointer;user-select:none;background:var(--pk-card1);border:1px solid var(--pk-border1);border-radius:0;padding:10px 12px;margin:14px 0 ${open?6:0}px">
+      <div class="t" style="color:${titleColor || 'var(--pk-text)'};display:flex;align-items:center;gap:8px;font-size:11px">
+        <span style="display:inline-block;width:10px;color:var(--pk-text-muted);font-size:9px">${open ? "▼" : "▶"}</span>
+        ${titulo}
+      </div>
+      <div class="n" style="font-size:11px;color:var(--pk-accent);font-weight:700;background:rgba(150,132,115,0.12);padding:2px 8px;border-radius:0">${count}</div>
+    </div>`);
+    head.onclick = () => { _homeOpen[key] = !_homeOpen[key]; renderHome(); };
+    root.appendChild(head);
+    if (open){
+      const body = el(`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>`);
+      for (const it of items) body.appendChild(renderItem(it));
+      root.appendChild(body);
+    }
+  }
+
+  // ── OBRAS vinculadas (colapsável) ──
+  if (filtroFiscalId && obras.length){
+    const titulo = _isAdmin ? `Obras de ${esc(fiscalAtualNome())}` : "Minhas obras";
+    renderSection("obras", titulo, obras.length, obras, (o) => {
+      const lds = (laudos || []).filter(l => l.card_id === o.id);
+      const ag = (agenda || []).filter(a => a.card_id === o.id);
+      return renderObraCard(o, lds, ag);
+    });
+  }
+
+  // ── AGENDA próxima (colapsável) ──
+  if (agendaFut.length){
+    const proximas = agendaFut.slice().sort((a,b) => new Date(a.data_inicio) - new Date(b.data_inicio));
+    renderSection("proximas", "Próximas visitas", proximas.length, proximas, renderAgendaCard);
+  }
+
+  // ── PRA FAZER (colapsável) ──
+  if (paraFazer.length){
+    const titulo = _isAdmin ? "Para fazer (todos)" : "Para fazer";
+    renderSection("paraFazer", titulo, paraFazer.length, paraFazer, renderLaudoCard, "var(--pk-status-warn)");
+  }
+
+  // ── CONCLUÍDOS (colapsável) ──
+  if (concluidos.length){
+    const titulo = _isAdmin ? "Concluídos" : "Meus concluídos";
+    renderSection("concluidos", titulo, concluidos.length, concluidos, renderLaudoCard);
+  }
+
+  // Empty state
+  if (!filtroFiscalId && !agendaFut.length && !paraFazer.length && !concluidos.length){
+    root.appendChild(el(`<div class="card center"><div class="small">Nada por aqui ainda. Use "+ Novo laudo" pra criar.</div></div>`));
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ DETALHE DA OBRA — feito / pra fazer / criar novo              ║
+// ╚══════════════════════════════════════════════════════════════╝
+async function renderObraDetail(cardId){
+  unsubscribeFiscalRealtime();
+  root.innerHTML = `<div class="card center"><span class="spinner"></span></div>`;
+
+  // Carrega card + laudos + agenda dessa obra (filtrados pelo fiscal atual)
+  const filtroFiscalId = _isAdmin ? _operandoComoId : (_fiscal && _fiscal.id);
+  const { data: card } = await sb.from("kanban_cards")
+    .select("id, title, obra, column_id, dept_id, responsavel, details")
+    .eq("id", cardId)
+    .maybeSingle();
+  if (!card){
+    root.innerHTML = `<div class="card"><div class="err">Obra não encontrada.</div></div>`;
+    return;
+  }
+
+  let qL = sb.from("fiscal_laudos")
+    .select("id, fiscal_id, fiscal_nome, tipo, status, servicos_inclusos, data_vistoria, updated_at, created_at, observacoes")
+    .eq("card_id", cardId)
+    .order("created_at", { ascending: false });
+  if (filtroFiscalId) qL = qL.eq("fiscal_id", filtroFiscalId);
+  const { data: lds } = await qL;
+
+  let qA = sb.from("fiscal_agenda")
+    .select("id, fiscal_id, tipo, data_inicio, status, notas")
+    .eq("card_id", cardId)
+    .order("data_inicio", { ascending: true });
+  if (filtroFiscalId) qA = qA.eq("fiscal_id", filtroFiscalId);
+  const { data: ags } = await qA;
+
+  const ldsFeitos = (lds || []).filter(l => l.status === "concluido");
+  const ldsPend = (lds || []).filter(l => l.status === "pendente" || l.status === "em_andamento");
+
+  // Quais tipos já foram feitos vs faltam (pra "Próximos passos")
+  const tiposFeitos = new Set(ldsFeitos.map(l => l.tipo));
+  const tiposPossiveis = ["1vistoria", "2vistoria", "acompanhamento", "entrega", "reparo"];
+  const tiposFaltando = tiposPossiveis.filter(t => !tiposFeitos.has(t) && !ldsPend.find(l => l.tipo === t));
+
+  root.innerHTML = "";
+  root.appendChild(el(`<div style="margin-bottom:10px">
+    <button class="ghost" id="_back" style="width:auto;padding:6px 12px;font-size:12px">← Voltar</button>
+  </div>`));
+  document.getElementById("_back").onclick = () => renderHome();
+
+  // Header da obra
+  root.appendChild(el(`<div class="card" style="background:linear-gradient(135deg,rgba(150,132,115,0.12),rgba(150,132,115,0.04));border-color:rgba(150,132,115,0.3)">
+    <div class="label" style="color:var(--pk-accent)">Projeto</div>
+    <div style="font-size:18px;font-weight:700;margin:4px 0 2px">${esc(card.title || "—")}</div>
+    <div class="small">${esc(card.obra || "—")} · ${esc(card.column_id || "")}${card.responsavel ? " · resp: " + esc(card.responsavel) : ""}</div>
+  </div>`));
+
+  // ── GESTÃO: fiscal responsável + modelos da obra (gestao.itens)
+  const gestaoWrap = el(`<div></div>`);
+  root.appendChild(gestaoWrap);
+  renderGestaoObraInfo(gestaoWrap, cardId, card);
+
+  // ── CHECKLIST DE INÍCIO DE OBRAS (etapa 3 do gestão → Central do Cliente)
+  {
+    const ph = el(`<div class="card" style="cursor:pointer;display:none">
+      <div class="row" style="justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">Checklist de Início de Obras</div>
+          <div class="small" data-role="ck-sub">carregando…</div>
+        </div>
+        <span class="tag" data-role="ck-tag" style="background:rgba(245,158,11,0.15);color:#F59E0B;flex-shrink:0;font-weight:700">pendente</span>
+      </div>
+    </div>`);
+    ph.onclick = () => renderChecklistInicioObra(cardId, { title: card.title, obra: card.obra });
+    root.appendChild(ph);
+    (async () => {
+      try {
+        const r = await fetch(`${GESTAO_API}/api/fiscal/checklist-obra/${cardId}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!d.servicos || !d.servicos.length) return;
+        let total = 0, feitos = 0;
+        for (const s of d.servicos){
+          const perguntas = (CK["1vistoria"] && CK["1vistoria"][s]) || (CK["2vistoria"] && CK["2vistoria"][s]) || [];
+          for (const q of perguntas){
+            total++;
+            const resp = d.checklist && d.checklist[s] && d.checklist[s][q];
+            if (resp && resp.valor) feitos++;
+          }
+        }
+        ph.querySelector('[data-role="ck-sub"]').textContent =
+          `${feitos}/${total} verificações · ${d.servicos.map(s => s.toUpperCase()).join(", ")}`;
+        const tag = ph.querySelector('[data-role="ck-tag"]');
+        if (total > 0 && feitos >= total){
+          tag.textContent = "concluído";
+          tag.style.background = "rgba(52,211,153,0.20)"; tag.style.color = "#34D399";
+        } else if (feitos > 0){
+          tag.textContent = "em andamento";
+          tag.style.background = "rgba(59,130,246,0.15)"; tag.style.color = "#60A5FA";
+        }
+        ph.style.display = "";
+      } catch (_e) { /* gestão fora do ar ou card sem projeto — some silencioso */ }
+    })();
+  }
+
+  // ── PRA FAZER (pendentes + em_andamento)
+  if (ldsPend.length){
+    root.appendChild(el(`<div class="card" style="border-color:rgba(245,158,11,0.35);background:rgba(245,158,11,0.06)">
+      <div class="h2" style="margin:0">Pra fazer</div>
+      <div class="small">${ldsPend.length} laudo(s) aguardando preenchimento</div>
+    </div>`));
+    for (const l of ldsPend){
+      const tipoLabel = (TIPOS[l.tipo] && TIPOS[l.tipo].label) || l.tipo;
+      const serv = Array.isArray(l.servicos_inclusos) && l.servicos_inclusos.length
+        ? ` · ${l.servicos_inclusos.map(s => s.toUpperCase()).join(", ")}`
+        : "";
+      const stColor = l.status === "em_andamento" ? "#3B82F6" : "#F59E0B";
+      const c = el(`<div class="card" style="cursor:pointer;background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.25)">
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">${esc(tipoLabel)}${esc(serv)}</div>
+            <div class="small">${l.data_vistoria ? fmtDate(l.data_vistoria) : fmtDate(l.created_at)} · ${esc(l.fiscal_nome || "—")}</div>
+          </div>
+          <span class="tag" style="background:${stColor}25;color:${stColor};flex-shrink:0;font-weight:700">${l.status === "em_andamento" ? "rascunho" : "pendente"}</span>
+        </div>
+      </div>`);
+      c.onclick = () => renderEditarLaudo(l.id);
+      root.appendChild(c);
+    }
+  }
+
+  // ── AGENDA (futura, sem laudo criado ainda)
+  if (ags && ags.length){
+    root.appendChild(el(`<div class="card"><div class="h2">Agendamentos</div>
+      <div class="small">${ags.length} compromisso(s) marcado(s)</div>
+    </div>`));
+    for (const a of ags){
+      const tipoLabel = (TIPOS[a.tipo] && TIPOS[a.tipo].label) || a.tipo;
+      const c = el(`<div class="card" style="cursor:pointer">
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">${esc(tipoLabel)}</div>
+            <div class="small">${fmtDate(a.data_inicio)}${a.notas ? " · " + esc(a.notas) : ""}</div>
+          </div>
+          <span class="tag" style="background:rgba(150,132,115,0.15);color:var(--pk-accent);flex-shrink:0">${esc(a.status||"agendada")}</span>
+        </div>
+      </div>`);
+      c.onclick = () => renderNovoLaudo({ card_id: cardId, obra: card.obra, cliente: card.title, tipo: a.tipo });
+      root.appendChild(c);
+    }
+  }
+
+  // ── FEITOS (concluídos)
+  if (ldsFeitos.length){
+    root.appendChild(el(`<div class="card"><div class="h2">Feitos</div>
+      <div class="small">${ldsFeitos.length} laudo(s) concluído(s)</div>
+    </div>`));
+    for (const l of ldsFeitos){
+      const tipoLabel = (TIPOS[l.tipo] && TIPOS[l.tipo].label) || l.tipo;
+      const serv = Array.isArray(l.servicos_inclusos) && l.servicos_inclusos.length
+        ? ` · ${l.servicos_inclusos.map(s => s.toUpperCase()).join(", ")}`
+        : "";
+      const c = el(`<div class="card" style="cursor:pointer">
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">${esc(tipoLabel)}${esc(serv)}</div>
+            <div class="small">${l.data_vistoria ? fmtDate(l.data_vistoria) : fmtDate(l.updated_at)} · ${esc(l.fiscal_nome || "—")}</div>
+          </div>
+          <span class="tag" style="background:rgba(52,211,153,0.20);color:#34D399;flex-shrink:0">concluído</span>
+        </div>
+      </div>`);
+      c.onclick = () => renderEditarLaudo(l.id);
+      root.appendChild(c);
+    }
+  }
+
+  // ── PRÓXIMOS PASSOS (tipos que ainda não existem nessa obra)
+  if (tiposFaltando.length){
+    root.appendChild(el(`<div class="card" style="border-color:rgba(20,184,166,0.30);background:rgba(20,184,166,0.04)">
+      <div class="h2" style="color:#5EEAD4;margin:0">+ Pode fazer</div>
+      <div class="small">Tipos de laudo que ainda não foram criados nesta obra</div>
+    </div>`));
+    for (const t of tiposFaltando){
+      const lbl = TIPOS[t].label;
+      const b = el(`<button class="ghost" style="margin-top:6px">+ Criar ${esc(lbl)}</button>`);
+      b.onclick = () => renderNovoLaudo({ card_id: cardId, obra: card.obra, cliente: card.title, tipo: t });
+      root.appendChild(b);
+    }
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ GESTÃO NA OBRA — fiscal responsável + modelos (gestao.itens)  ║
+// ║ Mesmos itens da página do projeto no gestao.parket.works.     ║
+// ╚══════════════════════════════════════════════════════════════╝
+const ITEM_ST = {
+  pendente:    { label: "pendente",    color: "#FBBF24" },
+  em_execucao: { label: "em execução", color: "#60A5FA" },
+  entregue:    { label: "entregue",    color: "#34D399" },
+};
+
+async function renderGestaoObraInfo(wrap, cardId, card){
+  let d = null;
+  try {
+    const r = await fetch(`${GESTAO_API}/api/fiscal/obra/${cardId}`);
+    if (r.ok) d = await r.json();
+  } catch (_e) { /* gestão fora do ar — segue sem os dados */ }
+
+  // ── FISCAL RESPONSÁVEL (kanban_cards.details.fiscais — vínculo do gestão)
+  const fiscais = (card.details && Array.isArray(card.details.fiscais)) ? card.details.fiscais : [];
+  const fx = el(`<div class="card">
+    <div class="label" style="color:var(--pk-accent)">Fiscal responsável</div>
+    <div data-role="f-lista" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+    <div data-role="f-add" style="display:flex;gap:6px;margin-top:8px"></div>
+  </div>`);
+  wrap.appendChild(fx);
+  const flista = fx.querySelector('[data-role="f-lista"]');
+  if (fiscais.length){
+    for (const f of fiscais){
+      const chip = el(`<span class="tag" style="background:rgba(52,211,153,0.15);color:#34D399;display:inline-flex;align-items:center;gap:6px;font-weight:700;padding:5px 10px">${esc(f.nome || "—")}<span data-x style="cursor:pointer;opacity:0.65">✕</span></span>`);
+      chip.querySelector("[data-x]").onclick = async () => {
+        if (!d || !d.projeto){ alert("Obra sem projeto no gestão — não dá pra desvincular por aqui."); return; }
+        if (!confirm(`Remover ${f.nome || "este fiscal"} desta obra?`)) return;
+        try {
+          const r = await fetch(`${GESTAO_API}/api/fiscal/equipe/${f.id}/projetos/${d.projeto.id}`, {
+            method: "DELETE",
+            headers: { "X-User-Email": (_user && _user.email) || "" },
+          });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          renderObraDetail(cardId);
+        } catch (e){ alert("Erro ao desvincular: " + (e.message || e)); }
+      };
+      flista.appendChild(chip);
+    }
+  } else {
+    flista.appendChild(el(`<span class="small">Nenhum fiscal vinculado a esta obra ainda.</span>`));
+  }
+  if (d && d.projeto){
+    let fisOpts = _fiscaisLista;
+    if (!fisOpts || !fisOpts.length){
+      const { data: fis } = await sb.from("fiscal_equipe").select("id, nome").eq("ativo", true).order("nome");
+      fisOpts = fis || [];
+    }
+    const jaIds = new Set(fiscais.map(f => f.id));
+    const opts = fisOpts.filter(f => !jaIds.has(f.id));
+    if (opts.length){
+      const add = fx.querySelector('[data-role="f-add"]');
+      const sel = el(`<select style="flex:1"><option value="">+ vincular fiscal…</option>${opts.map(f => `<option value="${f.id}">${esc(f.nome)}</option>`).join("")}</select>`);
+      const btn = el(`<button class="ghost" style="width:auto;padding:6px 14px;font-size:12px">Vincular</button>`);
+      btn.onclick = async () => {
+        const fid = sel.value;
+        if (!fid) return;
+        btn.disabled = true;
+        try {
+          const r = await fetch(`${GESTAO_API}/api/fiscal/equipe/${fid}/projetos`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-User-Email": (_user && _user.email) || "" },
+            body: JSON.stringify({ projeto_id: d.projeto.id }),
+          });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          renderObraDetail(cardId);
+        } catch (e){
+          btn.disabled = false;
+          alert("Erro ao vincular: " + (e.message || e));
+        }
+      };
+      add.appendChild(sel); add.appendChild(btn);
+    }
+  }
+
+  // ── MODELOS DA OBRA (mesma organização do gestão: agrupado por raiz do meta.codigo)
+  if (!d || !d.itens || !d.itens.length) return;
+  const itens = d.itens;
+  const codDe = (it) => String((it.meta && it.meta.codigo) || it.ordem || "");
+  const cmpCod = (a, b) => {
+    const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++){
+      const dd = (pa[i] || 0) - (pb[i] || 0);
+      if (dd !== 0) return dd;
+    }
+    return 0;
+  };
+  const raizes = new Map();
+  for (const it of itens){
+    const raiz = codDe(it).split(".")[0];
+    if (!raizes.has(raiz)) raizes.set(raiz, []);
+    raizes.get(raiz).push(it);
+  }
+  wrap.appendChild(el(`<div class="card" style="border-color:rgba(150,132,115,0.30)">
+    <div class="h2" style="margin:0">Modelos da obra</div>
+    <div class="small">${itens.length} item(ns) do projeto no gestão${d.projeto && d.projeto.numero_proposta ? " · proposta " + esc(String(d.projeto.numero_proposta)) : ""}</div>
+  </div>`));
+  for (const [raiz, grupo] of Array.from(raizes.entries()).sort((a, b) => cmpCod(a[0], b[0]))){
+    grupo.sort((x, y) => cmpCod(codDe(x), codDe(y)));
+    const m0 = grupo[0].meta || {};
+    const catRaiz = String(m0.categoria_raiz || (grupo[0].categoria || "").split("||")[0] || "").toUpperCase();
+    const prodRaiz = m0.produto_header || grupo[0].descritivo || "";
+    const box = el(`<div class="card">
+      <div style="font-size:10px;letter-spacing:0.10em;color:var(--pk-accent);font-weight:700">${esc(catRaiz)}</div>
+      <div style="font-size:13px;font-weight:600;margin:2px 0 8px">${esc(prodRaiz)}</div>
+      <div data-role="linhas" style="display:flex;flex-direction:column;gap:7px"></div>
+    </div>`);
+    const linhas = box.querySelector('[data-role="linhas"]');
+    for (const it of grupo){
+      const st = ITEM_ST[it.status] || { label: it.status || "—", color: "#9CA3AF" };
+      const cod = codDe(it);
+      const qtd = Number(it.quantidade) || 0;
+      const inst = it.meta && it.meta.obra && it.meta.obra.qtd_instalada;
+      const instTxt = (inst != null && qtd) ? ` · ${inst}/${qtd} instalado` : "";
+      linhas.appendChild(el(`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px">${cod ? esc(cod) + " · " : ""}${esc(it.ambiente || "—")}</div>
+          <div class="small">${qtd} ${esc(it.unidade || "")}${esc(instTxt)}</div>
+        </div>
+        <span class="tag" style="background:${st.color}22;color:${st.color};flex-shrink:0;font-weight:700">${esc(st.label)}</span>
+      </div>`));
+    }
+    wrap.appendChild(box);
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ CHECKLIST DE INÍCIO DE OBRAS (etapa 3 — gestão / Central)      ║
+// ║ Serviços vêm dos itens contratados do gestão; respostas gravam ║
+// ║ em gestao.projeto_etapas.meta.checklist via API do gestão.     ║
+// ╚══════════════════════════════════════════════════════════════╝
+const CK_OBRA_LABEL = { piso: "Piso", deck: "Deck", forro: "Forro", painel: "Painel", porta: "Porta", escada: "Escada", bancos: "Bancos" };
+
+async function renderChecklistInicioObra(cardId, info){
+  unsubscribeFiscalRealtime();
+  root.innerHTML = "";
+  root.appendChild(el(`<div style="margin-bottom:10px">
+    <button class="ghost" id="_back" style="width:auto;padding:6px 12px;font-size:12px">← Voltar</button>
+  </div>`));
+  document.getElementById("_back").onclick = () => renderObraDetail(cardId);
+
+  let d;
+  try {
+    const r = await fetch(`${GESTAO_API}/api/fiscal/checklist-obra/${cardId}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    d = await r.json();
+  } catch (e){
+    root.appendChild(el(`<div class="card"><div class="err">Não consegui carregar o checklist do gestão (${esc(String(e.message || e))}).</div></div>`));
+    return;
+  }
+  if (!d.servicos || !d.servicos.length){
+    root.appendChild(el(`<div class="card"><div class="small">Nenhum serviço contratado identificado no gestão pra esta obra.</div></div>`));
+    return;
+  }
+
+  root.appendChild(el(`<div class="card" style="background:linear-gradient(135deg,rgba(150,132,115,0.12),rgba(150,132,115,0.04));border-color:rgba(150,132,115,0.3)">
+    <div class="label" style="color:var(--pk-accent)">Checklist de Início de Obras</div>
+    <div style="font-size:17px;font-weight:700;margin:4px 0 2px">${esc((info && info.title) || d.cliente || "—")}</div>
+    <div class="small">Serviços contratados: ${d.servicos.map(s => s.toUpperCase()).join(", ")}${d.checklist_em ? " · último salvamento " + fmtDate(d.checklist_em) : ""}</div>
+    <div class="small" style="margin-top:2px">As respostas aparecem na Central do Cliente (etapa 3).</div>
+  </div>`));
+
+  const ck = d.checklist || {};
+  const perguntasDe = (s) => (CK["1vistoria"] && CK["1vistoria"][s]) || (CK["2vistoria"] && CK["2vistoria"][s]) || [];
+
+  for (const s of d.servicos){
+    const perguntas = perguntasDe(s);
+    if (!perguntas.length) continue;
+    if (!ck[s]) ck[s] = {};
+    const sec = el(`<div class="card"><div class="h2">${esc(CK_OBRA_LABEL[s] || s.toUpperCase())}</div></div>`);
+    for (const q of perguntas){
+      const state = ck[s][q] || { valor: null, obs: "" };
+      ck[s][q] = state;
+      const row = document.createElement("div");
+      row.className = "ck-row";
+      row.innerHTML = `
+        <div class="ck-q">${esc(q)}</div>
+        <div class="ck-btns">
+          <button class="ck-btn sim ${state.valor==="sim"?"on":""}" data-v="sim">Sim</button>
+          <button class="ck-btn nao ${state.valor==="nao"?"on":""}" data-v="nao">Não</button>
+          <button class="ck-btn na  ${state.valor==="na" ?"on":""}" data-v="na">N/A</button>
+        </div>
+        <input class="ck-obs" placeholder="Observação (opcional)" value="${esc(state.obs||"")}"/>
+      `;
+      row.querySelectorAll(".ck-btn").forEach(btn => {
+        btn.onclick = (ev) => {
+          ev.preventDefault();
+          state.valor = btn.dataset.v;
+          row.querySelectorAll(".ck-btn").forEach(b => b.classList.toggle("on", b === btn));
+        };
+      });
+      row.querySelector(".ck-obs").oninput = (ev) => { state.obs = ev.target.value; };
+      sec.appendChild(row);
+    }
+    root.appendChild(sec);
+  }
+
+  const btn = el(`<button class="primary" style="margin-top:8px">Salvar checklist</button>`);
+  const msg = el(`<div></div>`);
+  btn.onclick = async () => {
+    btn.disabled = true; btn.textContent = "Salvando…";
+    let total = 0, feitos = 0;
+    for (const s of d.servicos){
+      for (const q of perguntasDe(s)){
+        total++;
+        if (ck[s] && ck[s][q] && ck[s][q].valor) feitos++;
+      }
+    }
+    const status = feitos === 0 ? "pendente" : feitos < total ? "em_andamento" : "concluida";
+    try {
+      const r = await fetch(`${GESTAO_API}/api/fiscal/checklist-obra/${cardId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checklist: ck, checklist_por: fiscalAtualNome() || null, status }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      msg.innerHTML = `<div class="ok">✓ Checklist salvo — ${feitos}/${total} verificações. Já visível na Central do Cliente.</div>`;
+    } catch (e){
+      msg.innerHTML = `<div class="err">Erro ao salvar (${esc(String(e.message || e))}).</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = "Salvar checklist";
+    }
+  };
+  root.appendChild(btn);
+  root.appendChild(msg);
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ NOVO LAUDO                                                     ║
+// ╚══════════════════════════════════════════════════════════════╝
+async function renderNovoLaudo(preset){
+  unsubscribeFiscalRealtime();
+  root.innerHTML = "";
+  root.appendChild(el(`<div style="margin-bottom:10px">
+    <button class="ghost" id="_back" style="width:auto;padding:6px 12px;font-size:12px">← Voltar</button>
+  </div>`));
+  document.getElementById("_back").onclick = () => renderHome();
+
+  const tipoInicial = (preset && preset.tipo) || "1vistoria";
+
+  const SERVICOS_OPTS = ["piso","deck","forro","painel","porta","escada","bancos"];
+
+  const card = el(`<div class="card">
+    <div class="h1">Novo laudo</div>
+    <div style="height:10px"></div>
+    <div class="label">Tipo</div>
+    <select id="_tipo">${Object.entries(TIPOS).map(([k,v]) => `<option value="${k}" ${k===tipoInicial?"selected":""}>${esc(v.label)}</option>`).join("")}</select>
+    <div style="height:10px"></div>
+    <div class="label">Obra (código)</div>
+    <input id="_obra" placeholder="ex: OBRA-2026-001" value="${esc(preset && preset.obra || "")}"/>
+    <div style="height:10px"></div>
+    <div class="label">Cliente</div>
+    <input id="_cliente" value="${esc(preset && preset.cliente || "")}"/>
+    <div style="height:10px"></div>
+    <div class="label">Data da vistoria</div>
+    <input id="_data" type="datetime-local" value="${new Date().toISOString().slice(0,16)}"/>
+    <div style="height:10px"></div>
+    <div id="_servicos_wrap" style="display:none">
+      <div class="label">Serviços inclusos <span style="color:var(--pk-text-muted);font-size:10px">(marque o que vai vistoriar)</span></div>
+      <div id="_servicos" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+    <div style="height:14px"></div>
+    <button class="primary" id="_criar">Criar e preencher</button>
+    <div id="_msg"></div>
+  </div>`);
+  root.appendChild(card);
+
+  // Toggle serviços só aparece pra 1ª/2ª vistoria
+  let servSelecionados = new Set();
+  // Quando vem de um card, restringe a lista de OPÇÕES aos serviços do projeto
+  // (não só pré-seleciona, esconde os que não foram contratados). Sem card,
+  // permanece null = mostra todos.
+  let projetoServicos = null;
+  if (preset && preset.card_id){
+    (async () => {
+      try {
+        const { data: card } = await sb.from("kanban_cards")
+          .select("details")
+          .eq("id", preset.card_id)
+          .single();
+        const det = (card && card.details) || {};
+        // 1) preferência: levantamento_itens.servicos[] — vem do orçamento real
+        const sold = new Set();
+        const lev = det.levantamento_itens && det.levantamento_itens.servicos;
+        if (Array.isArray(lev)){
+          for (const s of lev){
+            const n = String((s && s.nome) || "").toLowerCase().trim();
+            if (!n) continue;
+            // Mapeia variações pro nosso vocabulário curto
+            if (/^piso/.test(n)) sold.add("piso");
+            else if (/^deck/.test(n)) sold.add("deck");
+            else if (/^forro/.test(n)) sold.add("forro");
+            else if (/^painel/.test(n) || /^revestimento/.test(n)) sold.add("painel");
+            else if (/^porta/.test(n)) sold.add("porta");
+            else if (/^escada/.test(n)) sold.add("escada");
+            else if (/^banco/.test(n) || /^banc/.test(n)) sold.add("bancos");
+          }
+        }
+        // 2) fallback: produto_interesse texto livre
+        if (sold.size === 0 && det.produto_interesse){
+          const p = String(det.produto_interesse).toLowerCase();
+          for (const k of ["piso","deck","forro","painel","porta","escada","banco"]){
+            if (p.includes(k)) sold.add(k === "banco" ? "bancos" : k);
+          }
+        }
+        if (sold.size > 0){
+          servSelecionados = new Set(sold);  // pré-marca todos
+          projetoServicos = sold;            // e tranca a lista exibida
+          refreshServicos();
+        }
+      } catch (_e) { /* silently ignore */ }
+    })();
+  }
+  function refreshServicos(){
+    const t = document.getElementById("_tipo").value;
+    const wrap = document.getElementById("_servicos_wrap");
+    const box = document.getElementById("_servicos");
+    if (t === "1vistoria" || t === "2vistoria"){
+      wrap.style.display = "block";
+      box.innerHTML = "";
+      let opts = t === "2vistoria" ? SERVICOS_OPTS : SERVICOS_OPTS.filter(s => s !== "bancos");
+      // Se veio de um card e o projeto lista serviços, mostra SÓ esses.
+      // Sem card (laudo avulso) ou projeto sem levantamento → mostra tudo.
+      if (projetoServicos && projetoServicos.size > 0){
+        opts = opts.filter(s => projetoServicos.has(s));
+      }
+      for (const s of opts){
+        const b = document.createElement("button");
+        const on = servSelecionados.has(s);
+        b.textContent = s.toUpperCase();
+        b.style.cssText = `flex:0 0 auto;padding:7px 12px;border-radius:0;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ${on?"var(--pk-accent)":"var(--pk-border2)"};background:${on?"rgba(150,132,115,0.22)":"transparent"};color:${on?"var(--pk-accent)":"var(--pk-text-dim)"};width:auto`;
+        b.onclick = (ev) => {
+          ev.preventDefault();
+          if (servSelecionados.has(s)) servSelecionados.delete(s);
+          else servSelecionados.add(s);
+          refreshServicos();
+        };
+        box.appendChild(b);
+      }
+    } else {
+      wrap.style.display = "none";
+    }
+  }
+  refreshServicos();
+  document.getElementById("_tipo").onchange = refreshServicos;
+
+  document.getElementById("_criar").onclick = async () => {
+    const tipo = document.getElementById("_tipo").value;
+    const obra = document.getElementById("_obra").value.trim();
+    const cliente = document.getElementById("_cliente").value.trim();
+    const data = document.getElementById("_data").value;
+    const msgEl = document.getElementById("_msg");
+    if (!obra || !cliente){
+      msgEl.innerHTML = `<div class="err">Preencha obra e cliente.</div>`;
+      return;
+    }
+    const fId = fiscalAtualId();
+    const fNome = fiscalAtualNome();
+    if (!fId){
+      msgEl.innerHTML = `<div class="err">Selecione um fiscal pra operar como (no topo da Home).</div>`;
+      return;
+    }
+    // Pra 1ª/2ª vistoria: exige pelo menos 1 serviço selecionado
+    if ((tipo === "1vistoria" || tipo === "2vistoria") && servSelecionados.size === 0){
+      msgEl.innerHTML = `<div class="err">Selecione pelo menos 1 serviço inclusio.</div>`;
+      return;
+    }
+    msgEl.innerHTML = `<div class="small"><span class="spinner"></span> Criando…</div>`;
+    const { data: ins, error } = await sb.from("fiscal_laudos").insert({
+      card_id: (preset && preset.card_id) || null,
+      obra, cliente,
+      tipo, status: "em_andamento",
+      fiscal_id: fId, fiscal_nome: fNome,
+      data_vistoria: data ? new Date(data).toISOString() : new Date().toISOString(),
+      servicos_inclusos: (tipo === "1vistoria" || tipo === "2vistoria") ? Array.from(servSelecionados) : null,
+    }).select().single();
+    if (error){
+      msgEl.innerHTML = `<div class="err">${esc(error.message)}</div>`;
+      return;
+    }
+    renderEditarLaudo(ins.id);
+  };
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ EDITAR LAUDO                                                   ║
+// ╚══════════════════════════════════════════════════════════════╝
+async function renderEditarLaudo(laudoId){
+  unsubscribeFiscalRealtime();
+  root.innerHTML = `<div class="card center"><span class="spinner"></span></div>`;
+  const { data: laudo, error } = await sb.from("fiscal_laudos").select("*").eq("id", laudoId).single();
+  if (error || !laudo){
+    root.innerHTML = `<div class="card"><div class="err">Laudo não encontrado: ${esc(error?.message||"")}</div></div>`;
+    return;
+  }
+
+  root.innerHTML = "";
+  root.appendChild(el(`<div style="margin-bottom:10px">
+    <button class="ghost" id="_back" style="width:auto;padding:6px 12px;font-size:12px">← Voltar</button>
+  </div>`));
+  document.getElementById("_back").onclick = () => renderHome();
+
+  // Header laudo
+  const tipoDef = TIPOS[laudo.tipo];
+  root.appendChild(el(`<div class="card" style="background:linear-gradient(135deg,rgba(150,132,115,0.12),rgba(150,132,115,0.04));border-color:rgba(150,132,115,0.3)">
+    <div class="label" style="color:var(--pk-accent)">${esc((tipoDef && tipoDef.label) || laudo.tipo)}</div>
+    <div style="font-size:17px;font-weight:700;margin:4px 0 2px">${esc(laudo.obra || "—")}</div>
+    <div class="small">${esc(laudo.cliente || "—")} · ${laudo.data_vistoria ? fmtDate(laudo.data_vistoria) : ""}</div>
+  </div>`));
+
+  // ── Estado local dos checklists (carregado do laudo) ──
+  const ck = {};  // ck[serviço][pergunta] = { valor, obs }
+  const textFields = {};  // textFields[campo] = valor
+  for (const k of ["piso","deck","forro","painel","porta","escada","bancos","liberacao","equipe","produtividade"]){
+    const col = `checklist_${k}`;
+    const v = laudo[col];
+    if (v && typeof v === "object" && !Array.isArray(v)) ck[k] = v;
+  }
+  // Campos texto
+  for (const k of ["tipo_laje","reforco_necessario","insumos_necessarios","materiais_falta","insumos_falta","metragem_areas","ocorrencias","descritivo_sistema","descritivo_material","descritivo_reparo","sistema_instalacao","obs_solucao","observacoes"]){
+    if (laudo[k]) textFields[k] = laudo[k];
+  }
+  // Checklist extra (entrega.qualidade, reparo.tipo, reparo.materiais, etc)
+  const extra = (laudo.checklist_extra && typeof laudo.checklist_extra === "object" && !Array.isArray(laudo.checklist_extra)) ? laudo.checklist_extra : {};
+
+  // Função pra renderizar checklist + fotos de UM serviço.
+  // `key` é o servicoKey (piso/deck/forro/painel/porta/escada/bancos/liberacao/equipe/produtividade)
+  function renderCkSecao(titulo, key, perguntas){
+    if (!ck[key] || Array.isArray(ck[key])) ck[key] = {};
+    const sec = el(`<div class="card"><div class="h2">${esc(titulo)}</div></div>`);
+    for (const q of perguntas){
+      const state = ck[key][q] || { valor: null, obs: "" };
+      ck[key][q] = state;
+      const row = document.createElement("div");
+      row.className = "ck-row";
+      row.innerHTML = `
+        <div class="ck-q">${esc(q)}</div>
+        <div class="ck-btns">
+          <button class="ck-btn sim ${state.valor==="sim"?"on":""}" data-v="sim">Sim</button>
+          <button class="ck-btn nao ${state.valor==="nao"?"on":""}" data-v="nao">Não</button>
+          <button class="ck-btn na  ${state.valor==="na" ?"on":""}" data-v="na">N/A</button>
+        </div>
+        <input class="ck-obs" placeholder="Observação (opcional)" value="${esc(state.obs||"")}"/>
+      `;
+      row.querySelectorAll(".ck-btn").forEach(btn => {
+        btn.onclick = (ev) => {
+          ev.preventDefault();
+          state.valor = btn.dataset.v;
+          row.querySelectorAll(".ck-btn").forEach(b => b.classList.toggle("on", b === btn));
+        };
+      });
+      row.querySelector(".ck-obs").oninput = (ev) => { state.obs = ev.target.value; };
+      sec.appendChild(row);
+    }
+
+    // ── Fotos/Vídeos vinculadas a este serviço ──
+    const fotosArea = document.createElement("div");
+    fotosArea.style.cssText = "margin-top:14px;padding-top:14px;border-top:1px solid var(--pk-border1)";
+    fotosArea.innerHTML = `
+      <div class="label">Mídias de ${esc(titulo)} <span style="color:var(--pk-text-muted);font-size:10px">(fotos ou vídeos)</span></div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <label style="flex:1;min-width:120px;background:rgba(150,132,115,0.10);border:1px dashed rgba(150,132,115,0.35);color:var(--pk-accent);border-radius:0;padding:10px;font-size:12px;font-weight:600;text-align:center;cursor:pointer">
+          Tirar foto
+          <input type="file" accept="image/*" capture="environment" data-servico="${esc(key)}" class="_foto_servico" style="display:none"/>
+        </label>
+        <label style="flex:1;min-width:120px;background:rgba(150,132,115,0.10);border:1px dashed rgba(150,132,115,0.35);color:var(--pk-accent);border-radius:0;padding:10px;font-size:12px;font-weight:600;text-align:center;cursor:pointer">
+          Da galeria
+          <input type="file" accept="image/*" multiple data-servico="${esc(key)}" class="_foto_servico" style="display:none"/>
+        </label>
+        <label style="flex:1;min-width:140px;background:rgba(150,132,115,0.10);border:1px dashed rgba(150,132,115,0.35);color:var(--pk-accent);border-radius:0;padding:10px;font-size:12px;font-weight:600;text-align:center;cursor:pointer">
+          Vídeo
+          <input type="file" accept="video/*" data-servico="${esc(key)}" class="_video_servico" style="display:none"/>
+        </label>
+      </div>
+      <div class="_fotos_box" data-servico="${esc(key)}" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+    `;
+    sec.appendChild(fotosArea);
+    return sec;
+  }
+
+  // Helper: injeta área de fotos+vídeos no fim de uma seção (pra tipos sem renderCkSecao)
+  function appendFotosArea(sec, servicoKey, tituloFotos){
+    const fotosArea = document.createElement("div");
+    fotosArea.style.cssText = "margin-top:14px;padding-top:14px;border-top:1px solid var(--pk-border1)";
+    fotosArea.innerHTML = `
+      <div class="label">${esc(tituloFotos)} <span style="color:var(--pk-text-muted);font-size:10px">(fotos ou vídeos)</span></div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <label style="flex:1;min-width:120px;background:rgba(150,132,115,0.10);border:1px dashed rgba(150,132,115,0.35);color:var(--pk-accent);border-radius:0;padding:10px;font-size:12px;font-weight:600;text-align:center;cursor:pointer">
+          Tirar foto
+          <input type="file" accept="image/*" capture="environment" data-servico="${esc(servicoKey)}" class="_foto_servico" style="display:none"/>
+        </label>
+        <label style="flex:1;min-width:120px;background:rgba(150,132,115,0.10);border:1px dashed rgba(150,132,115,0.35);color:var(--pk-accent);border-radius:0;padding:10px;font-size:12px;font-weight:600;text-align:center;cursor:pointer">
+          Da galeria
+          <input type="file" accept="image/*" multiple data-servico="${esc(servicoKey)}" class="_foto_servico" style="display:none"/>
+        </label>
+        <label style="flex:1;min-width:140px;background:rgba(150,132,115,0.10);border:1px dashed rgba(150,132,115,0.35);color:var(--pk-accent);border-radius:0;padding:10px;font-size:12px;font-weight:600;text-align:center;cursor:pointer">
+          Vídeo
+          <input type="file" accept="video/*" data-servico="${esc(servicoKey)}" class="_video_servico" style="display:none"/>
+        </label>
+      </div>
+      <div class="_fotos_box" data-servico="${esc(servicoKey)}" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+    `;
+    sec.appendChild(fotosArea);
+  }
+
+  // Função pra renderizar campo texto livre
+  function renderTextField(key, label, multiline = true){
+    const v = textFields[key] || "";
+    const wrap = el(`<div class="card">
+      <div class="label">${esc(label)}</div>
+      ${multiline ? `<textarea rows="3" style="margin-top:6px"></textarea>` : `<input style="margin-top:6px"/>`}
+    </div>`);
+    const inp = wrap.querySelector("textarea, input");
+    inp.value = v;
+    inp.oninput = (ev) => { textFields[key] = ev.target.value; };
+    return wrap;
+  }
+
+  // Filtro: só mostra serviços que foram selecionados em "novo laudo".
+  // Se servicos_inclusos vazio → mostra TODOS (compat com laudos antigos).
+  const servSel = Array.isArray(laudo.servicos_inclusos) && laudo.servicos_inclusos.length > 0
+    ? new Set(laudo.servicos_inclusos.map(s => String(s).toLowerCase().trim()))
+    : null;
+  const showServ = (key) => !servSel || servSel.has(key);
+
+  // ── Render por tipo ──
+  if (laudo.tipo === "1vistoria"){
+    const def = CK["1vistoria"];
+    if (servSel){
+      root.appendChild(el(`<div class="card" style="background:rgba(150,132,115,0.06);border-color:rgba(150,132,115,0.25)">
+        <div class="label" style="color:var(--pk-accent)">Serviços inclusos</div>
+        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+          ${[...servSel].map(s => `<span class="tag" style="background:rgba(150,132,115,0.18);color:var(--pk-accent);text-transform:capitalize">${esc(s)}</span>`).join("")}
+        </div>
+      </div>`));
+    }
+    if (showServ("piso"))    root.appendChild(renderCkSecao("Piso",   "piso",   def.piso));
+    if (showServ("deck"))    root.appendChild(renderCkSecao("Deck",   "deck",   def.deck));
+    if (showServ("forro")){
+      root.appendChild(renderCkSecao("Forro", "forro", def.forro));
+      for (const f of FORRO_EXTRA) root.appendChild(renderTextField(f.key, f.label));
+    }
+    if (showServ("painel"))  root.appendChild(renderCkSecao("Painel", "painel", def.painel));
+    if (showServ("porta"))   root.appendChild(renderCkSecao("Porta",  "porta",  def.porta));
+    if (showServ("escada"))  root.appendChild(renderCkSecao("Escada", "escada", def.escada));
+  } else if (laudo.tipo === "2vistoria"){
+    const def = CK["2vistoria"];
+    if (servSel){
+      root.appendChild(el(`<div class="card" style="background:rgba(150,132,115,0.06);border-color:rgba(150,132,115,0.25)">
+        <div class="label" style="color:var(--pk-accent)">Serviços inclusos</div>
+        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
+          ${[...servSel].map(s => `<span class="tag" style="background:rgba(150,132,115,0.18);color:var(--pk-accent);text-transform:capitalize">${esc(s)}</span>`).join("")}
+        </div>
+      </div>`));
+    }
+    // Liberação sempre aparece (não é serviço, é checklist geral da 2ª vistoria)
+    root.appendChild(renderCkSecao("Liberação", "liberacao", def.liberacao));
+    if (showServ("piso"))    root.appendChild(renderCkSecao("Piso",   "piso",   def.piso));
+    if (showServ("deck"))    root.appendChild(renderCkSecao("Deck",   "deck",   def.deck));
+    if (showServ("forro")){
+      root.appendChild(renderCkSecao("Forro", "forro", def.forro));
+      for (const f of FORRO_EXTRA) root.appendChild(renderTextField(f.key, f.label));
+    }
+    if (showServ("painel"))  root.appendChild(renderCkSecao("Painel", "painel", def.painel));
+    if (showServ("porta"))   root.appendChild(renderCkSecao("Porta",  "porta",  def.porta));
+    if (showServ("escada"))  root.appendChild(renderCkSecao("Escada", "escada", def.escada));
+    if (showServ("bancos"))  root.appendChild(renderCkSecao("Bancos", "bancos", def.bancos));
+  } else if (laudo.tipo === "acompanhamento"){
+    const def = CK.acompanhamento;
+    root.appendChild(renderCkSecao("Equipe", "equipe", def.equipe));
+    root.appendChild(renderCkSecao("Produtividade", "produtividade", def.produtividade));
+    for (const f of ACOMP_TEXT) root.appendChild(renderTextField(f.key, f.label));
+  } else if (laudo.tipo === "entrega"){
+    if (!extra.qualidade) extra.qualidade = {};
+    const sec = el(`<div class="card"><div class="h2">Qualidade da entrega</div></div>`);
+    for (const q of CK.entrega.qualidade){
+      const state = extra.qualidade[q] || { valor: null, obs: "" };
+      extra.qualidade[q] = state;
+      const row = document.createElement("div");
+      row.className = "ck-row";
+      row.innerHTML = `<div class="ck-q">${esc(q)}</div>
+        <div class="ck-btns">
+          <button class="ck-btn sim ${state.valor==="sim"?"on":""}" data-v="sim">Sim</button>
+          <button class="ck-btn nao ${state.valor==="nao"?"on":""}" data-v="nao">Não</button>
+          <button class="ck-btn na  ${state.valor==="na" ?"on":""}" data-v="na">N/A</button>
+        </div>
+        <input class="ck-obs" placeholder="Observação (opcional)" value="${esc(state.obs||"")}"/>`;
+      row.querySelectorAll(".ck-btn").forEach(btn => {
+        btn.onclick = (ev) => { ev.preventDefault(); state.valor = btn.dataset.v; row.querySelectorAll(".ck-btn").forEach(b => b.classList.toggle("on", b === btn)); };
+      });
+      row.querySelector(".ck-obs").oninput = (ev) => { state.obs = ev.target.value; };
+      sec.appendChild(row);
+    }
+    appendFotosArea(sec, "entrega", "Fotos da Entrega");
+    root.appendChild(sec);
+    for (const f of ENTREGA_TEXT) root.appendChild(renderTextField(f.key, f.label));
+  } else if (laudo.tipo === "reparo"){
+    if (!extra.tipo) extra.tipo = {};
+    if (!extra.materiais) extra.materiais = {};
+    const renderSec = (titulo, obj, list) => {
+      const sec = el(`<div class="card"><div class="h2">${esc(titulo)}</div></div>`);
+      for (const q of list){
+        const state = obj[q] || { valor: null, obs: "" };
+        obj[q] = state;
+        const row = document.createElement("div");
+        row.className = "ck-row";
+        row.innerHTML = `<div class="ck-q">${esc(q)}</div>
+          <div class="ck-btns">
+            <button class="ck-btn sim ${state.valor==="sim"?"on":""}" data-v="sim">Sim</button>
+            <button class="ck-btn nao ${state.valor==="nao"?"on":""}" data-v="nao">Não</button>
+          </div>
+          <input class="ck-obs" placeholder="Observação (opcional)" value="${esc(state.obs||"")}"/>`;
+        row.querySelectorAll(".ck-btn").forEach(btn => {
+          btn.onclick = (ev) => { ev.preventDefault(); state.valor = btn.dataset.v; row.querySelectorAll(".ck-btn").forEach(b => b.classList.toggle("on", b === btn)); };
+        });
+        row.querySelector(".ck-obs").oninput = (ev) => { state.obs = ev.target.value; };
+        sec.appendChild(row);
+      }
+      return sec;
+    };
+    const secTipo = renderSec("Tipo de reparo", extra.tipo, CK.reparo.tipo);
+    appendFotosArea(secTipo, "reparo", "Fotos do Reparo");
+    root.appendChild(secTipo);
+    root.appendChild(renderSec("Materiais em obra", extra.materiais, CK.reparo.materiais));
+    for (const f of REPARO_TEXT) root.appendChild(renderTextField(f.key, f.label));
+  }
+
+  // ── FOTOS por serviço ──
+  // Cada `renderCkSecao` cria seu próprio `<input class="_foto_servico" data-servico="<key>">`
+  // + `<div class="_fotos_box" data-servico="<key>">` pra mostrar as fotos.
+  // Aqui setamos os handlers que ligam tudo a um state compartilhado.
+  let novasFotos = [];  // {file, servico, descricao}
+  let fotosExistentes = [];
+  const { data: fx } = await sb.from("fiscal_fotos").select("*").eq("laudo_id", laudoId).order("created_at");
+  fotosExistentes = fx || [];
+
+  function renderFotosDoServico(servicoKey){
+    const box = root.querySelector(`._fotos_box[data-servico="${CSS.escape(servicoKey)}"]`);
+    if (!box) return;
+    box.innerHTML = "";
+    // Existentes
+    const existsDoServ = fotosExistentes.filter(f => (f.servico || "outros") === servicoKey);
+    for (const f of existsDoServ){
+      const isVideo = f.tipo === "video";
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;padding:6px;background:var(--pk-card1);border-radius:0";
+      const thumb = isVideo
+        ? `<video src="${esc(f.url)}" style="width:56px;height:56px;border-radius:0;object-fit:cover;flex-shrink:0;background:#000" muted playsinline preload="metadata"></video>`
+        : `<img src="${esc(f.url)}" style="width:56px;height:56px;border-radius:0;object-fit:cover;flex-shrink:0"/>`;
+      row.innerHTML = `${thumb}
+        <div style="flex:1;min-width:0;font-size:11px;color:var(--pk-text-dim)">
+          <div>${isVideo ? "[VÍDEO] " : ""}${esc(f.descricao || "(sem comentário)")}</div>
+          <div style="color:var(--pk-text-muted);font-size:10px;margin-top:2px">${fmtDate(f.created_at)}</div>
+        </div>`;
+      box.appendChild(row);
+    }
+    // Novas (foto ou vídeo)
+    novasFotos.forEach((nf, idx) => {
+      if (nf.servico !== servicoKey) return;
+      const isVideo = nf.tipo === "video";
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;padding:6px;background:rgba(150,132,115,0.06);border:1px solid rgba(150,132,115,0.25);border-radius:0";
+      let thumb;
+      if (isVideo){
+        thumb = document.createElement("video");
+        thumb.muted = true; thumb.playsInline = true; thumb.preload = "metadata";
+        thumb.style.cssText = "width:56px;height:56px;border-radius:0;object-fit:cover;flex-shrink:0;background:#000";
+      } else {
+        thumb = document.createElement("img");
+        thumb.style.cssText = "width:56px;height:56px;border-radius:0;object-fit:cover;flex-shrink:0";
+      }
+      thumb.src = URL.createObjectURL(nf.file);
+      const right = document.createElement("div");
+      right.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:4px";
+      const tipoLbl = document.createElement("div");
+      tipoLbl.style.cssText = "font-size:10px;color:var(--pk-accent);font-weight:700;text-transform:uppercase";
+      tipoLbl.textContent = isVideo ? "Vídeo" : "Foto";
+      const desc = document.createElement("input");
+      desc.placeholder = "Comentário (opcional)";
+      desc.value = nf.descricao || "";
+      desc.style.cssText = "padding:5px 7px;font-size:11px;background:var(--pk-card2);border:1px solid var(--pk-border1);color:var(--pk-text);border-radius:0";
+      desc.oninput = (e) => { novasFotos[idx].descricao = e.target.value; };
+      const del = document.createElement("button");
+      del.textContent = "×";
+      del.style.cssText = "background:transparent;border:1px solid var(--pk-border2);color:var(--pk-status-err);width:24px;height:24px;padding:0;font-size:14px;border-radius:0;cursor:pointer";
+      del.onclick = (e) => { e.preventDefault(); novasFotos.splice(idx,1); renderFotosDoServico(servicoKey); };
+      right.appendChild(tipoLbl); right.appendChild(desc);
+      const wr = document.createElement("div");
+      wr.style.cssText = "display:flex;gap:6px;align-items:flex-start;width:100%";
+      wr.appendChild(thumb); wr.appendChild(right); wr.appendChild(del);
+      box.appendChild(wr);
+    });
+  }
+
+  // Upload IMEDIATO de foto/vídeo direto pro Supabase — não fica preso em
+  // memória local. Se o user trocar de aba, o app fechar, ou recarregar a
+  // página, a mídia já está persistida no banco. O botão "Salvar laudo"
+  // continua valendo só pros campos de texto/checklist.
+  async function uploadMidiaImediato(file, servicoKey, tipo, descricao, statusFn){
+    try {
+      let url, storage_path = null;
+      if (tipo === "video"){
+        const ext = (file.name.split(".").pop() || "mp4").toLowerCase();
+        const path = `${laudoId}/${servicoKey || "outros"}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+        statusFn && statusFn(`Enviando vídeo… (${(file.size/1024/1024).toFixed(1)}MB)`);
+        const { error: upErr } = await sb.storage.from("fiscal-midias").upload(path, file, {
+          contentType: file.type || "video/mp4", upsert: false,
+        });
+        if (upErr) throw upErr;
+        const { data: pub } = sb.storage.from("fiscal-midias").getPublicUrl(path);
+        url = pub.publicUrl;
+        storage_path = path;
+      } else {
+        statusFn && statusFn("Processando foto…");
+        url = await compressPhoto(file);
+      }
+      const { error: insErr } = await sb.from("fiscal_fotos").insert({
+        laudo_id: laudoId,
+        card_id: laudo.card_id,
+        servico: servicoKey || "outros",
+        ambiente: servicoKey || "outros",
+        tipo,
+        storage_path,
+        descricao: descricao || null,
+        url,
+      });
+      if (insErr) throw insErr;
+      statusFn && statusFn(`${tipo === "video" ? "Vídeo" : "Foto"} salva`);
+      // Recarrega a galeria do banco (pega o item recém-inserido)
+      const { data: fxNew } = await sb.from("fiscal_fotos").select("*").eq("laudo_id", laudoId).order("created_at");
+      fotosExistentes = fxNew || [];
+      renderFotosDoServico(servicoKey);
+      setTimeout(() => statusFn && statusFn(""), 2000);
+      return true;
+    } catch (err) {
+      statusFn && statusFn(`Falha: ${err.message || err}. Tente novamente.`);
+      console.error("[fiscal upload]", err);
+      return false;
+    }
+  }
+
+  // Bind dos inputs (foto+vídeo) de cada seção
+  function bindFotoInputs(){
+    // Cria um statusEl global pra mensagens de upload
+    let statusEl = document.getElementById("_upload_status");
+    if (!statusEl) {
+      statusEl = el(`<div id="_upload_status" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:10px 18px;border-radius:0;font-size:13px;z-index:99999;min-width:200px;text-align:center;display:none"></div>`);
+      document.body.appendChild(statusEl);
+    }
+    const showStatus = (msg) => {
+      if (!msg) { statusEl.style.display = "none"; return; }
+      statusEl.textContent = msg;
+      statusEl.style.display = "block";
+    };
+
+    // FOTOS — passam pelo editor e sobem imediato
+    root.querySelectorAll("._foto_servico").forEach(inp => {
+      const servicoKey = inp.dataset.servico;
+      renderFotosDoServico(servicoKey);
+      inp.onchange = async (e) => {
+        const files = Array.from(e.target.files);
+        e.target.value = "";
+        for (const f of files){
+          let result;
+          try {
+            result = await openPhotoEditor(f);
+            if (!result) continue;
+          } catch(err){
+            console.warn("[editor]", err);
+            result = { file: f, comentario: "" };
+          }
+          await uploadMidiaImediato(result.file, servicoKey, "foto", result.comentario || "", showStatus);
+        }
+      };
+    });
+    // VÍDEOS — sobem imediato
+    root.querySelectorAll("._video_servico").forEach(inp => {
+      const servicoKey = inp.dataset.servico;
+      inp.onchange = async (e) => {
+        const file = e.target.files[0];
+        e.target.value = "";
+        if (!file) return;
+        if (file.size > 100 * 1024 * 1024){
+          alert(`Vídeo muito grande (${(file.size/1024/1024).toFixed(1)}MB). Limite: 100MB. Grava mais curto ou em qualidade menor.`);
+          return;
+        }
+        const comentario = prompt("Comentário do vídeo (opcional):") || "";
+        await uploadMidiaImediato(file, servicoKey, "video", comentario, showStatus);
+      };
+    });
+  }
+  // Chamada depois de tudo renderizar (no fim da função renderEditarLaudo)
+  setTimeout(bindFotoInputs, 0);
+
+  // ── Observação geral ──
+  root.appendChild(renderTextField("observacoes", "Observação geral", true));
+
+  // ── Ações: Salvar rascunho / Concluir / Ver link público ──
+  const actions = el(`<div class="card">
+    <div class="grid2">
+      <button class="ghost" id="_rascunho">Salvar rascunho</button>
+      <button class="primary" id="_concluir">Concluir laudo</button>
+    </div>
+    <div class="grid2" style="margin-top:8px">
+      <button class="ghost" id="_ver_link">Ver link público (PDF)</button>
+      <button class="ghost" id="_copiar_link">Copiar link</button>
+    </div>
+    <div id="_save_msg"></div>
+  </div>`);
+  root.appendChild(actions);
+
+  document.getElementById("_ver_link").onclick = () => {
+    window.open("/laudo/" + laudoId, "_blank");
+  };
+  document.getElementById("_copiar_link").onclick = async () => {
+    const url = location.origin + "/laudo/" + laudoId;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("✓ Link copiado: " + url);
+    } catch { prompt("Copia o link:", url); }
+  };
+
+  async function salvar(concluir){
+    const msgEl = document.getElementById("_save_msg");
+    msgEl.innerHTML = `<div class="small"><span class="spinner"></span> Salvando…</div>`;
+    const payload = {
+      updated_at: new Date().toISOString(),
+      status: concluir ? "concluido" : "em_andamento",
+    };
+    // Mapeia checklist por serviço pras colunas correspondentes
+    for (const k of ["piso","deck","forro","painel","porta","escada","bancos","liberacao","equipe","produtividade"]){
+      if (ck[k]) payload[`checklist_${k}`] = ck[k];
+    }
+    // Campos texto direto
+    for (const k of Object.keys(textFields)){
+      payload[k] = textFields[k] || null;
+    }
+    // Checklist extra (entrega/reparo)
+    if (laudo.tipo === "entrega" || laudo.tipo === "reparo"){
+      payload.checklist_extra = extra;
+    }
+    // Upload imediato já fez o trabalho — só varre `novasFotos` (legado, pode
+    // estar vazio se tudo subiu) pra não perder nada caso o user tenha
+    // adicionado algo via fluxo antigo.
+    for (let i = 0; i < novasFotos.length; i++){
+      const nf = novasFotos[i];
+      const tipo = nf.tipo || "foto";
+      msgEl.innerHTML = `<div class="small"><span class="spinner"></span> ${tipo === "video" ? "Vídeo" : "Foto"} ${i+1}/${novasFotos.length}…</div>`;
+      try {
+        let url, storage_path = null;
+        if (tipo === "video"){
+          // Upload pro bucket fiscal-midias
+          const ext = (nf.file.name.split(".").pop() || "mp4").toLowerCase();
+          const path = `${laudoId}/${nf.servico || "outros"}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+          const { error: upErr } = await sb.storage.from("fiscal-midias").upload(path, nf.file, {
+            contentType: nf.file.type || "video/mp4", upsert: false,
+          });
+          if (upErr) throw upErr;
+          const { data: pub } = sb.storage.from("fiscal-midias").getPublicUrl(path);
+          url = pub.publicUrl;
+          storage_path = path;
+        } else {
+          url = await compressPhoto(nf.file);
+        }
+        await sb.from("fiscal_fotos").insert({
+          laudo_id: laudoId,
+          card_id: laudo.card_id,
+          servico: nf.servico || "outros",
+          tipo,
+          storage_path,
+          descricao: nf.descricao || null,
+          url,
+        });
+      } catch (err){
+        msgEl.innerHTML = `<div class="err">Falha na mídia ${i+1}: ${esc(err.message || err)}</div>`;
+        return;
+      }
+    }
+
+    const { error: upErr } = await sb.from("fiscal_laudos").update(payload).eq("id", laudoId);
+    if (upErr){
+      msgEl.innerHTML = `<div class="err">${esc(upErr.message)}</div>`;
+      return;
+    }
+
+    // ─── SYNC com o card do operacional (acompanhamento de obra) ───
+    // Grava link público do laudo + status no kanban_cards.details pra o
+    // operacional ver no card de obra.
+    if (laudo.card_id) {
+      try {
+        const linkPublico = location.origin + "/laudo/" + laudoId;
+        const { data: cardAtual } = await sb.from("kanban_cards").select("details").eq("id", laudo.card_id).single();
+        const detalhes = (cardAtual && cardAtual.details) || {};
+        const laudosArr = Array.isArray(detalhes.fiscal_laudos) ? detalhes.fiscal_laudos : [];
+        // Atualiza/adiciona entrada deste laudo
+        const tipoLabel = (TIPOS[laudo.tipo] && TIPOS[laudo.tipo].label) || laudo.tipo;
+        const idx = laudosArr.findIndex(x => x.id === laudoId);
+        const entry = {
+          id: laudoId,
+          tipo: laudo.tipo,
+          tipo_label: tipoLabel,
+          status: concluir ? "concluido" : "rascunho",
+          fiscal_nome: laudo.fiscal_nome || null,
+          link: linkPublico,
+          atualizado_em: new Date().toISOString(),
+        };
+        if (idx >= 0) laudosArr[idx] = entry; else laudosArr.push(entry);
+        await sb.from("kanban_cards").update({
+          details: { ...detalhes, fiscal_laudos: laudosArr, ultimo_laudo: entry },
+        }).eq("id", laudo.card_id);
+      } catch (syncErr) {
+        console.warn("[sync card operacional]", syncErr);
+      }
+    }
+
+    msgEl.innerHTML = `<div class="ok">✓ ${concluir ? "Laudo concluído" : "Rascunho salvo"} · Link: <a href="/laudo/${laudoId}" target="_blank" style="color:var(--pk-accent)">/laudo/${laudoId.slice(0,8)}</a></div>`;
+    if (concluir) setTimeout(() => renderHome(), 1200);
+    else {
+      novasFotos = [];
+      const { data: fx2 } = await sb.from("fiscal_fotos").select("*").eq("laudo_id", laudoId).order("created_at");
+      fotosExistentes = fx2 || [];
+      // Re-render todas as galerias de cada serviço
+      root.querySelectorAll("._fotos_box").forEach(box => {
+        renderFotosDoServico(box.dataset.servico);
+      });
+    }
+  }
+  document.getElementById("_rascunho").onclick = () => salvar(false);
+  document.getElementById("_concluir").onclick = () => salvar(true);
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ CALENDÁRIO — mês com visitas/laudos                            ║
+// ╚══════════════════════════════════════════════════════════════╝
+// Estado de expansão das seções colapsáveis da Home (renderHome)
+let _homeOpen = {};
+let _calMonth = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; })();
+let _calSelDay = (() => { const d = new Date(); return d.toISOString().slice(0,10); })();
+// "mes" mostra grid 7×N (default). "semana" mostra 7 colunas com agenda detalhada.
+let _calView = "mes";
+// Início da semana atual em vista semanal (segunda da semana de _calSelDay).
+let _calWeekStart = (() => {
+  const d = new Date();
+  const dow = d.getDay();
+  // Segunda = dow 1; ajusta pra trás
+  const back = dow === 0 ? 6 : dow - 1;
+  d.setDate(d.getDate() - back);
+  return d.toISOString().slice(0,10);
+})();
+
+async function renderCalendario(){
+  setActiveNav("agenda");
+  root.innerHTML = `<div class="card center"><span class="spinner"></span><div class="small" style="margin-top:8px">Carregando agenda…</div></div>`;
+  subscribeFiscalRealtime("agenda", () => { if (_rtView === "agenda") renderCalendario(); });
+
+  const filtroFiscalId = _isAdmin ? _operandoComoId : (_fiscal && _fiscal.id);
+  // Janela visível depende da vista (mês: grid 6×7; semana: 7 dias da
+  // segunda do _calWeekStart até o domingo)
+  let startGrid, endGrid, first, last;
+  if (_calView === "semana"){
+    const ws = new Date(_calWeekStart + "T00:00:00");
+    startGrid = new Date(ws);
+    endGrid = new Date(ws); endGrid.setDate(ws.getDate() + 6); endGrid.setHours(23,59,59,999);
+    first = startGrid; last = endGrid;
+  } else {
+    first = new Date(_calMonth.y, _calMonth.m, 1);
+    startGrid = new Date(first); startGrid.setDate(first.getDate() - first.getDay());
+    last = new Date(_calMonth.y, _calMonth.m + 1, 0);
+    endGrid = new Date(last); endGrid.setDate(last.getDate() + (6 - last.getDay()));
+  }
+
+  let qA = sb.from("fiscal_agenda")
+    .select("id, card_id, tipo, data_inicio, status, notas, obra, cliente")
+    .gte("data_inicio", startGrid.toISOString())
+    .lte("data_inicio", endGrid.toISOString())
+    .order("data_inicio", { ascending: true });
+  if (filtroFiscalId) qA = qA.eq("fiscal_id", filtroFiscalId);
+  const { data: ags } = await qA;
+
+  let qL = sb.from("fiscal_laudos")
+    .select("id, card_id, fiscal_id, fiscal_nome, obra, cliente, tipo, status, data_vistoria")
+    .gte("data_vistoria", startGrid.toISOString())
+    .lte("data_vistoria", endGrid.toISOString())
+    .order("data_vistoria", { ascending: true });
+  if (filtroFiscalId) qL = qL.eq("fiscal_id", filtroFiscalId);
+  const { data: lds } = await qL;
+
+  // Mapa dia (YYYY-MM-DD em LOCAL TIME) -> eventos. Antes usávamos
+  // toISOString().slice(0,10) que dá a data UTC — eventos noturnos no BR
+  // caíam no dia seguinte. Agora extrai Y-M-D do timezone do usuário.
+  const byDay = {};
+  function dayKeyLocal(d){
+    const dt = (d instanceof Date) ? d : new Date(d);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, "0");
+    const day = String(dt.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+  function bucket(date, ev){
+    if (!date) return;
+    const k = dayKeyLocal(date);
+    if (!byDay[k]) byDay[k] = [];
+    byDay[k].push(ev);
+  }
+  (ags || []).forEach(a => bucket(a.data_inicio, {
+    kind: "agenda", id: a.id, card_id: a.card_id, when: a.data_inicio,
+    cliente: a.cliente, obra: a.obra, tipo: a.tipo, status: a.status, notas: a.notas,
+  }));
+  (lds || []).forEach(l => bucket(l.data_vistoria, {
+    kind: "laudo", id: l.id, card_id: l.card_id, when: l.data_vistoria,
+    cliente: l.cliente, obra: l.obra, tipo: l.tipo, status: l.status, fiscal_nome: l.fiscal_nome,
+  }));
+
+  root.innerHTML = "";
+
+  // Admin: seletor "operando como"
+  if (_isAdmin){
+    const opts = _fiscaisLista.map(f => `<option value="${f.id}" ${f.id===_operandoComoId?"selected":""}>${esc(f.nome)}</option>`).join("");
+    const sel = el(`<div class="card">
+      <div class="label">Operando como (fiscal)</div>
+      <select id="_op_como_cal" style="margin-top:6px">${opts}</select>
+    </div>`);
+    root.appendChild(sel);
+    document.getElementById("_op_como_cal").onchange = (e) => { _operandoComoId = e.target.value; renderCalendario(); };
+  }
+
+  // Calendário
+  let titleLabel;
+  if (_calView === "semana"){
+    const a = startGrid.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+    const b = endGrid.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+    titleLabel = `${a} – ${b}`;
+  } else {
+    titleLabel = first.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  }
+  const wrap = el(`<div class="cal-wrap">
+    <div class="cal-head">
+      <div class="cal-title">${esc(titleLabel)}</div>
+      <div class="cal-nav" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <div style="display:inline-flex;background:var(--pk-card1);border:1px solid var(--pk-border1);border-radius:0;padding:2px;gap:2px">
+          <button id="_cal_view_mes" style="width:auto;height:26px;padding:0 10px;border:none;border-radius:0;font-size:11px;font-weight:600;cursor:pointer;background:${_calView==='mes'?'rgba(150,132,115,0.18)':'transparent'};color:${_calView==='mes'?'var(--pk-accent)':'var(--pk-text-dim)'}">Mês</button>
+          <button id="_cal_view_sem" style="width:auto;height:26px;padding:0 10px;border:none;border-radius:0;font-size:11px;font-weight:600;cursor:pointer;background:${_calView==='semana'?'rgba(150,132,115,0.18)':'transparent'};color:${_calView==='semana'?'var(--pk-accent)':'var(--pk-text-dim)'}">Semana</button>
+        </div>
+        <button class="cal-btn today" id="_cal_today">Hoje</button>
+        <button class="cal-btn" id="_cal_prev">‹</button>
+        <button class="cal-btn" id="_cal_next">›</button>
+      </div>
+    </div>
+    <div class="cal-grid ${_calView==='semana'?'cal-week':''}" id="_cal_grid"></div>
+    <div class="swipe-hint">← arraste pro lado pra trocar de ${_calView==='semana'?'semana':'mês'} →</div>
+    <div class="cal-legend">
+      <div class="lg"><span class="lg-dot" style="background:#FBBF24"></span>Pendente</div>
+      <div class="lg"><span class="lg-dot" style="background:#3B82F6"></span>Em andamento</div>
+      <div class="lg"><span class="lg-dot" style="background:#34D399"></span>Concluído</div>
+      <div class="lg"><span class="lg-dot" style="background:#A78BFA"></span>Agenda</div>
+    </div>
+  </div>`);
+  root.appendChild(wrap);
+
+  // ── Swipe horizontal pra trocar mês/semana (touch screens) ──
+  // Detecta gesto horizontal limpo (Δx > 60 e |Δx| > 2×|Δy|) e dispara a
+  // mesma ação dos botões ‹/›. Não interfere em scroll vertical da página.
+  (function attachSwipe(){
+    let sx = 0, sy = 0, started = false;
+    wrap.addEventListener("touchstart", (e) => {
+      const t = e.touches[0]; if (!t) return;
+      sx = t.clientX; sy = t.clientY; started = true;
+    }, { passive: true });
+    wrap.addEventListener("touchend", (e) => {
+      if (!started) return; started = false;
+      const t = (e.changedTouches && e.changedTouches[0]) || null;
+      if (!t) return;
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) < 60) return;
+      if (Math.abs(dx) < Math.abs(dy) * 2) return;
+      // dx > 0 = swipe pra direita = ir pra trás (anterior)
+      if (dx > 0) document.getElementById("_cal_prev").click();
+      else        document.getElementById("_cal_next").click();
+    }, { passive: true });
+  })();
+
+  document.getElementById("_cal_view_mes").onclick = () => { _calView = "mes"; renderCalendario(); };
+  document.getElementById("_cal_view_sem").onclick = () => {
+    _calView = "semana";
+    // Realinha a semana do dia selecionado (ou hoje)
+    const base = new Date((_calSelDay || new Date().toISOString().slice(0,10)) + "T00:00:00");
+    const dow = base.getDay();
+    const back = dow === 0 ? 6 : dow - 1;
+    base.setDate(base.getDate() - back);
+    _calWeekStart = base.toISOString().slice(0,10);
+    renderCalendario();
+  };
+  document.getElementById("_cal_today").onclick = () => {
+    const d = new Date();
+    if (_calView === "semana"){
+      const dow = d.getDay();
+      const back = dow === 0 ? 6 : dow - 1;
+      const ws = new Date(d); ws.setDate(d.getDate() - back);
+      _calWeekStart = ws.toISOString().slice(0,10);
+    } else {
+      _calMonth = { y: d.getFullYear(), m: d.getMonth() };
+    }
+    _calSelDay = d.toISOString().slice(0,10);
+    renderCalendario();
+  };
+  document.getElementById("_cal_prev").onclick = () => {
+    if (_calView === "semana"){
+      const ws = new Date(_calWeekStart + "T00:00:00");
+      ws.setDate(ws.getDate() - 7);
+      _calWeekStart = ws.toISOString().slice(0,10);
+    } else {
+      _calMonth.m -= 1;
+      if (_calMonth.m < 0){ _calMonth.m = 11; _calMonth.y -= 1; }
+    }
+    renderCalendario();
+  };
+  document.getElementById("_cal_next").onclick = () => {
+    if (_calView === "semana"){
+      const ws = new Date(_calWeekStart + "T00:00:00");
+      ws.setDate(ws.getDate() + 7);
+      _calWeekStart = ws.toISOString().slice(0,10);
+    } else {
+      _calMonth.m += 1;
+      if (_calMonth.m > 11){ _calMonth.m = 0; _calMonth.y += 1; }
+    }
+    renderCalendario();
+  };
+
+  const grid = document.getElementById("_cal_grid");
+  // Header de dias da semana — segunda primeiro na vista semana, domingo na mês
+  if (_calView === "semana"){
+    ["S","T","Q","Q","S","S","D"].forEach(d => {
+      grid.appendChild(el(`<div class="cal-dow">${d}</div>`));
+    });
+  } else {
+    ["D","S","T","Q","Q","S","S"].forEach(d => {
+      grid.appendChild(el(`<div class="cal-dow">${d}</div>`));
+    });
+  }
+
+  const todayK = dayKeyLocal(new Date());
+  // Cores por evento (escopo elevado pra ambas vistas usarem)
+  function evColor(e){
+    if (e.kind === "laudo"){
+      if (e.status === "concluido") return "#34D399";
+      if (e.status === "em_andamento") return "#3B82F6";
+      if (e.status === "cancelado") return "#9CA3AF";
+      return "#FBBF24"; // pendente = amarelo
+    }
+    return "#A78BFA"; // agenda = roxo claro (era var(--pk-accent) igual ao pendente)
+  }
+
+  const cur = new Date(startGrid);
+  while (cur <= endGrid){
+    const k = dayKeyLocal(cur);
+    const inMonth = _calView === "semana" ? true : (cur.getMonth() === _calMonth.m);
+    const evs = byDay[k] || [];
+    const cls = [
+      "cal-cell",
+      !inMonth ? "muted" : "",
+      k === todayK ? "today" : "",
+      k === _calSelDay ? "sel" : "",
+      evs.length && inMonth ? "has" : "",
+    ].filter(Boolean).join(" ");
+
+    let cellHtml;
+    if (_calView === "semana"){
+      // Vista semanal: cell maior, mostra até 5 eventos inline com hora+tipo
+      const items = evs.slice(0,5).sort((a,b) => new Date(a.when) - new Date(b.when)).map(e => {
+        const hora = new Date(e.when).toLocaleTimeString("pt-BR",{ hour:"2-digit", minute:"2-digit" });
+        const tlabel = (TIPOS[e.tipo] && TIPOS[e.tipo].label) || e.tipo || "";
+        const who = e.cliente || e.obra || "—";
+        return `<div class="we-it" style="border-left:3px solid ${evColor(e)};padding:2px 4px;margin:2px 0;background:var(--pk-card1);border-radius:0;font-size:9.5px;line-height:1.25;text-align:left;overflow:hidden">
+          <div style="color:var(--pk-accent);font-weight:600">${hora} · ${esc(tlabel)}</div>
+          <div style="color:var(--pk-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(who)}</div>
+        </div>`;
+      }).join("");
+      const more = evs.length > 5 ? `<div class="more" style="font-size:9px;color:var(--pk-accent);margin-top:2px">+${evs.length - 5} mais</div>` : "";
+      cellHtml = `<div class="d" style="display:flex;justify-content:space-between;align-items:center">
+          <span>${cur.getDate()}</span>
+          ${evs.length ? `<span style="font-size:9px;color:var(--pk-text-muted)">${evs.length}</span>` : ""}
+        </div>
+        ${items}${more}`;
+    } else {
+      const dotsHtml = evs.slice(0,4).map(e => `<span class="dot" style="background:${evColor(e)}"></span>`).join("");
+      const more = evs.length > 4 ? `<div class="more">+${evs.length - 4}</div>` : "";
+      cellHtml = `<div class="d">${cur.getDate()}</div>
+        <div class="dots">${dotsHtml}</div>
+        ${more}`;
+    }
+    const cell = el(`<button class="${cls}" data-day="${k}" style="${_calView==='semana'?'min-height:140px;align-items:stretch;justify-content:flex-start;padding:6px':''}">
+      ${cellHtml}
+    </button>`);
+    cell.onclick = () => { _calSelDay = k; renderCalendario(); };
+    grid.appendChild(cell);
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  // Lista do dia selecionado
+  const selEvs = (byDay[_calSelDay] || []).sort((a,b) => new Date(a.when) - new Date(b.when));
+  const selDate = new Date(_calSelDay + "T12:00:00");
+  const selLabel = selDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+
+  root.appendChild(el(`<div class="sect-h"><div class="t">${esc(selLabel)}</div><div class="n">${selEvs.length} item(ns)</div></div>`));
+
+  if (!selEvs.length){
+    root.appendChild(el(`<div class="card"><div class="small center">Nenhuma visita ou laudo agendado pra esse dia.</div></div>`));
+  } else {
+    for (const e of selEvs){
+      const tipoLabel = (TIPOS[e.tipo] && TIPOS[e.tipo].label) || e.tipo || "—";
+      const hora = new Date(e.when).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      let color = "var(--pk-accent)", labelKind = "Agenda";
+      if (e.kind === "laudo"){
+        if (e.status === "concluido"){ color = "#34D399"; labelKind = "Concluído"; }
+        else if (e.status === "em_andamento"){ color = "#3B82F6"; labelKind = "Em andamento"; }
+        else if (e.status === "cancelado"){ color = "#9CA3AF"; labelKind = "Cancelado"; }
+        else { color = "#FBBF24"; labelKind = "Pendente"; }
+      }
+      const fiscalLine = _isAdmin && e.fiscal_nome ? ` · ${esc(e.fiscal_nome)}` : "";
+      const c = el(`<div class="lcard">
+        <div class="ldot" style="background:${color}"></div>
+        <div class="lbody">
+          <div class="lcli">${esc(e.cliente || e.obra || "—")}</div>
+          <div class="lsub">${hora} · ${esc(tipoLabel)} · ${labelKind}${fiscalLine}</div>
+        </div>
+        <div class="larrow">›</div>
+      </div>`);
+      c.onclick = () => {
+        if (e.kind === "laudo") renderEditarLaudo(e.id);
+        else renderNovoLaudo({ agenda_id: e.id, card_id: e.card_id, obra: e.obra, cliente: e.cliente, tipo: e.tipo });
+      };
+      root.appendChild(c);
+    }
+  }
+
+  // Botão "+ Novo laudo" no fim
+  root.appendChild(el(`<div style="margin-top:14px"><button class="primary" id="_cal_novo">+ Novo laudo</button></div>`));
+  document.getElementById("_cal_novo").onclick = () => renderNovoLaudo(null);
+}
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ Bottom nav                                                     ║
+// ╚══════════════════════════════════════════════════════════════╝
+function renderBottomNav(){
+  // Remove se já existe
+  const existing = document.getElementById("_bnav");
+  if (existing) existing.remove();
+  const nav = el(`<div class="bnav" id="_bnav">
+    <button class="bnav-item" data-tab="agenda"><div>Agenda</div></button>
+    <button class="bnav-item on" data-tab="laudos"><div>Laudos</div></button>
+  </div>`);
+  nav.querySelectorAll(".bnav-item").forEach(b => {
+    b.onclick = () => {
+      const tab = b.dataset.tab;
+      if (tab === "agenda") renderCalendario();
+      else if (tab === "laudos") renderHome();
+    };
+  });
+  document.body.appendChild(nav);
+}
+function setActiveNav(tab){
+  document.querySelectorAll("#_bnav .bnav-item").forEach(b => {
+    b.classList.toggle("on", b.dataset.tab === tab);
+  });
+}
+// Hook: quando renderHome roda, ativa "laudos"; quando renderLogin roda, esconde
+const _origRenderHome = renderHome;
+renderHome = async function(){ await _origRenderHome.apply(this, arguments); setActiveNav("laudos"); pushHist("home"); };
+
+// ─── Hooks de navegação: cada render() empilha no history pra "voltar" funcionar ───
+function pushHist(view, params){
+  if (!_navStack) _navStack = [];
+  const last = _navStack[_navStack.length - 1];
+  if (last && last.view === view && JSON.stringify(last.params||null) === JSON.stringify(params||null)) return;
+  _navStack.push({ view, params });
+  try { history.pushState({ view, params, idx: _navStack.length - 1 }, "", "#" + view); } catch {}
+}
+
+const _origRenderEditarLaudo = renderEditarLaudo;
+renderEditarLaudo = async function(laudoId){ await _origRenderEditarLaudo.apply(this, arguments); pushHist("editar", { id: laudoId }); };
+
+const _origRenderNovoLaudo = renderNovoLaudo;
+renderNovoLaudo = async function(preset){ await _origRenderNovoLaudo.apply(this, arguments); pushHist("novo", { preset: preset || null }); };
+
+const _origRenderCalendario = renderCalendario;
+renderCalendario = async function(){ await _origRenderCalendario.apply(this, arguments); pushHist("calendario"); };
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║ PWA service worker                                            ║
+// ╚══════════════════════════════════════════════════════════════╝
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(err => console.warn("[SW]", err));
+  });
+}
+
+boot();
+</script>
+<script src="https://server.parket.works/app.js" data-parket-chat data-api="https://server.parket.works" defer></script></body>
+</html>

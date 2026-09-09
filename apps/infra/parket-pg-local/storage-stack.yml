@@ -1,0 +1,33 @@
+version: "3.9"
+services:
+  storage-local:
+    image: supabase/storage-api:v1.11.13
+    networks: [internal]
+    volumes:
+      - data:/var/lib/storage
+    environment:
+      ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0
+      SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk0MjUyNywiZXhwIjoyMDg4NTE4NTI3fQ.fTovVTCBFcMrrhVCR6TsneALfMRLLLHZdMmSJH16L4A
+      POSTGREST_URL: http://parket-pg-rest_rest-local:3000
+      PGRST_JWT_SECRET: fRRTxcyFdBnWe1B65tFFn+k40+1Rrl6z4s/CcsUofAOM+MKPZIrK/B05c3rIsAcgevnVsLGX+jTf1LhZDdzsBw==
+      DATABASE_URL: postgres://supabase_storage_admin:${LOCAL_PG_PASSWORD}@parket-pg-local_postgres:5432/postgres
+      FILE_SIZE_LIMIT: "52428800"
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://parket-pg-imgproxy_imgproxy:8080
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.role == manager"]
+networks:
+  internal:
+    external: true
+    name: parket-api_internal
+volumes:
+  data:
+    external: true
+    name: parket-pg-storage-data

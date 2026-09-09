@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Relatório Diário — Orçamento Parket</title>
+<link rel="icon" href="/favicon.svg" />
+<style>
+  :root {
+    --bg:#0b0f14; --panel:#121821; --panel2:#0f141c; --border:#1c2530;
+    --text:#e6edf3; --muted:#8b97a4; --brand:#c39a4e; --brand2:#e7c180;
+    --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --accent:#60a5fa;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  a { color:var(--brand2); }
+  .wrap { max-width:1180px; margin:0 auto; padding:28px 22px 60px; }
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+  h1 { font-size:22px; margin:0 0 4px; letter-spacing:.2px; }
+  .sub { color:var(--muted); font-size:13px; }
+  .date-picker { display:flex; gap:8px; align-items:center; }
+  .date-picker input { background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px; }
+  .date-picker button { background:var(--brand); color:#0b0f14; border:0; border-radius:8px; padding:8px 12px; font-weight:600; font-size:13px; cursor:pointer; }
+
+  .kpi-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
+  .kpi { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .kpi .label { font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+  .kpi .val { font-size:24px; font-weight:700; margin-top:6px; line-height:1; }
+  .kpi.brand .val { color:var(--brand2); }
+  .kpi.ok .val { color:var(--ok); }
+  .kpi.warn .val { color:var(--warn); }
+  .kpi.bad .val { color:var(--bad); }
+
+  .grid-orc { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-bottom:22px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .card h2 { margin:0 0 10px; font-size:16px; display:flex; align-items:center; gap:8px; }
+  .card h2 .avatar { width:28px; height:28px; border-radius:50%; background:var(--brand); color:#0b0f14; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
+  .mini-kpis { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 10px; }
+  .mini { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+  .mini .l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  .mini .v { font-size:18px; font-weight:700; margin-top:2px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  table th, table td { padding:6px 4px; border-bottom:1px solid var(--border); text-align:left; }
+  table th { color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+  table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  table td.zero { color:var(--muted); }
+
+  .section-title { font-size:13px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin:28px 0 10px; }
+  .recent { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:8px 0; }
+  .recent table { font-size:13px; }
+  .recent th, .recent td { padding:9px 14px; }
+  .recent .resp { color:var(--brand2); font-weight:500; }
+  .recent .val { color:var(--ok); }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:500; }
+  .badge.green { background:rgba(52,211,153,.12); color:var(--ok); }
+  .badge.yellow { background:rgba(251,191,36,.12); color:var(--warn); }
+  .badge.red { background:rgba(248,113,113,.12); color:var(--bad); }
+  .badge.blue { background:rgba(96,165,250,.12); color:var(--accent); }
+
+  .loading { color:var(--muted); padding:40px; text-align:center; }
+  .err { color:var(--bad); padding:20px; border:1px solid var(--border); border-radius:8px; background:var(--panel); }
+  footer { color:var(--muted); font-size:12px; margin-top:30px; text-align:center; }
+  .empty { color:var(--muted); padding:14px; text-align:center; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>📋 Relatório Diário — Orçamento Parket</h1>
+      <div class="sub" id="subtitle">Carregando…</div>
+    </div>
+    <div class="date-picker">
+      <input type="date" id="date" />
+      <button onclick="onPick()">Carregar</button>
+    </div>
+  </header>
+
+  <div id="content" class="loading">Buscando dados…</div>
+
+  <footer>
+    Gerado automaticamente pelo Parket • Fonte: Kanban Orçamento (space.parket.works/orcamento)
+  </footer>
+</div>
+
+<script>
+const SUPABASE_URL = "https://hbxpilrxmitvzebluoom.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+// Orçamentistas: mapeia variações de "responsavel" pra um nome canônico
+const ORCAMENTISTAS = [
+  { key:"rani",   label:"Rani",   color:"#c39a4e",
+    match: r => /raniere|ranier|^rani\b/i.test(r||"") },
+  { key:"bruno",  label:"Bruno",  color:"#e7c180",
+    match: r => /^bruno/i.test(r||"") },
+  { key:"thayna", label:"Thayna", color:"#60a5fa",
+    match: r => /thayna\s+rodrigues/i.test(r||"") },
+  { key:"joyce",  label:"Joyce",  color:"#34d399",
+    match: r => /^joyce/i.test(r||"") },
+];
+
+// Ordem fixa das colunas (slug ou uuid) com label legível
+const COLUMN_LABELS = {
+  "solicitacao": "Solicitação",
+  "0ebd8644-ad72-4bae-9b44-c37cf04def89": "Solicitação",
+  "em-progresso": "Em Progresso",
+  "6ecf80dc-a11b-49a8-af58-8a691de89700": "Em Progresso",
+  "analise-orc": "Em Análise",
+  "6209d128-64fe-4715-8a27-36efa3200be4": "Em Análise",
+  "analise-douglas": "Análise Douglas",
+  "0611d39f-8406-4c45-922b-f702e852ce71": "Análise Douglas",
+  "17cb6c47-3d1e-4e89-bbc2-b3929876fb4e": "Análise / Ajuste",
+  "refazer": "Refazer",
+  "0ca10e14-2170-466e-90df-786d866b793e": "Refazer",
+  "proposta-pronta": "Proposta Pronta",
+  "0b42aa6f-a57c-4849-a1ab-60575c8370ef": "Proposta Pronta",
+  "handoff-com": "Enviada Comercial",
+  "565e4d85-ca2a-4f94-b424-ea645d1f02ca": "Enviada Comercial",
+  "proposta-aceita": "Proposta Aceita",
+  "ab2db441-d797-424d-bfb2-061c95725d5c": "Proposta Aceita",
+  "projetos-rani": "Projetos Rani",
+  "e1df6c42-0164-4a7f-b197-aca5f25c5abf": "Projetos Rani",
+};
+const COL_ORDER = ["Solicitação","Em Progresso","Em Análise","Análise Douglas","Análise / Ajuste","Refazer","Proposta Pronta","Enviada Comercial","Proposta Aceita","Projetos Rani"];
+
+function parseValor(v) {
+  if (!v) return 0;
+  // "R$ 1.129.941,71" → 1129941.71
+  const s = String(v).replace(/[^0-9,]/g,"").replace(/,/, ".");
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+}
+function fmtBRL(n) {
+  return new Intl.NumberFormat("pt-BR", {style:"currency", currency:"BRL", maximumFractionDigits:0}).format(n);
+}
+function fmtDate(d) {
+  return new Intl.DateTimeFormat("pt-BR", {day:"2-digit", month:"long", year:"numeric"}).format(d);
+}
+function todayInSP() {
+  // Brasília TZ string YYYY-MM-DD
+  const fmt = new Intl.DateTimeFormat("sv-SE", {timeZone:"America/Sao_Paulo", year:"numeric", month:"2-digit", day:"2-digit"});
+  return fmt.format(new Date());
+}
+
+async function fetchAll() {
+  let all = [], from = 0, page = 1000;
+  while (true) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kanban_cards?dept_id=eq.orcamento&select=id,title,obra,responsavel,column_id,value,sla,sla_status,priority,updated_at,created_at`, {
+      headers: {
+        apikey: SUPABASE_ANON,
+        Authorization: `Bearer ${SUPABASE_ANON}`,
+        Range: `${from}-${from+page-1}`,
+        "Range-Unit": "items",
+        Prefer: "count=exact",
+      }
+    });
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    const batch = await r.json();
+    all = all.concat(batch);
+    if (batch.length < page) break;
+    from += page;
+  }
+  return all;
+}
+
+function assignTo(card) {
+  for (const o of ORCAMENTISTAS) if (o.match(card.responsavel)) return o.key;
+  return null;
+}
+function colLabel(card) { return COLUMN_LABELS[card.column_id] || card.column_id || "—"; }
+
+function render(allCards, dateStr) {
+  const [Y,M,D] = dateStr.split("-").map(Number);
+  const targetDate = new Date(Y, M-1, D);
+  const sub = document.getElementById("subtitle");
+  sub.textContent = `Snapshot referente a ${fmtDate(targetDate)} • ${allCards.length} cards no setor`;
+
+  // só cards "ativos" (não aceita / não projetos rani) pra KPI de WIP
+  const isActive = c => !["proposta-aceita","ab2db441-d797-424d-bfb2-061c95725d5c","projetos-rani","e1df6c42-0164-4a7f-b197-aca5f25c5abf"].includes(c.column_id);
+  const isProntaCol = c => ["proposta-pronta","0b42aa6f-a57c-4849-a1ab-60575c8370ef"].includes(c.column_id);
+  const isDouglasCol = c => ["analise-douglas","0611d39f-8406-4c45-922b-f702e852ce71"].includes(c.column_id);
+  const isAtrasado = c => (c.sla_status||"").toLowerCase().includes("atras") || (c.sla_status||"").toLowerCase().includes("estour") || (c.sla_status||"").toLowerCase()==="late";
+
+  const sameDay = d => d && d.slice(0,10) === dateStr;
+  const prontasHoje = allCards.filter(c => isProntaCol(c) && sameDay(c.updated_at));
+  const ativos = allCards.filter(isActive);
+
+  // KPIs gerais
+  const kpis = [
+    {l:"Cards ativos", v: ativos.length, cls:"brand"},
+    {l:"Propostas prontas hoje", v: prontasHoje.length, cls:"ok"},
+    {l:"Em Análise Douglas", v: allCards.filter(isDouglasCol).length, cls:""},
+    {l:"SLA atrasado", v: ativos.filter(isAtrasado).length, cls: ativos.filter(isAtrasado).length>0 ? "bad" : ""},
+    {l:"Valor propostas prontas", v: fmtBRL(allCards.filter(isProntaCol).reduce((s,c)=>s+parseValor(c.value),0)), cls:""},
+  ];
+
+  let html = `<div class="kpi-row">` + kpis.map(k => `
+    <div class="kpi ${k.cls}">
+      <div class="label">${k.l}</div>
+      <div class="val">${k.v}</div>
+    </div>`).join("") + `</div>`;
+
+  // Cards por orçamentista
+  html += `<div class="grid-orc">`;
+  for (const o of ORCAMENTISTAS) {
+    const meus = allCards.filter(c => assignTo(c) === o.key);
+    const meusAtivos = meus.filter(isActive);
+    const meusPronta = meus.filter(isProntaCol);
+    const meusPronHoje = meusPronta.filter(c => sameDay(c.updated_at));
+    const meusAtrasado = meusAtivos.filter(isAtrasado);
+    const valorPronta = meusPronta.reduce((s,c)=>s+parseValor(c.value),0);
+
+    // breakdown por coluna
+    const byCol = {};
+    for (const c of meus) {
+      const lbl = colLabel(c);
+      byCol[lbl] = (byCol[lbl]||0) + 1;
+    }
+
+    html += `<div class="card">
+      <h2><span class="avatar" style="background:${o.color}">${o.label[0]}</span> ${o.label}</h2>
+      <div class="mini-kpis">
+        <div class="mini"><div class="l">Ativos</div><div class="v">${meusAtivos.length}</div></div>
+        <div class="mini"><div class="l">Prontas hoje</div><div class="v" style="color:var(--ok)">${meusPronHoje.length}</div></div>
+        <div class="mini"><div class="l">SLA atrasado</div><div class="v" style="color:${meusAtrasado.length>0?'var(--bad)':'var(--text)'}">${meusAtrasado.length}</div></div>
+        <div class="mini"><div class="l">Valor prontas</div><div class="v" style="font-size:14px">${fmtBRL(valorPronta)}</div></div>
+      </div>
+      <table><thead><tr><th>Coluna</th><th class="num">Cards</th></tr></thead><tbody>
+        ${COL_ORDER.filter(lbl=>byCol[lbl]).map(lbl => `
+          <tr><td>${lbl}</td><td class="num">${byCol[lbl]}</td></tr>
+        `).join("") || `<tr><td colspan="2" class="empty">Sem cards atribuídos</td></tr>`}
+      </tbody></table>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Atualizações de hoje (por orçamentista)
+  const atualHoje = allCards.filter(c => sameDay(c.updated_at) && assignTo(c)).sort((a,b)=> (b.updated_at||"").localeCompare(a.updated_at||""));
+  html += `<div class="section-title">Atualizações de hoje (${atualHoje.length})</div>`;
+  html += `<div class="recent">`;
+  if (atualHoje.length === 0) {
+    html += `<div class="empty">Nenhum card movimentado pelos 4 orçamentistas em ${fmtDate(targetDate)}.</div>`;
+  } else {
+    html += `<table><thead><tr><th>Cliente</th><th>Orçamentista</th><th>Coluna</th><th>SLA</th><th class="num">Valor</th></tr></thead><tbody>`;
+    for (const c of atualHoje.slice(0, 60)) {
+      const o = ORCAMENTISTAS.find(x => x.key === assignTo(c));
+      const v = parseValor(c.value);
+      const slaBadge = isAtrasado(c) ? '<span class="badge red">atrasado</span>' :
+                       (c.sla_status==="ok" ? '<span class="badge green">ok</span>' :
+                       (c.sla_status ? `<span class="badge yellow">${c.sla_status}</span>` : ""));
+      html += `<tr>
+        <td>${(c.title||"—")}${c.obra?` <span style="color:var(--muted)">· ${c.obra}</span>`:""}</td>
+        <td class="resp">${o ? o.label : "—"}</td>
+        <td>${colLabel(c)}</td>
+        <td>${slaBadge}</td>
+        <td class="num val">${v>0 ? fmtBRL(v) : ""}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+  html += `</div>`;
+
+  document.getElementById("content").className = "";
+  document.getElementById("content").innerHTML = html;
+}
+
+function onPick() {
+  const d = document.getElementById("date").value;
+  if (!d) return;
+  const url = new URL(location.href);
+  url.searchParams.set("d", d);
+  location.href = url.toString();
+}
+
+(async function init() {
+  const params = new URLSearchParams(location.search);
+  const dateStr = params.get("d") || todayInSP();
+  document.getElementById("date").value = dateStr;
+  try {
+    const all = await fetchAll();
+    render(all, dateStr);
+  } catch (e) {
+    document.getElementById("content").innerHTML = `<div class="err">Erro: ${e.message}</div>`;
+  }
+})();
+</script>
+</body>
+</html>

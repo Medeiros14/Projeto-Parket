@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "works.parket.verifica.twa",
+    "sha256_cert_fingerprints": [
+      "97:48:E2:0F:24:92:F3:28:BF:5D:9F:60:DC:07:5A:E1:95:25:55:73:B4:20:EE:44:CB:48:83:30:8E:D6:F9:E8"
+    ]
+  }
+}]

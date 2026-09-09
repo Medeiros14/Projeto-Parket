@@ -1,0 +1,37 @@
+# Stack do AMBIENTE DE TESTE do Verifica (verifica2.parket.works)
+# Espelho do parket-fiscal.stack.yml, mas com service/routers proprios.
+# Producao (verifica.parket.works / parket-fiscal_web) NAO e afetada.
+# Deploy: docker stack deploy -c parket-fiscal2.stack.yml parket-fiscal2
+version: "3.8"
+
+services:
+  web:
+    # Tag datada do ambiente de teste; buildar como parket-fiscal:verifica2-YYYYMMDD
+    image: parket-fiscal:verifica2-20260908
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+
+        # HTTPS router
+        - traefik.http.routers.parket-fiscal2.rule=Host(`verifica2.parket.works`)
+        - traefik.http.routers.parket-fiscal2.entrypoints=websecure
+        - traefik.http.routers.parket-fiscal2.tls=true
+        - traefik.http.routers.parket-fiscal2.tls.certresolver=letsencryptresolver
+
+        # HTTP -> HTTPS redirect
+        - traefik.http.routers.parket-fiscal2-http.rule=Host(`verifica2.parket.works`)
+        - traefik.http.routers.parket-fiscal2-http.entrypoints=web
+        - traefik.http.routers.parket-fiscal2-http.middlewares=https-redirect
+
+        - traefik.http.services.parket-fiscal2.loadbalancer.server.port=80
+
+networks:
+  network_public:
+    external: true

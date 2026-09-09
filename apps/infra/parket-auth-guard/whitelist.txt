@@ -1,0 +1,80 @@
+# Parket Auth Guard — Whitelist (glob patterns, one per line)
+# Formato: hostname[/path-prefix]  ou  *.dominio  ou  ip/cidr
+# Comentários com #. Wildcards * apenas em subdomínio ou sufixo de path.
+#
+# --- Parket Cloud (Supabase) ---
+hbxpilrxmitvzebluoom.supabase.co
+skbjmlzgaeupflujomzw.supabase.co
+db.hbxpilrxmitvzebluoom.supabase.co
+db.skbjmlzgaeupflujomzw.supabase.co
+api.supabase.com
+
+# --- Parket internos ---
+*.parket.works
+parket.works
+parket.com.br
+*.parket.com.br
+api.parket.works
+conect.parket.works
+draw.parket.works
+gestao.parket.works
+valor.parket.works
+center.parket.works
+
+# --- GitHub repos Parket ---
+github.com/ParketBR/*
+github.com/willzeiras/*
+api.github.com
+raw.githubusercontent.com
+codeload.github.com
+
+# --- Anthropic (Claude Code, EAS, Teca) ---
+api.anthropic.com
+claude.ai
+claude.com
+console.anthropic.com
+platform.claude.com
+statsig.anthropic.com
+
+# --- Google (Drive, Ads, OAuth) ---
+*.googleapis.com
+googleapis.com
+oauth2.googleapis.com
+drive.google.com
+accounts.google.com
+sheets.googleapis.com
+
+# --- Meta (CAPI) ---
+graph.facebook.com
+
+# --- Serviços contratados ---
+api.trello.com
+app.clicksign.com
+sandbox.clicksign.com
+sandbox.docusign.net
+demo.docusign.net
+account-d.docusign.com
+account.docusign.com
+na1.docusign.net
+www.docusign.net
+
+# --- Package registries (dependências, read-only) ---
+registry.npmjs.org
+pypi.org
+files.pythonhosted.org
+deb.debian.org
+security.debian.org
+archive.ubuntu.com
+security.ubuntu.com
+docker.io
+registry-1.docker.io
+production.cloudflare.docker.com
+auth.docker.io
+ghcr.io
+
+# --- Rede interna ---
+127.0.0.1
+localhost
+10.0.0.0/8
+172.16.0.0/12
+192.168.0.0/16

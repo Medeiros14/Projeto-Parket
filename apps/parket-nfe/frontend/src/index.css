@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Sistema Operacional Parket — identidade visual global ──────────
+   Cores armazenadas como TRIPLETAS RGB (sem rgb()) pra Tailwind compor
+   alpha via `bg-hb-bg/15` etc. — vide tailwind.config.js. */
+
+:root {
+  /* DARK (default) — Preto Navona como fundo.
+     Valores derivados das opacidades canônicas do Sistema OP Parket
+     (vide sistema-op-parket/src/app/components/gestao/theme.ts) pré-mistura
+     sobre #050505 — garante igual percepção visual mesmo onde alpha não é
+     aplicado em tempo de render. */
+  --hb-bg:          5 5 5;
+  --hb-sidebar:     4 4 4;        /* SO Parket sidebarBg */
+  --hb-header:      5 5 5;        /* SO Parket headerBg @ 0.96 over preto */
+  --hb-panel:      10 10 10;      /* cardBg = rgba(D8D3C7, 0.025) over bg */
+  --hb-panelLight: 15 15 14;      /* cardHover = rgba(D8D3C7, 0.048) over bg */
+  --hb-border:     22 21 21;      /* border = rgba(D8D3C7, 0.08) over bg */
+  --hb-borderHover: 43 42 40;     /* borderHover = rgba(D8D3C7, 0.18) over bg */
+  --hb-inputBg:    13 13 13;      /* inputBg = rgba(D8D3C7, 0.04) over bg */
+  --hb-statBg:      9  9  9;      /* statBg = rgba(D8D3C7, 0.02) over bg */
+  --hb-text:       216 211 199;   /* Bege Travertino */
+  --hb-textDim:    119 115 106;   /* Cinza Pedra */
+  --hb-textMuted:  56 55 50;      /* textMuted = rgba(77736A, 0.45) over bg */
+  --hb-accent:     150 132 115;   /* Chai */
+  --hb-cream:      200 189 177;
+  --hb-walnut:     96 84 77;
+  --hb-gold:       200 189 177;   /* alias do cream */
+  /* Status semânticos — agora em tons SO Parket (monocromático earthy).
+     Mantêm distinção entre positivo/negativo/warning/info mas tudo dentro
+     da paleta brand. */
+  --hb-green:      100 93 59;        /* Olive — positivo/ganho */
+  --hb-red:        134 105 95;       /* Walnut clareado — perda/negativo */
+  --hb-amber:      134 131 101;      /* Shadow — warning/follow-up */
+  --hb-blue:       145 156 157;      /* Morning Blue — neutro/info (mais claro no dark) */
+
+  /* Paleta acentos brand — usada em gráficos, números, KPIs (mesma em light/dark) */
+  --hb-moss:           49 51 31;     /* #31331F */
+  --hb-oat:            213 205 188;  /* #D5CDBC */
+  --hb-olive:          100 93 59;    /* #645D3B */
+  --hb-sand:           232 226 218;  /* #E8E2DA */
+  --hb-wood:           214 201 180;  /* #D6C9B4 */
+  --hb-navy:           69 87 99;     /* #455763 */
+  --hb-whiteChocolate: 235 229 220;  /* #EBE5DC */
+  --hb-morningBlue:    145 156 157;  /* #919C9D */
+  --hb-shadow:         134 131 101;  /* #868365 */
+  --hb-raisinBlack:    36 34 30;     /* #24221E */
+
+  --hb-scroll-track: #050505;
+  --hb-scroll-thumb: rgba(216,211,199,0.10);
+  --hb-scroll-thumb-hover: rgba(216,211,199,0.22);
+}
+
+:root.light {
+  /* LIGHT — alinhado ao Sistema Operacional Parket (Manual de Marca Navona).
+     Bege Travertino #D8D3C7 fundo · Off White Mineral #F3F0E8 cards.
+     Valores pré-misturados das opacidades canônicas (sistema-op-parket
+     theme.ts light) sobre o bege travertino — garante visual idêntico ao
+     SO Parket mesmo em utilities que não compõem alpha em tempo de render. */
+  --hb-bg:         216 211 199;    /* #D8D3C7 — Bege Travertino */
+  --hb-sidebar:    203 198 186;    /* #CBC6BA — Sidebar (Manual SO Parket) */
+  --hb-header:     216 211 199;    /* headerBg = bg @ 0.96 over bg → bg */
+  --hb-panel:      231 227 217;    /* cardBg = rgba(F3F0E8, 0.55) over bg */
+  --hb-panelLight: 239 236 227;    /* cardHover = rgba(F3F0E8, 0.85) over bg */
+  --hb-border:     195 190 180;    /* border = rgba(050505, 0.10) over bg */
+  --hb-borderHover: 165 162 152;   /* borderHover = rgba(050505, 0.24) over bg */
+  --hb-inputBg:    232 228 219;    /* inputBg = rgba(F3F0E8, 0.60) over bg */
+  --hb-statBg:     228 224 214;    /* statBg = rgba(F3F0E8, 0.45) over bg */
+  --hb-text:       5 5 5;          /* #050505 — Preto Navona */
+  --hb-textDim:    119 115 106;    /* #77736A — Cinza Pedra */
+  --hb-textMuted:  142 139 131;    /* textMuted = rgba(050505, 0.35) over bg */
+  --hb-accent:     96 84 77;       /* Walnut — mais contraste em bg claro */
+  --hb-cream:      150 132 115;    /* Chai */
+  --hb-walnut:     64 54 47;
+  --hb-gold:       150 132 115;
+  /* Status em tons SO Parket — versão light (mais escuros pra contraste em bege) */
+  --hb-green:      100 93 59;        /* Olive */
+  --hb-red:        96 84 77;         /* Walnut */
+  --hb-amber:      134 131 101;      /* Shadow */
+  --hb-blue:       69 87 99;         /* Navy */
+
+  /* Paleta acentos brand — mesma do dark (cores absolutas) */
+  --hb-moss:           49 51 31;
+  --hb-oat:            213 205 188;
+  --hb-olive:          100 93 59;
+  --hb-sand:           232 226 218;
+  --hb-wood:           214 201 180;
+  --hb-navy:           69 87 99;
+  --hb-whiteChocolate: 235 229 220;
+  --hb-morningBlue:    145 156 157;
+  --hb-shadow:         134 131 101;
+  --hb-raisinBlack:    36 34 30;
+
+  --hb-scroll-track: #D8D3C7;
+  --hb-scroll-thumb: rgba(5,5,5,0.12);       /* + sutil pra acompanhar a borda diluída */
+  --hb-scroll-thumb-hover: rgba(5,5,5,0.24);
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: rgb(var(--hb-bg));
+  color: rgb(var(--hb-text));
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s, color 0.3s;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--hb-scroll-track); }
+::-webkit-scrollbar-thumb { background: var(--hb-scroll-thumb); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--hb-scroll-thumb-hover); }
+
+/* ─── Tipografia SO Parket ────────────────────────────────────────────
+   Identidade Manual de Marca:
+   - Cinzel (display, serif) para títulos, labels uppercase e brand
+   - Inter (sans) pra body, weight 300/400/500 — visual mais leve */
+
+body, #root {
+  font-weight: 400;       /* Inter regular padrão */
+}
+
+/* Títulos sempre em Cinzel com tracking alto */
+h1, h2, h3, h4, .so-title, .font-display, [data-display] {
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+h1 { letter-spacing: 0.18em; }
+
+/* Labels uppercase + tracking — assinatura visual SO Parket.
+   Aplica Cinzel em qualquer label uppercase com tracking aumentado. */
+.uppercase.tracking-wider,
+.uppercase.tracking-widest,
+.uppercase.tracking-\[0\.1em\],
+.uppercase.tracking-\[0\.12em\],
+.uppercase.tracking-\[0\.14em\],
+.uppercase.tracking-\[0\.16em\],
+.uppercase.tracking-\[0\.18em\],
+.uppercase.tracking-\[0\.2em\],
+.uppercase.tracking-\[0\.22em\] {
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: 0.20em;
+  font-weight: 500;
+}
+
+/* Botões em uppercase com tracking — herdam Cinzel automaticamente
+   via regra acima. Garantia extra abaixo. */
+button.uppercase {
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: 0.16em;
+}
+
+/* Números display (KPIs, valores grandes) em Cinzel — identidade SO Parket.
+   `.tabular` mantém alinhamento de tabular-nums; `.font-mono` segue mono. */
+.tabular {
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: 0.04em;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 500;
+}
+
+/* Mono explícito (códigos, IDs, paths) */
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  letter-spacing: 0.02em;
+}
+
+/* Inputs/selects/textareas/buttons com cantos retos */
+input, select, textarea, button {
+  border-radius: 0;
+}
+
+/* Numeric tabulares */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Brilho sutil */
+.glow-up   { text-shadow: 0 0 8px rgba(16,185,129,0.45); }
+.glow-down { text-shadow: 0 0 8px rgba(239,68,68,0.45); }
+
+/* Seleção no accent corrente */
+::selection { background: rgb(var(--hb-accent) / 0.4); color: rgb(var(--hb-text)); }

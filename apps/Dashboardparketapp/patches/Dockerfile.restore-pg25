@@ -1,0 +1,7 @@
+FROM parket-dashboard:golden-complete
+COPY propostaGenerator-PGSTRUCT25.js /usr/share/nginx/html/assets/propostaGenerator-PGSTRUCT25.js
+RUN find /usr/share/nginx/html -type f \( -name "*.html" -o -name "*.js" \) -exec sed -i 's|propostaGenerator-PGSTRUCT2[0-4]\.js|propostaGenerator-PGSTRUCT25.js|g' {} +
+RUN sed -i "s|'/assets/propostaGenerator-PGSTRUCT2[0-4].js'|'/assets/propostaGenerator-PGSTRUCT25.js'|g" /usr/share/nginx/html/index.html
+RUN sed -i "s|var CODE_VERSION = '[^']*'|var CODE_VERSION = '20260617-restore-pg25'|" /usr/share/nginx/html/index.html
+EXPOSE 80
+CMD ["nginx","-g","daemon off;"]

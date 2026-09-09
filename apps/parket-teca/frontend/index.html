@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Núcleo Teca · Parket</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Inter:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Aplica tema salvo ANTES do React montar pra evitar flash of unstyled content
+      (function () {
+        var saved = localStorage.getItem("teca-theme");
+        var prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+        var mode = saved === "dark" || saved === "light" ? saved : (prefersLight ? "light" : "dark");
+        document.documentElement.setAttribute("data-theme", mode);
+        document.documentElement.style.colorScheme = mode;
+        document.documentElement.style.background = mode === "light" ? "#F5F2EA" : "#050505";
+      })();
+    </script>
+    <style>
+      html, body, #root { height: 100%; margin: 0; padding: 0; }
+      * { box-sizing: border-box; }
+
+      /* Tipografia consistente Mac/Windows: força Inter (Windows cairia em
+         Segoe UI, peso/escala diferentes) + antialiasing uniforme. */
+      html, body, input, button, textarea, select {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     Roboto, Helvetica, Arial, sans-serif;
+        font-feature-settings: "cv11", "ss01", "ss03";
+      }
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      }
+
+      /* Scrollbar fina e discreta (Windows default é largo e chapado). */
+      * { scrollbar-width: thin; scrollbar-color: rgba(127,127,127,0.35) transparent; }
+      *::-webkit-scrollbar { width: 8px; height: 8px; }
+      *::-webkit-scrollbar-track { background: transparent; }
+      *::-webkit-scrollbar-thumb {
+        background: rgba(127,127,127,0.35);
+        border-radius: 8px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      *::-webkit-scrollbar-thumb:hover { background: rgba(127,127,127,0.55); background-clip: padding-box; }
+      *::-webkit-scrollbar-corner { background: transparent; }
+
+      /* Escala fluida por largura de tela (notebook 11" → TV 4K).
+         Baseline (zoom 1) = monitores 1600–2999px. Celular (<640px) fora. */
+      /* --pkz espelha o valor do zoom: Chrome NÃO compensa unidades vh dentro
+         de zoom (100vh continua sendo a viewport crua e depois é multiplicada
+         pelo zoom), então h-screen/min-h-screen renderizam só 78%/70% da tela
+         e sobra um vão vazio embaixo com o conteúdo cortado no meio.
+         Re-ancorar em calc(100vh / --pkz) devolve a altura real da tela. */
+      @media (min-width: 640px) and (max-width: 1599px) { :root { --pkz: 0.92; } body { zoom: 0.92; } }
+      @media (min-width: 640px) and (max-width: 1439px) { :root { --pkz: 0.85; } body { zoom: 0.85; } }
+      @media (min-width: 640px) and (max-width: 1280px) { :root { --pkz: 0.78; } body { zoom: 0.78; } }
+      @media (min-width: 640px) and (max-width: 1100px) { :root { --pkz: 0.70; } body { zoom: 0.70; } }
+      @media (min-width: 3000px) { :root { --pkz: 1.45; } body { zoom: 1.45; } }
+      .h-screen { height: calc(100vh / var(--pkz, 1)) !important; }
+      .min-h-screen { min-height: calc(100vh / var(--pkz, 1)) !important; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- Chat Parket entre setores: widget flutuante servido pelo parket-chat -->
+    <script src="https://server.parket.works/app.js" data-parket-chat data-api="https://server.parket.works" defer></script>
+  </body>
+</html>

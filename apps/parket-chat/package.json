@@ -1,0 +1,31 @@
+{
+  "name": "parket-chat",
+  "version": "1.0.0",
+  "description": "Chat entre setores da Parket — backend único de mensagens + widget embutível",
+  "main": "server/index.js",
+  "scripts": {
+    "build": "esbuild src/main.jsx --bundle --minify --outfile=public/app.js --define:process.env.NODE_ENV='\"production\"' --loader:.jsx=jsx && esbuild src/chatapp.jsx --bundle --minify --outfile=public/chat.js --define:process.env.NODE_ENV='\"production\"' --loader:.jsx=jsx",
+    "start": "npm run build && node server/index.js",
+    "test": "playwright test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.5.0",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.22.0",
+    "socket.io": "^4.8.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "esbuild": "^0.24.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "socket.io-client": "^4.8.0"
+  }
+}

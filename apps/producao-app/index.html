@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <title>Produção Parket · PCP Arvo</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("producao-theme");
+          document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+        } catch (e) { document.documentElement.setAttribute("data-theme", "dark"); }
+      })();
+    </script>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      /* Pré-hidratação SO Parket: bg + color respeita data-theme antes do React montar. */
+      html[data-theme="dark"], html[data-theme="dark"] body { background: #050505; color: #D8D3C7; }
+      html[data-theme="light"], html[data-theme="light"] body { background: #D8D3C7; color: #050505; }
+      #root { height: 100%; }
+
+      /* Tipografia consistente em Mac/Windows/Linux.
+         Inter é a base — Windows render por padrão usa Segoe UI (Latin-only,
+         peso diferente, escala diferente). Forçando Inter via CSS resolve. */
+      html, body, input, button, textarea, select {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     Roboto, Helvetica, Arial, sans-serif;
+        font-feature-settings: "cv11", "ss01", "ss03";  /* Inter glyph tweaks */
+      }
+
+      /* Anti-aliasing: macOS já faz subpixel; Windows ClearType deixa fonte
+         "gorda". Antialiased uniformiza visual. */
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      }
+
+      /* Scrollbar fina e discreta (Mac é overlay, Windows default é largo).
+         Estilo Firefox + WebKit (Chromium/Edge). */
+      * { scrollbar-width: thin; scrollbar-color: rgba(127,127,127,0.35) transparent; }
+      *::-webkit-scrollbar { width: 8px; height: 8px; }
+      *::-webkit-scrollbar-track { background: transparent; }
+      *::-webkit-scrollbar-thumb {
+        background: rgba(127,127,127,0.35);
+        border-radius: 8px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      *::-webkit-scrollbar-thumb:hover { background: rgba(127,127,127,0.55); background-clip: padding-box; }
+      *::-webkit-scrollbar-corner { background: transparent; }
+
+      /* Escala fluida por largura de tela (notebook 11" → TV 4K).
+         zoom mantém o layout inteiro proporcional — baseline (zoom 1) são
+         monitores 1600–2999px (24"/27"), onde o layout foi desenhado.
+         Telas menores encolhem tudo um pouco (cabe mais, sem cortar);
+         TVs 4K ampliam pra não ficar minúsculo. */
+      /* Guarda min-width 640px: celular fica fora (layouts mobile próprios,
+         zoom encolheria o /solicitar no telefone). */
+      /* --pkz espelha o valor do zoom: Chrome NÃO compensa unidades vh dentro
+         de zoom (100vh continua sendo a viewport crua e depois é multiplicada
+         pelo zoom), então h-screen/min-h-screen renderizam só 78%/70% da tela
+         e sobra um vão vazio embaixo com o conteúdo cortado no meio.
+         Re-ancorar em calc(100vh / --pkz) devolve a altura real da tela. */
+      @media (min-width: 640px) and (max-width: 1599px) { :root { --pkz: 0.92; } body { zoom: 0.92; } }
+      @media (min-width: 640px) and (max-width: 1439px) { :root { --pkz: 0.85; } body { zoom: 0.85; } }
+      @media (min-width: 640px) and (max-width: 1280px) { :root { --pkz: 0.78; } body { zoom: 0.78; } }
+      @media (min-width: 640px) and (max-width: 1100px) { :root { --pkz: 0.70; } body { zoom: 0.70; } }
+      @media (min-width: 3000px) { :root { --pkz: 1.45; } body { zoom: 1.45; } }
+      .h-screen { height: calc(100vh / var(--pkz, 1)) !important; }
+      .min-h-screen { min-height: calc(100vh / var(--pkz, 1)) !important; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- Chat Parket entre setores: widget flutuante servido pelo parket-chat -->
+    <script src="https://server.parket.works/app.js" data-parket-chat data-api="https://server.parket.works" defer></script>
+  </body>
+</html>

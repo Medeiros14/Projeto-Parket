@@ -1,0 +1,39 @@
+/* =====================================================================
+   MONITOR PARKET: tema dark Navona (PARKET_DESIGN_SYSTEM.md)
+   Preto Navona #050505 / Bege Travertino #D8D3C7 / Cinza Pedra #77736A
+   ===================================================================== */
+
+:root {
+  --bg: #050505;
+  --card-bg: rgba(216, 211, 199, 0.025);
+  --card-hover: rgba(216, 211, 199, 0.048);
+  --border: rgba(216, 211, 199, 0.08);
+  --border-hover: rgba(216, 211, 199, 0.18);
+  --text-primary: #d8d3c7;
+  --text-secondary: #77736a;
+  --text-muted: rgba(119, 115, 106, 0.45);
+
+  /* Cores semanticas de status (tons suaves pra combinar com Navona) */
+  --ok: #6fa97c;
+  --warn: #c9a25e;
+  --down: #c46a5a;
+  --nodata: rgba(216, 211, 199, 0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Cinzel e SEMPRE uppercase (regra de ouro do design system) */
+.cinzel {
+  font-family: 'Cinzel', serif;
+  text-transform: uppercase;
+}

@@ -1,0 +1,3015 @@
+/**
+ * Tracking — app de cadência estilo Tinder pra vendedores Parket.
+ * Visual: identidade Sistema Operacional Parket (Cinzel + Inter, paleta bege/preto,
+ * bordas finas, tipografia tracking ALTO, sem cantos arredondados).
+ * Tema dark/light com toggle persistido em localStorage.
+ * Fila inclui: cards onde responsavel=eu + cards onde tenho agendamento ativo.
+ * Rotas: /tracking (vendedor) e /tracking/admin (gestor).
+ */
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Phone, MessageCircle, Flame, X, Check, ArrowLeft, ArrowRight, Loader2,
+  ShieldCheck, MapPin, Ruler, Briefcase, ChevronDown, CalendarClock,
+  ExternalLink, Trophy, XCircle, Users, RefreshCw, Sun, Moon, Calendar, Video, Bot, Sparkles,
+  ListTodo, Calculator, Plus, LayoutList, ChevronsLeftRight,
+} from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import type { AppUser } from "../../lib/auth";
+import { fmtRelative, parseValueText, fmtBRL } from "../../lib/format";
+import { api, type AgendaTarefa, type CarteiraParceiro } from "../../lib/api";
+import { SolicitarOrcamentoModal } from "./SolicitarOrcamentoModal";
+import { TarefaModal } from "./AgendaTarefasPanel";
+import { classificarNivel, type NivelLead } from "../../lib/lead-nivel";
+
+// ─── Identidade visual Sistema Operacional Parket ──────────────────────
+const FONT_DISPLAY = "'Cinzel', serif";
+const FONT_BODY    = "'Inter', sans-serif";
+
+// Cores brand — fixas em qualquer modo (mesma estratégia do SO Parket).
+const CREAM  = "#C8BDB1";
+const CHAI   = "#968473";
+const WALNUT = "#60544D";
+
+type Theme = {
+  bg: string; surface: string; surfaceHover: string;
+  border: string; borderHover: string;
+  textPrimary: string; textSecondary: string; textMuted: string;
+  // Cor que combina com bg pra usar como "foreground" em botões primary.
+  onPrimary: string;
+};
+
+const DARK: Theme = {
+  bg: "#050505",
+  surface: "rgba(216,211,199,0.025)",
+  surfaceHover: "rgba(216,211,199,0.048)",
+  border: "rgba(216,211,199,0.08)",
+  borderHover: "rgba(216,211,199,0.18)",
+  textPrimary: "#D8D3C7",
+  textSecondary: "#77736A",
+  textMuted: "rgba(119,115,106,0.55)",
+  onPrimary: "#050505",
+};
+
+const LIGHT: Theme = {
+  bg: "#D8D3C7",
+  surface: "rgba(243,240,232,0.55)",
+  surfaceHover: "rgba(243,240,232,0.92)",
+  border: "rgba(5,5,5,0.10)",
+  borderHover: "rgba(5,5,5,0.26)",
+  textPrimary: "#050505",
+  textSecondary: "#5C5950",
+  textMuted: "rgba(5,5,5,0.40)",
+  onPrimary: "#F3F0E8",
+};
+
+type Mode = "dark" | "light";
+const STORAGE_KEY = "parket.tracking.theme";
+
+const ThemeCtx = createContext<{ T: Theme; mode: Mode; toggle: () => void }>({
+  T: DARK, mode: "dark", toggle: () => {},
+});
+const useTheme = () => useContext(ThemeCtx);
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [mode, setMode] = useState<Mode>(() => {
+    if (typeof window === "undefined") return "dark";
+    return (localStorage.getItem(STORAGE_KEY) as Mode) || "dark";
+  });
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, mode); } catch {} }, [mode]);
+  const T = mode === "dark" ? DARK : LIGHT;
+  const toggle = () => setMode((m) => (m === "dark" ? "light" : "dark"));
+  return <ThemeCtx.Provider value={{ T, mode, toggle }}>{children}</ThemeCtx.Provider>;
+}
+
+// Meta visual da temperatura — recebe T + mode pra adaptar ao tema atual.
+function getNivelMeta(T: Theme, mode: Mode): Record<NivelLead, { color: string; bg: string; border: string; label: string; mark: string }> {
+  const accent = mode === "light" ? WALNUT : CREAM;
+  return {
+    quente: { color: accent,          bg: `${WALNUT}40`, border: WALNUT, label: "LEAD QUENTE", mark: "▲" },
+    morno:  { color: accent,          bg: `${CHAI}28`,   border: CHAI,   label: "LEAD MORNO",  mark: "●" },
+    frio:   { color: T.textSecondary, bg: T.surface,     border: T.border, label: "LEAD FRIO",   mark: "○" },
+    sem:    { color: T.textMuted,     bg: "transparent", border: T.border, label: "SEM NÍVEL",   mark: "—" },
+  };
+}
+
+const DEPT = "comercial";
+
+const ACTIVE_STAGES = [
+  "novas-oportunidades",
+  "contato-inicial",
+  "em-briefing",
+  "criacao-orcamento",
+  "apresentacao-proposta",
+  "em-negociacao",
+] as const;
+type Stage = (typeof ACTIVE_STAGES)[number];
+
+const STAGE_LABEL: Record<string, string> = {
+  "novas-oportunidades": "Novas Oportunidades",
+  "contato-inicial": "Contato Inicial",
+  "em-briefing": "Em Briefing",
+  "criacao-orcamento": "Criação de Orçamento",
+  "apresentacao-proposta": "Apresentação · Proposta",
+  "em-negociacao": "Em Negociação",
+  "ganho": "Ganho",
+  "perda": "Perda",
+};
+
+const NEXT_STAGE: Record<string, Stage | "ganho"> = {
+  "novas-oportunidades": "contato-inicial",
+  "contato-inicial": "em-briefing",
+  "em-briefing": "criacao-orcamento",
+  "criacao-orcamento": "apresentacao-proposta",
+  "apresentacao-proposta": "em-negociacao",
+  "em-negociacao": "ganho",
+};
+
+const NEXT_LABEL: Record<string, string> = {
+  "novas-oportunidades": "MATCH · CONTATO INICIAL",
+  "contato-inicial": "AVANÇAR · EM BRIEFING",
+  "em-briefing": "AVANÇAR · CRIAÇÃO DE ORÇAMENTO",
+  "criacao-orcamento": "AVANÇAR · APRESENTAÇÃO",
+  "apresentacao-proposta": "AVANÇAR · EM NEGOCIAÇÃO",
+  "em-negociacao": "MARCAR COMO GANHO",
+};
+
+const CADENCIA_STAGES: Stage[] = ["apresentacao-proposta", "em-negociacao"];
+
+// Ação aguardando confirmação com observação opcional.
+type PendingAction = {
+  kind: "match" | "cadencia" | "move" | "win" | "lost";
+  label: string;        // título do form (ex: "MATCH · CONTATO INICIAL")
+  hint?: string;        // placeholder do textarea
+  variant: "primary" | "walnut";  // cor do botão CONFIRMAR
+  exec: (obs?: string) => Promise<void> | void;
+};
+
+type TrackingCard = {
+  id: string;
+  title: string | null;
+  responsavel: string | null;
+  column_id: string;
+  dept_id: string;
+  value: string | null;
+  tags: string[] | null;
+  created_at: string;
+  updated_at: string | null;
+  details: any;
+};
+
+type Agendamento = {
+  id: string;
+  card_id: string | null;
+  vendedor: string;
+  data: string;             // YYYY-MM-DD
+  hora_inicio: string;      // HH:MM:SS
+  hora_fim: string | null;
+  modalidade: "meet" | "presencial";
+  meet_link: string | null;
+  endereco: string | null;
+  cliente_nome: string | null;
+  observacoes: string | null;
+  status: string;
+};
+
+// ────────────────────────────────────────────────────────────────────────
+// Page wrappers: aplicam ThemeProvider
+// ────────────────────────────────────────────────────────────────────────
+export function TrackingPage({ appUser }: { appUser: AppUser }) {
+  return <ThemeProvider><TrackingInner appUser={appUser} /></ThemeProvider>;
+}
+export function TrackingAdminPage({ appUser }: { appUser: AppUser }) {
+  return <ThemeProvider><TrackingAdminInner appUser={appUser} /></ThemeProvider>;
+}
+export function TrackingAgendaPage({ appUser }: { appUser: AppUser }) {
+  return <ThemeProvider><TrackingAgendaInner appUser={appUser} /></ThemeProvider>;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// /tracking — swipe do vendedor
+// ────────────────────────────────────────────────────────────────────────
+type TrackingTab = "fila" | "pipeline" | "tarefas" | "carteira";
+
+function TrackingInner({ appUser }: { appUser: AppUser }) {
+  const { T } = useTheme();
+  const [cards, setCards] = useState<TrackingCard[]>([]);
+  const [ags, setAgs] = useState<Map<string, Agendamento[]>>(new Map()); // card_id → agendamentos
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [idx, setIdx] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  // Nova: tab atual (Fila/Clientes/Tarefas/Carteira). Persiste em localStorage.
+  const [tab, setTab] = useState<TrackingTab>(() => (localStorage.getItem("hb-tracking-tab") as TrackingTab) || "fila");
+  useEffect(() => { localStorage.setItem("hb-tracking-tab", tab); }, [tab]);
+
+  const isAdmin = appUser.isGestor || appUser.canSeeAll;
+  const nome = appUser.nome || "";
+
+  const reload = async () => {
+    if (!nome) { setErr("Seu usuário não tem nome cadastrado."); setLoading(false); return; }
+    setLoading(true);
+    try {
+      // 1) Cards onde EU sou responsável
+      const cardsByResp = supabase
+        .from("kanban_cards")
+        .select("id, title, responsavel, column_id, dept_id, value, tags, created_at, updated_at, details")
+        .eq("dept_id", DEPT)
+        .in("column_id", ACTIVE_STAGES as unknown as string[])
+        .eq("responsavel", nome)
+        .limit(500);
+
+      // 2) Agendamentos meus de hoje em diante (não cancelados)
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const todayYmd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const agsQuery = supabase
+        .from("agendamentos")
+        .select("id, card_id, vendedor, data, hora_inicio, hora_fim, modalidade, meet_link, endereco, cliente_nome, observacoes, status")
+        .eq("vendedor", nome)
+        .neq("status", "cancelado")
+        .gte("data", todayYmd)
+        .order("data", { ascending: true })
+        .order("hora_inicio", { ascending: true })
+        .limit(500);
+
+      const [respR, agsR] = await Promise.all([cardsByResp, agsQuery]);
+      if (respR.error) throw respR.error;
+      if (agsR.error) throw agsR.error;
+
+      const cardsFromResp = (respR.data as TrackingCard[]) || [];
+      const agsData = (agsR.data as Agendamento[]) || [];
+
+      // Map agendamentos por card_id
+      const agsByCard = new Map<string, Agendamento[]>();
+      const extraCardIds = new Set<string>();
+      const haveCardIds = new Set(cardsFromResp.map((c) => c.id));
+      agsData.forEach((a) => {
+        if (!a.card_id) return;
+        const arr = agsByCard.get(a.card_id) || [];
+        arr.push(a);
+        agsByCard.set(a.card_id, arr);
+        if (!haveCardIds.has(a.card_id)) extraCardIds.add(a.card_id);
+      });
+
+      // 3) Buscar cards extra (que tenho agendamento mas não sou responsavel)
+      let extraCards: TrackingCard[] = [];
+      if (extraCardIds.size > 0) {
+        const r2 = await supabase
+          .from("kanban_cards")
+          .select("id, title, responsavel, column_id, dept_id, value, tags, created_at, updated_at, details")
+          .eq("dept_id", DEPT)
+          .in("column_id", ACTIVE_STAGES as unknown as string[])
+          .in("id", [...extraCardIds])
+          .limit(500);
+        if (r2.error) throw r2.error;
+        extraCards = (r2.data as TrackingCard[]) || [];
+      }
+
+      // Merge + ordenação: cards com agendamento HOJE primeiro, depois pelos com
+      // agendamento futuro, depois pelo updated_at mais antigo.
+      const all = [...cardsFromResp, ...extraCards];
+      const score = (c: TrackingCard) => {
+        const a = agsByCard.get(c.id)?.[0];
+        if (!a) return 9_999_999_999_999;
+        if (a.data === todayYmd) return 0; // top
+        return new Date(a.data + "T00:00:00").getTime();
+      };
+      all.sort((a, b) => {
+        const sa = score(a), sb = score(b);
+        if (sa !== sb) return sa - sb;
+        return (a.updated_at || "").localeCompare(b.updated_at || "");
+      });
+
+      setCards(all);
+      setAgs(agsByCard);
+      setErr(null);
+    } catch (e: any) {
+      setErr(e?.message || String(e)); setCards([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nome]);
+  useEffect(() => { setShowMoveMenu(false); setPendingAction(null); }, [idx]);
+
+  const removeCurrentAndAdvance = () => {
+    setCards((prev) => prev.filter((_, i) => i !== idx));
+    setIdx((i) => Math.max(0, Math.min(i, cards.length - 2)));
+  };
+
+  // Helper: empilha obs em details.observacoes_tracking[]
+  function buildDetailsWithObs(curr: any, entry: {
+    kind: "match" | "cadencia" | "move" | "win" | "lost";
+    fromColumn: string; toColumn: string | null; text: string | null;
+  }) {
+    const list = Array.isArray(curr?.observacoes_tracking) ? curr.observacoes_tracking : [];
+    const newEntry = {
+      at: new Date().toISOString(),
+      by: nome,
+      kind: entry.kind,
+      from_column: entry.fromColumn,
+      to_column: entry.toColumn,
+      text: entry.text || null,
+    };
+    return { list: [...list, newEntry], entry: newEntry };
+  }
+
+  const moveTo = async (toColumn: string, obs?: string, extraDetails?: Record<string, any>) => {
+    const c = cards[idx]; if (!c) return;
+    setBusy(true);
+    try {
+      const kind = toColumn === "ganho" ? "win" : "move";
+      const { list } = buildDetailsWithObs(c.details, { kind, fromColumn: c.column_id, toColumn, text: obs || null });
+      const nextDetails = { ...(c.details || {}), observacoes_tracking: list, ...(extraDetails || {}) };
+      const r = await supabase.from("kanban_cards").update({ column_id: toColumn, details: nextDetails }).eq("id", c.id);
+      if (r.error) { alert("Erro: " + r.error.message); return; }
+      await supabase.from("card_movements").insert({
+        card_id: c.id, from_column: c.column_id, to_column: toColumn,
+        moved_by: nome, moved_at: new Date().toISOString(),
+      });
+      removeCurrentAndAdvance();
+    } finally { setBusy(false); }
+  };
+
+  const markCadencia = async (obs?: string) => {
+    const c = cards[idx]; if (!c) return;
+    setBusy(true);
+    try {
+      const { list } = buildDetailsWithObs(c.details, { kind: "cadencia", fromColumn: c.column_id, toColumn: null, text: obs || null });
+      const nextDetails = {
+        ...(c.details || {}),
+        cadencia_ultima_at: new Date().toISOString(),
+        cadencia_ultima_por: nome,
+        cadencia_ultima_obs: obs || null,
+        observacoes_tracking: list,
+      };
+      const r = await supabase.from("kanban_cards").update({ details: nextDetails }).eq("id", c.id);
+      if (r.error) { alert("Erro: " + r.error.message); return; }
+      removeCurrentAndAdvance();
+    } finally { setBusy(false); }
+  };
+
+  const matchHot = async (obs?: string) => {
+    const c = cards[idx]; if (!c) return;
+    setBusy(true);
+    try {
+      const tagsSet = new Set([...(c.tags || []), "quente"]);
+      const { list } = buildDetailsWithObs(c.details, { kind: "match", fromColumn: c.column_id, toColumn: "contato-inicial", text: obs || null });
+      const nextDetails = { ...(c.details || {}), observacoes_tracking: list };
+      const r = await supabase
+        .from("kanban_cards")
+        .update({ column_id: "contato-inicial", tags: [...tagsSet], details: nextDetails })
+        .eq("id", c.id);
+      if (r.error) { alert("Erro: " + r.error.message); return; }
+      await supabase.from("card_movements").insert({
+        card_id: c.id, from_column: c.column_id, to_column: "contato-inicial",
+        moved_by: nome, moved_at: new Date().toISOString(),
+      });
+      removeCurrentAndAdvance();
+    } finally { setBusy(false); }
+  };
+
+  const markLost = async (obs?: string) => {
+    const c = cards[idx]; if (!c) return;
+    setBusy(true);
+    try {
+      const reason = obs || null;
+      const { list } = buildDetailsWithObs(c.details, { kind: "lost", fromColumn: c.column_id, toColumn: "perda", text: reason || null });
+      const nextDetails = {
+        ...(c.details || {}),
+        motivo_perda: reason || null,
+        perda_em: new Date().toISOString(),
+        perda_por: nome,
+        observacoes_tracking: list,
+      };
+      const r = await supabase
+        .from("kanban_cards")
+        .update({ column_id: "perda", details: nextDetails })
+        .eq("id", c.id);
+      if (r.error) { alert("Erro: " + r.error.message); return; }
+      await supabase.from("card_movements").insert({
+        card_id: c.id, from_column: c.column_id, to_column: "perda",
+        moved_by: nome, moved_at: new Date().toISOString(),
+      });
+      removeCurrentAndAdvance();
+    } finally { setBusy(false); }
+  };
+
+  const skip = () => {
+    if (idx + 1 >= cards.length) setIdx(0);
+    else setIdx((i) => i + 1);
+  };
+
+  if (loading) return <Boot label="Carregando fila" />;
+  if (err) return <Boot label={err} variant="error" />;
+
+  const current = cards[idx];
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0,
+      backgroundColor: T.bg, color: T.textPrimary,
+      fontFamily: FONT_BODY,
+      display: "flex", flexDirection: "column",
+      overscrollBehavior: "contain",
+      transition: "background 0.35s, color 0.35s",
+    }}>
+      <PageHeader title={`TRACKING · ${nome.toUpperCase()}`} sub={
+        tab === "fila"     ? `${String(cards.length).padStart(2, "0")} CARDS NA FILA` :
+        tab === "pipeline" ? `${String(cards.length).padStart(2, "0")} CLIENTES NO PIPELINE` :
+        tab === "tarefas"  ? "MINHAS TAREFAS" :
+        "CARTEIRA DE PARCEIROS"
+      }
+        right={
+          <>
+            <ThemeToggle />
+            <IconButton onClick={reload} title="Recarregar"><RefreshCw size={11} /></IconButton>
+            <LinkButton to="/tracking/agenda" icon={<Calendar size={10} />}>AGENDA</LinkButton>
+            {isAdmin && <LinkButton to="/tracking/admin">ADMIN</LinkButton>}
+            <LinkButton to="/" muted>SAIR</LinkButton>
+          </>
+        }
+        extra={<TabsBar tab={tab} onChange={setTab} T={T} />}
+      />
+
+      <InstallPrompt />
+      <TarefasVendedorBar nome={nome} />
+
+      {tab === "fila" && (!current ? (
+        <FilaZerada onReload={reload} />
+      ) : (
+        <CardSwipe
+          card={current}
+          ags={ags.get(current.id) || []}
+          idx={idx}
+          total={cards.length}
+          busy={busy}
+          showMoveMenu={showMoveMenu}
+          setShowMoveMenu={setShowMoveMenu}
+          pendingAction={pendingAction}
+          setPendingAction={setPendingAction}
+          onMoveTo={moveTo}
+          onMatchHot={matchHot}
+          onMarkCadencia={markCadencia}
+          onMarkLost={markLost}
+          onSkip={skip}
+          onPrev={() => setIdx((i) => Math.max(0, i - 1))}
+          onNext={() => setIdx((i) => Math.min(cards.length - 1, i + 1))}
+          onCardDetailsUpdated={(newDetails) => {
+            setCards((prev) => prev.map((c, i) => i === idx ? { ...c, details: newDetails } : c));
+          }}
+        />
+      ))}
+      {tab === "pipeline" && <PipelineView cards={cards} appUser={appUser} T={T} />}
+      {tab === "tarefas"  && <TarefasView appUser={appUser} T={T} />}
+      {tab === "carteira" && <CarteiraView appUser={appUser} T={T} />}
+    </div>
+  );
+}
+
+function TabsBar({ tab, onChange, T }: { tab: TrackingTab; onChange: (t: TrackingTab) => void; T: Theme }) {
+  const TABS: { key: TrackingTab; label: string; icon: any }[] = [
+    { key: "fila",     label: "FILA",     icon: ChevronsLeftRight },
+    { key: "pipeline", label: "PIPELINE", icon: LayoutList },
+    { key: "tarefas",  label: "TAREFAS",  icon: ListTodo },
+    { key: "carteira", label: "CARTEIRA", icon: Users },
+  ];
+  return (
+    <div style={{ display: "flex", gap: 0, borderTop: `1px solid ${T.border}` }}>
+      {TABS.map((t) => {
+        const active = tab === t.key;
+        const Icon = t.icon;
+        return (
+          <button key={t.key} onClick={() => onChange(t.key)}
+            style={{
+              flex: 1, padding: "10px 14px",
+              background: active ? T.surfaceHover : "transparent",
+              borderBottom: active ? `2px solid ${T.textPrimary}` : "2px solid transparent",
+              color: active ? T.textPrimary : T.textSecondary,
+              fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.18em",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              cursor: "pointer", transition: "all 0.15s",
+            }}>
+            <Icon size={11} /> {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Card swipe ─────────────────────────────────────────────────────────
+function CardSwipe(props: {
+  card: TrackingCard; ags: Agendamento[];
+  idx: number; total: number; busy: boolean;
+  showMoveMenu: boolean; setShowMoveMenu: (v: boolean) => void;
+  pendingAction: PendingAction | null;
+  setPendingAction: (a: PendingAction | null) => void;
+  onMoveTo: (col: string, obs?: string) => Promise<void> | void;
+  onMatchHot: (obs?: string) => Promise<void> | void;
+  onMarkCadencia: (obs?: string) => Promise<void> | void;
+  onMarkLost: (obs?: string) => Promise<void> | void;
+  onSkip: () => void; onPrev: () => void; onNext: () => void;
+  onCardDetailsUpdated: (newDetails: any) => void;
+}) {
+  const { T, mode } = useTheme();
+  const { card, ags, idx, total, busy } = props;
+  const det = card.details || {};
+  const stage = card.column_id;
+  const stageLabel = (STAGE_LABEL[stage] || stage).toUpperCase();
+
+  const phone = (det.celular || det.telefone || det.contato_principal || "").toString().replace(/\D/g, "");
+  const phoneIntl = phone.startsWith("55") ? phone : phone ? "55" + phone : "";
+
+  const nome = det.contato_principal || det.nome || card.title || "(sem nome)";
+  const cidade = det.cidade || "";
+  const estado = det.estado || "";
+  const produto = det.produto_interesse || "";
+  const metragem = det.metragem_estimada || det.area_m2 || det.metragem;
+  const faixa = det.faixa_investimento || "";
+  const valorEnviado = det.valor_orcamento_enviado || card.value || "";
+  const valor = parseValueText(valorEnviado);
+  const empresa = det.empresa_contato || det.empresa_lead || det.escritorio_empresa;
+  const ultima = det.cadencia_ultima_at || card.updated_at;
+  const resumo = det.resumo_qualificacao;
+  const overviewIA = det.overview_ia;
+
+  const relacao = det.relacao_obra;
+  const prazo = det.previsao_instalacao || det.prazo || det.previsao;
+  const madeira = det.preferencia_madeira;
+  const arquitetura = det.arquitetura;
+  const escritorio = det.escritorio_empresa && det.escritorio_empresa !== empresa ? det.escritorio_empresa : null;
+  const endereco = det.endereco_obra;
+
+  const { nivel, fonte: nivelFonte } = classificarNivel({
+    valor, slug: stage, ultimaMsgAt: card.updated_at,
+    tags: card.tags, det, aguardando: false,
+  });
+  const NIVEL_META = getNivelMeta(T, mode);
+  const nivelMeta = NIVEL_META[nivel];
+
+  const isNova = stage === "novas-oportunidades";
+  const isCadencia = (CADENCIA_STAGES as string[]).includes(stage);
+  const canMoveNext = !!NEXT_STAGE[stage];
+
+  // Próximo agendamento — exibido em destaque se for hoje
+  const proxAg = ags[0];
+  const todayYmd = (() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const agHoje = proxAg?.data === todayYmd;
+
+  return (
+    <>
+      <div style={{ flex: 1, overflow: "auto", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ maxWidth: 480, margin: "0 auto", padding: "20px 18px" }}>
+          {/* Índice */}
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em",
+            color: T.textMuted, textTransform: "uppercase", marginBottom: 18,
+          }}>
+            <span>CARD {String(idx + 1).padStart(2, "0")} · {String(total).padStart(2, "0")}</span>
+            <span style={{ fontFamily: FONT_BODY }}>#{card.id.slice(0, 6)}</span>
+          </div>
+
+          {/* Banner AGENDAMENTO HOJE — destaque máximo */}
+          {agHoje && proxAg && (
+            <div style={{
+              marginBottom: 14, padding: "12px 14px",
+              border: `1px solid ${CHAI}`, backgroundColor: `${CHAI}22`,
+              display: "flex", alignItems: "center", gap: 12,
+            }}>
+              <Calendar size={16} color={CHAI} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: CHAI, fontWeight: 700, marginBottom: 2 }}>
+                  AGENDAMENTO HOJE · {proxAg.hora_inicio.slice(0, 5)}
+                </div>
+                <div style={{ fontFamily: FONT_BODY, fontSize: 10, color: T.textPrimary, letterSpacing: "0.04em" }}>
+                  {proxAg.modalidade === "meet" ? "MEET" : "PRESENCIAL"}
+                  {proxAg.endereco && proxAg.modalidade === "presencial" && ` · ${proxAg.endereco}`}
+                </div>
+              </div>
+              {proxAg.modalidade === "meet" && proxAg.meet_link && (
+                <a href={proxAg.meet_link} target="_blank" rel="noreferrer" style={{
+                  padding: "6px 10px", backgroundColor: CHAI, color: T.onPrimary,
+                  textDecoration: "none", fontFamily: FONT_BODY, fontSize: 8,
+                  letterSpacing: "0.20em", fontWeight: 700,
+                  display: "flex", alignItems: "center", gap: 5,
+                }}>
+                  <Video size={11} /> ABRIR
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Etapa + Temperatura */}
+          <div style={{ marginBottom: 14, display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <Pill borderColor={T.borderHover} bg={T.surface}>
+              <div style={{ width: 4, height: 4, backgroundColor: CHAI }} />
+              <span style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.20em", color: mode === "light" ? T.textPrimary : CREAM, fontWeight: 500 }}>
+                {stageLabel}
+              </span>
+            </Pill>
+            <Pill borderColor={nivelMeta.border} bg={nivelMeta.bg} title={nivelFonte === "ia" ? "Classificação IA" : "Heurística"}>
+              <span style={{ color: nivelMeta.color, fontSize: 10, lineHeight: 1 }}>{nivelMeta.mark}</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.20em", color: nivelMeta.color, fontWeight: 500 }}>
+                {nivelMeta.label}
+              </span>
+              {nivelFonte === "ia" && (
+                <span style={{
+                  fontFamily: FONT_BODY, fontSize: 7, letterSpacing: "0.16em",
+                  color: nivelMeta.color, opacity: 0.65, paddingLeft: 4, borderLeft: `1px solid ${nivelMeta.border}`,
+                }}>IA</span>
+              )}
+            </Pill>
+          </div>
+
+          {/* Nome */}
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, letterSpacing: "0.04em", color: T.textPrimary, fontWeight: 500, lineHeight: 1.15 }}>
+              {nome}
+            </div>
+            {empresa && (
+              <div style={{ fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.10em", color: T.textSecondary, marginTop: 4, textTransform: "uppercase" }}>
+                {empresa}
+              </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          {(card.tags?.length ?? 0) > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12, marginBottom: 4 }}>
+              {card.tags!.map((t, i) => {
+                const isHot = /quente|hot|urgent/i.test(t);
+                return (
+                  <span key={i} style={{
+                    fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.12em",
+                    color: isHot ? (mode === "light" ? WALNUT : CREAM) : T.textMuted,
+                    backgroundColor: isHot ? `${WALNUT}40` : `${CREAM}18`,
+                    border: `1px solid ${isHot ? WALNUT : CREAM}50`,
+                    padding: "3px 8px", textTransform: "uppercase",
+                  }}>
+                    {isHot && "▲ "}{t}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* COPILOTO IA — resumo do lead via Claude */}
+          <CopilotoSection card={card} onUpdated={props.onCardDetailsUpdated} />
+
+          {/* RESUMO DO PROJETO */}
+          <SectionHeader label="RESUMO DO PROJETO" />
+          <div>
+            {produto && <InfoRow label="PRODUTO" value={produto} icon={<Briefcase size={9} />} />}
+            {metragem && <InfoRow label="METRAGEM" value={`${metragem} m²`} icon={<Ruler size={9} />} />}
+            {(cidade || estado) && <InfoRow label="LOCAL" value={`${cidade}${estado ? " — " + estado : ""}`} icon={<MapPin size={9} />} />}
+            {relacao && <InfoRow label="RELAÇÃO C/ OBRA" value={relacao} />}
+            {prazo && <InfoRow label="PRAZO" value={prazo} />}
+            {madeira && <InfoRow label="PREF. MADEIRA" value={madeira} />}
+            {arquitetura && <InfoRow label="ARQUITETURA" value={arquitetura} />}
+            {escritorio && <InfoRow label="ESCRITÓRIO" value={escritorio} />}
+            {endereco && <InfoRow label="ENDEREÇO OBRA" value={endereco} multiline />}
+          </div>
+
+          {/* COMERCIAL */}
+          {(valor > 0 || faixa || phoneIntl) && (
+            <>
+              <SectionHeader label="COMERCIAL" />
+              <div>
+                {valor > 0 && <InfoRow label="VALOR NA MESA" value={fmtBRL(valor)} accent />}
+                {!valor && faixa && <InfoRow label="FAIXA INVESTIMENTO" value={faixa} accent />}
+                {valor > 0 && faixa && faixa !== fmtBRL(valor) && <InfoRow label="FAIXA INFORMADA" value={faixa} />}
+                {phoneIntl && <InfoRow label="TELEFONE" value={`+${phoneIntl}`} mono icon={<Phone size={9} />} />}
+              </div>
+            </>
+          )}
+
+          {/* AGENDA — todos os agendamentos do vendedor pra esse card */}
+          {ags.length > 0 && (
+            <>
+              <SectionHeader label={`AGENDA · ${String(ags.length).padStart(2, "0")}`} />
+              <div>
+                {ags.slice(0, 6).map((a) => {
+                  const isHoje = a.data === todayYmd;
+                  const dataFmt = formatDataAg(a.data);
+                  return (
+                    <div key={a.id} style={{
+                      display: "flex", gap: 10, padding: "11px 0", borderBottom: `1px solid ${T.border}`,
+                      alignItems: "center",
+                    }}>
+                      <div style={{ width: 36, textAlign: "center", flexShrink: 0 }}>
+                        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, color: isHoje ? CHAI : T.textPrimary, lineHeight: 1, fontWeight: 500 }}>
+                          {dataFmt.dia}
+                        </div>
+                        <div style={{ fontFamily: FONT_BODY, fontSize: 7, letterSpacing: "0.18em", color: T.textMuted, marginTop: 2, textTransform: "uppercase" }}>
+                          {dataFmt.mes}
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: FONT_BODY, fontSize: 10, color: T.textPrimary, letterSpacing: "0.04em" }}>
+                          {a.hora_inicio.slice(0, 5)}{a.hora_fim ? ` · ${a.hora_fim.slice(0, 5)}` : ""}
+                          {isHoje && <span style={{ marginLeft: 8, padding: "1px 5px", fontSize: 7, letterSpacing: "0.16em", color: T.onPrimary, backgroundColor: CHAI }}>HOJE</span>}
+                        </div>
+                        <div style={{ fontFamily: FONT_BODY, fontSize: 9, color: T.textSecondary, letterSpacing: "0.06em", marginTop: 2, textTransform: "uppercase" }}>
+                          {a.modalidade === "meet" ? "MEET" : "PRESENCIAL"}
+                          {a.cliente_nome && a.cliente_nome !== nome && ` · ${a.cliente_nome}`}
+                        </div>
+                      </div>
+                      {a.modalidade === "meet" && a.meet_link && (
+                        <a href={a.meet_link} target="_blank" rel="noreferrer" style={{
+                          padding: "4px 8px", border: `1px solid ${CHAI}80`, color: CHAI,
+                          fontFamily: FONT_BODY, fontSize: 7, letterSpacing: "0.20em", fontWeight: 600,
+                          textDecoration: "none", display: "flex", alignItems: "center", gap: 4,
+                        }}>
+                          <Video size={9} /> ABRIR
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Qualificação */}
+          {resumo && (
+            <>
+              <SectionHeader label="QUALIFICAÇÃO DO LEAD" />
+              <TextBlock>{String(resumo).slice(0, 700)}</TextBlock>
+            </>
+          )}
+
+          {/* Overview IA */}
+          {overviewIA && overviewIA !== resumo && (
+            <>
+              <SectionHeader label="ANÁLISE IA" />
+              <TextBlock>{String(overviewIA).slice(0, 700)}</TextBlock>
+            </>
+          )}
+
+          {/* Última atividade */}
+          {ultima && (
+            <div style={{
+              marginTop: 18, display: "flex", alignItems: "center", gap: 6,
+              fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.10em",
+              color: T.textMuted, textTransform: "uppercase",
+            }}>
+              <CalendarClock size={10} />
+              <span>
+                {det.cadencia_ultima_at ? "ÚLTIMA CADÊNCIA" : "ATUALIZADO"} · {fmtRelative(ultima).toUpperCase()}
+                {det.cadencia_ultima_por && ` · ${String(det.cadencia_ultima_por).toUpperCase()}`}
+              </span>
+            </div>
+          )}
+
+          {/* Link card completo */}
+          <Link to={`/card/${card.id}`} target="_blank" style={{
+            display: "inline-flex", alignItems: "center", gap: 6, marginTop: 22,
+            fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.20em",
+            color: CHAI, textDecoration: "none", textTransform: "uppercase",
+            paddingBottom: 4, borderBottom: `1px solid ${CHAI}50`,
+          }}>
+            ABRIR CARD COMPLETO <ExternalLink size={9} />
+          </Link>
+
+          <div style={{ height: 240 }} />
+        </div>
+      </div>
+
+      {/* Form de observação — abre antes de executar a ação */}
+      {props.pendingAction && (
+        <ObsForm
+          action={props.pendingAction}
+          busy={busy}
+          onCancel={() => props.setPendingAction(null)}
+        />
+      )}
+
+      {/* Menu mover — escolha de etapa, depois entra no ObsForm */}
+      {props.showMoveMenu && !props.pendingAction && (
+        <div style={{
+          borderTop: `1px solid ${T.borderHover}`, backgroundColor: T.surface,
+          padding: "14px 18px", flexShrink: 0, maxHeight: "60vh", overflowY: "auto",
+        }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted, marginBottom: 10 }}>
+            MOVER PARA
+          </div>
+          {ACTIVE_STAGES.filter((s) => s !== stage).map((s) => (
+            <StageOption key={s} label={STAGE_LABEL[s]} onClick={() => {
+              props.setShowMoveMenu(false);
+              props.setPendingAction({
+                kind: "move",
+                label: `MOVER PARA · ${STAGE_LABEL[s].toUpperCase()}`,
+                hint: "Por que está movendo? (opcional)",
+                variant: "primary",
+                exec: async (obs) => { await props.onMoveTo(s, obs); },
+              });
+            }} disabled={busy} />
+          ))}
+          <StageOption label="✓ GANHO" onClick={() => {
+            props.setShowMoveMenu(false);
+            props.setPendingAction({
+              kind: "win",
+              label: "MARCAR COMO GANHO",
+              hint: "Conta como fechou (opcional)",
+              variant: "primary",
+              exec: async (obs) => { await props.onMoveTo("ganho", obs); },
+            });
+          }} disabled={busy} variant="positive" />
+          <button onClick={() => props.setShowMoveMenu(false)} style={{
+            width: "100%", marginTop: 10, padding: "8px 0", background: "none", border: "none",
+            cursor: "pointer", fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.18em",
+            color: T.textMuted, textTransform: "uppercase",
+          }}>CANCELAR</button>
+        </div>
+      )}
+
+      {/* Botões rodapé */}
+      {!props.showMoveMenu && !props.pendingAction && (
+        <div style={{
+          borderTop: `1px solid ${T.border}`, backgroundColor: T.bg, flexShrink: 0,
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, padding: "12px 12px 6px" }}>
+            <ContactButton href={phoneIntl ? `tel:+${phoneIntl}` : undefined} icon={<Phone size={14} />} label="LIGAR" />
+            <ContactButton href={phoneIntl ? `https://wa.me/${phoneIntl}` : undefined} target="_blank" icon={<MessageCircle size={14} />} label="WHATSAPP" />
+          </div>
+
+          {isNova ? (
+            <div style={{ padding: "0 12px 6px" }}>
+              <BigButton onClick={() => props.setPendingAction({
+                kind: "match", label: NEXT_LABEL[stage],
+                hint: "Por que é uma oportunidade? (opcional)",
+                variant: "primary",
+                exec: async (obs) => { await props.onMatchHot(obs); },
+              })} disabled={busy} variant="primary" icon={<Flame size={13} />}>
+                {NEXT_LABEL[stage]}
+              </BigButton>
+            </div>
+          ) : isCadencia ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: "0 12px 6px" }}>
+              <BigButton onClick={() => props.setPendingAction({
+                kind: "cadencia", label: "CADÊNCIA FEITA",
+                hint: "Resumo do contato de hoje (opcional)",
+                variant: "primary",
+                exec: async (obs) => { await props.onMarkCadencia(obs); },
+              })} disabled={busy} variant="primary" icon={<Check size={13} />}>CADÊNCIA FEITA</BigButton>
+              <BigButton onClick={() => props.setPendingAction({
+                kind: canMoveNext && NEXT_STAGE[stage] === "ganho" ? "win" : "move",
+                label: NEXT_LABEL[stage],
+                hint: canMoveNext && NEXT_STAGE[stage] === "ganho" ? "Conta como fechou (opcional)" : "Por que está avançando? (opcional)",
+                variant: "primary",
+                exec: async (obs) => { await props.onMoveTo(NEXT_STAGE[stage] as string, obs); },
+              })} disabled={busy || !canMoveNext} variant="ghost">{NEXT_LABEL[stage]}</BigButton>
+            </div>
+          ) : canMoveNext ? (
+            <div style={{ padding: "0 12px 6px" }}>
+              <BigButton onClick={() => props.setPendingAction({
+                kind: NEXT_STAGE[stage] === "ganho" ? "win" : "move",
+                label: NEXT_LABEL[stage],
+                hint: NEXT_STAGE[stage] === "ganho" ? "Conta como fechou (opcional)" : "Por que está avançando? (opcional)",
+                variant: "primary",
+                exec: async (obs) => { await props.onMoveTo(NEXT_STAGE[stage] as string, obs); },
+              })} disabled={busy} variant="primary" icon={<ArrowRight size={13} />}>
+                {NEXT_LABEL[stage]}
+              </BigButton>
+            </div>
+          ) : null}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, padding: "0 12px 10px" }}>
+            <BigButton onClick={() => props.setShowMoveMenu(true)} disabled={busy} variant="ghost" small icon={<ChevronDown size={11} />}>MOVER</BigButton>
+            <BigButton onClick={props.onSkip} disabled={busy} variant="ghost" small icon={<ArrowRight size={11} />}>PRÓXIMO</BigButton>
+            <BigButton onClick={() => props.setPendingAction({
+              kind: "lost", label: "MOTIVO DA PERDA",
+              hint: "Sem orçamento · escolheu concorrente · projeto cancelado",
+              variant: "walnut",
+              exec: async (obs) => { await props.onMarkLost(obs); },
+            })} disabled={busy} variant="walnut-ghost" small icon={<XCircle size={11} />}>PERDA</BigButton>
+          </div>
+
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "8px 18px", borderTop: `1px solid ${T.border}`,
+            fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.18em",
+            color: T.textMuted, textTransform: "uppercase",
+          }}>
+            <button onClick={props.onPrev} disabled={idx === 0} style={navBtnStyle(T, idx === 0)}>
+              <ArrowLeft size={10} /> ANTERIOR
+            </button>
+            <span>{String(idx + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}</span>
+            <button onClick={props.onNext} disabled={idx >= total - 1} style={navBtnStyle(T, idx >= total - 1)}>
+              PRÓXIMO <ArrowRight size={10} />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function navBtnStyle(T: Theme, disabled: boolean): React.CSSProperties {
+  return {
+    background: "none", border: "none", cursor: disabled ? "default" : "pointer",
+    color: disabled ? T.textMuted : T.textSecondary, opacity: disabled ? 0.4 : 1,
+    fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.18em",
+    display: "flex", alignItems: "center", gap: 6, textTransform: "uppercase",
+  };
+}
+
+// ─── /tracking/admin — gestor ──────────────────────────────────────────
+type AdminTab = "cards" | "tarefas";
+
+function TrackingAdminInner({ appUser }: { appUser: AppUser }) {
+  const { T } = useTheme();
+  const nav = useNavigate();
+  const isAdmin = appUser.isGestor || appUser.canSeeAll;
+  const [tab, setTab] = useState<AdminTab>("cards");
+  const [cards, setCards] = useState<TrackingCard[]>([]);
+  const [vendedores, setVendedores] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [filterVendedor, setFilterVendedor] = useState<string>("__all__");
+  const [filterStage, setFilterStage] = useState<string>("__all__");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAssignTo, setBulkAssignTo] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+
+  const reload = async () => {
+    setLoading(true);
+    const r = await supabase
+      .from("kanban_cards")
+      .select("id, title, responsavel, column_id, dept_id, value, tags, created_at, updated_at, details")
+      .eq("dept_id", DEPT)
+      .in("column_id", ACTIVE_STAGES as unknown as string[])
+      .order("updated_at", { ascending: false })
+      .limit(2000);
+    if (r.error) { setErr(r.error.message); setCards([]); }
+    else {
+      const data = (r.data as TrackingCard[]) || [];
+      setCards(data);
+      const set = new Set<string>();
+      data.forEach((c) => { if (c.responsavel) set.add(c.responsavel); });
+      setVendedores([...set].sort());
+      setErr(null);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { if (isAdmin) reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [isAdmin]);
+
+  const filtered = useMemo(() => cards.filter((c) => {
+    if (filterVendedor === "__unassigned__" && c.responsavel) return false;
+    if (filterVendedor !== "__all__" && filterVendedor !== "__unassigned__" && c.responsavel !== filterVendedor) return false;
+    if (filterStage !== "__all__" && c.column_id !== filterStage) return false;
+    return true;
+  }), [cards, filterVendedor, filterStage]);
+
+  const assignOne = async (cardId: string, to: string) => {
+    setBusy(true);
+    try {
+      const r = await supabase.from("kanban_cards").update({ responsavel: to || null }).eq("id", cardId);
+      if (r.error) { alert("Erro: " + r.error.message); return; }
+      setCards((prev) => prev.map((c) => c.id === cardId ? { ...c, responsavel: to || null } : c));
+    } finally { setBusy(false); }
+  };
+
+  const assignBulk = async () => {
+    if (!bulkAssignTo || selected.size === 0) return;
+    if (!confirm(`Atribuir ${selected.size} cards a ${bulkAssignTo}?`)) return;
+    setBusy(true);
+    try {
+      const ids = [...selected];
+      const r = await supabase.from("kanban_cards").update({ responsavel: bulkAssignTo }).in("id", ids);
+      if (r.error) { alert("Erro: " + r.error.message); return; }
+      setCards((prev) => prev.map((c) => ids.includes(c.id) ? { ...c, responsavel: bulkAssignTo } : c));
+      setSelected(new Set());
+    } finally { setBusy(false); }
+  };
+
+  if (!isAdmin) {
+    return (
+      <Boot icon={<ShieldCheck size={26} color={WALNUT} />} label="ACESSO RESTRITO"
+        sub="Apenas gestores podem acessar o admin." actionLabel="VOLTAR" onAction={() => nav("/tracking")} />
+    );
+  }
+  if (loading) return <Boot label="Carregando" />;
+  if (err) return <Boot label={err} variant="error" />;
+
+  const counts: Record<string, number> = {};
+  cards.forEach((c) => {
+    const k = c.responsavel || "__sem__";
+    counts[k] = (counts[k] || 0) + 1;
+  });
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, backgroundColor: T.bg, color: T.textPrimary,
+      fontFamily: FONT_BODY, display: "flex", flexDirection: "column",
+      overscrollBehavior: "contain", transition: "background 0.35s, color 0.35s",
+    }}>
+      <PageHeader title="TRACKING · ADMIN" sub={`${String(cards.length).padStart(2, "0")} CARDS · ${vendedores.length} VENDEDORES`}
+        right={
+          <>
+            <ThemeToggle />
+            <IconButton onClick={reload} title="Recarregar"><RefreshCw size={11} /></IconButton>
+            <LinkButton to="/tracking" muted>VOLTAR</LinkButton>
+          </>
+        }
+        extra={
+          <>
+            {/* Tabs Cards | Tarefas */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 8 }}>
+              <AgendaTab active={tab === "cards"} onClick={() => setTab("cards")}>CARDS · {cards.length}</AgendaTab>
+              <AgendaTab active={tab === "tarefas"} onClick={() => setTab("tarefas")}>TAREFAS</AgendaTab>
+            </div>
+            {tab === "cards" && (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  <NativeSelect value={filterVendedor} onChange={setFilterVendedor}>
+                    <option value="__all__">TODOS · {cards.length}</option>
+                    <option value="__unassigned__">SEM RESPONSÁVEL · {counts["__sem__"] || 0}</option>
+                    {vendedores.map((v) => <option key={v} value={v}>{v.toUpperCase()} · {counts[v] || 0}</option>)}
+                  </NativeSelect>
+                  <NativeSelect value={filterStage} onChange={setFilterStage}>
+                    <option value="__all__">TODAS AS ETAPAS</option>
+                    {ACTIVE_STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s].toUpperCase()}</option>)}
+                  </NativeSelect>
+                </div>
+                {selected.size > 0 && (
+                  <div style={{
+                    marginTop: 8, padding: "10px 12px",
+                    border: `1px solid ${T.borderHover}`, backgroundColor: T.surface,
+                    display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+                  }}>
+                    <span style={{ fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.18em", color: T.textPrimary, textTransform: "uppercase" }}>
+                      {selected.size} SELECIONADOS
+                    </span>
+                    <NativeSelect value={bulkAssignTo} onChange={setBulkAssignTo} style={{ flex: 1, minWidth: 140 }}>
+                      <option value="">— ATRIBUIR A —</option>
+                      {vendedores.map((v) => <option key={v} value={v}>{v.toUpperCase()}</option>)}
+                    </NativeSelect>
+                    <BigButton onClick={assignBulk} disabled={!bulkAssignTo || busy} loading={busy} variant="primary" small>APLICAR</BigButton>
+                    <IconButton onClick={() => setSelected(new Set())}><X size={11} /></IconButton>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        }
+      />
+
+      {tab === "tarefas" ? (
+        <TarefasAdminPanel appUser={appUser} vendedores={vendedores} />
+      ) : (
+      <div style={{ flex: 1, overflow: "auto", padding: "12px 14px" }}>
+        {filtered.length === 0 && (
+          <div style={{
+            textAlign: "center", padding: "48px 0",
+            fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.20em",
+            color: T.textMuted, textTransform: "uppercase",
+          }}>NENHUM CARD</div>
+        )}
+        {filtered.map((c) => {
+          const det = c.details || {};
+          const sel = selected.has(c.id);
+          return (
+            <div key={c.id} style={{
+              padding: "12px 14px", marginBottom: 6,
+              border: `1px solid ${sel ? T.borderHover : T.border}`,
+              backgroundColor: sel ? T.surfaceHover : T.surface,
+              transition: "background 0.2s, border-color 0.2s",
+            }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <input type="checkbox" checked={sel} onChange={(e) => {
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (e.target.checked) next.add(c.id); else next.delete(c.id);
+                    return next;
+                  });
+                }} style={{ marginTop: 2, accentColor: CHAI }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start", marginBottom: 6 }}>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500, color: T.textPrimary, letterSpacing: "0.02em", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {det.contato_principal || det.nome || c.title || c.id.slice(0, 8)}
+                    </div>
+                    <span style={{
+                      fontFamily: FONT_BODY, fontSize: 7, letterSpacing: "0.16em", whiteSpace: "nowrap",
+                      color: T.textPrimary, backgroundColor: `${CHAI}28`, border: `1px solid ${CHAI}55`,
+                      padding: "2px 7px", textTransform: "uppercase",
+                    }}>
+                      {STAGE_LABEL[c.column_id] || c.column_id}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: FONT_BODY, fontSize: 9, color: T.textMuted, marginBottom: 8, letterSpacing: "0.04em" }}>
+                    {det.produto_interesse || "—"}
+                    {det.cidade && ` · ${det.cidade}`}
+                    {det.metragem_estimada && ` · ${det.metragem_estimada} m²`}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <NativeSelect value={c.responsavel || ""} onChange={(v) => assignOne(c.id, v)} disabled={busy} style={{ flex: 1 }}>
+                      <option value="">— SEM RESPONSÁVEL —</option>
+                      {vendedores.map((v) => <option key={v} value={v}>{v.toUpperCase()}</option>)}
+                    </NativeSelect>
+                    <Link to={`/card/${c.id}`} target="_blank" style={{
+                      padding: "6px 8px", color: CHAI, display: "flex", alignItems: "center",
+                      border: `1px solid ${T.border}`, textDecoration: "none",
+                    }}>
+                      <ExternalLink size={11} />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Painel de tarefas (admin) — criar/listar/cancelar tarefas delegadas ──
+type TrackingTask = {
+  id: string;
+  created_by: string;
+  assigned_to: string;
+  title: string;
+  description: string | null;
+  target_count: number;
+  current_count: number;
+  due_date: string | null;
+  status: "open" | "completed" | "cancelled";
+  created_at: string;
+  completed_at: string | null;
+  updates: any[] | null;
+};
+
+function TarefasAdminPanel({ appUser, vendedores }: { appUser: AppUser; vendedores: string[] }) {
+  const { T } = useTheme();
+  const [tasks, setTasks] = useState<TrackingTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<"open" | "completed" | "all">("open");
+
+  // Form state
+  const [fTitle, setFTitle] = useState("");
+  const [fDesc, setFDesc] = useState("");
+  const [fTarget, setFTarget] = useState("1");
+  const [fDue, setFDue] = useState<string>(todayYmd());
+  const [fAssignees, setFAssignees] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
+
+  const reload = async () => {
+    setLoading(true);
+    let q = supabase.from("tracking_tasks")
+      .select("*")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (filterStatus !== "all") q = q.eq("status", filterStatus);
+    const r = await q;
+    if (r.error) { setErr(r.error.message); setTasks([]); }
+    else { setTasks((r.data as TrackingTask[]) || []); setErr(null); }
+    setLoading(false);
+  };
+
+  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filterStatus]);
+
+  const resetForm = () => {
+    setFTitle(""); setFDesc(""); setFTarget("1");
+    setFDue(todayYmd()); setFAssignees(new Set());
+  };
+
+  const submit = async () => {
+    const title = fTitle.trim();
+    if (!title) { alert("Título obrigatório"); return; }
+    if (fAssignees.size === 0) { alert("Escolha pelo menos um vendedor"); return; }
+    const target = Math.max(1, Number(fTarget) || 1);
+    setSubmitting(true);
+    try {
+      const rows = [...fAssignees].map((vend) => ({
+        created_by: appUser.nome || appUser.email,
+        assigned_to: vend,
+        title,
+        description: fDesc.trim() || null,
+        target_count: target,
+        current_count: 0,
+        due_date: fDue || null,
+        status: "open",
+      }));
+      const r = await supabase.from("tracking_tasks").insert(rows);
+      if (r.error) { alert("Erro: " + r.error.message); return; }
+      setShowForm(false); resetForm();
+      await reload();
+    } finally { setSubmitting(false); }
+  };
+
+  const cancelTask = async (id: string) => {
+    if (!confirm("Cancelar essa tarefa?")) return;
+    const r = await supabase.from("tracking_tasks").update({ status: "cancelled" }).eq("id", id);
+    if (r.error) { alert("Erro: " + r.error.message); return; }
+    reload();
+  };
+
+  const deleteTask = async (id: string) => {
+    if (!confirm("Apagar tarefa (não pode desfazer)?")) return;
+    const r = await supabase.from("tracking_tasks").delete().eq("id", id);
+    if (r.error) { alert("Erro: " + r.error.message); return; }
+    reload();
+  };
+
+  // Agrupa por vendedor
+  const grouped = useMemo(() => {
+    const g = new Map<string, TrackingTask[]>();
+    tasks.forEach((t) => {
+      const arr = g.get(t.assigned_to) || [];
+      arr.push(t); g.set(t.assigned_to, arr);
+    });
+    return [...g.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [tasks]);
+
+  return (
+    <div style={{ flex: 1, overflow: "auto", padding: "12px 14px" }}>
+      {/* Toolbar: novo + filtro */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
+        <BigButton onClick={() => setShowForm((v) => !v)} variant="primary" small icon={<Sparkles size={11} />}>
+          {showForm ? "FECHAR" : "NOVA TAREFA"}
+        </BigButton>
+        <NativeSelect value={filterStatus} onChange={(v) => setFilterStatus(v as any)} style={{ flex: 1, minWidth: 140 }}>
+          <option value="open">ABERTAS · {tasks.filter((t) => t.status === "open").length}</option>
+          <option value="completed">CONCLUÍDAS</option>
+          <option value="all">TODAS</option>
+        </NativeSelect>
+      </div>
+
+      {/* Formulário inline */}
+      {showForm && (
+        <div style={{ marginBottom: 12, padding: "14px 16px", border: `1px solid ${T.borderHover}`, backgroundColor: T.surface }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textPrimary, marginBottom: 10, fontWeight: 700 }}>
+            DELEGAR NOVA TAREFA
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <FormField label="TÍTULO">
+              <input value={fTitle} onChange={(e) => setFTitle(e.target.value)}
+                placeholder="Fazer 5 conexões com arquitetos"
+                style={formInputStyle(T)} />
+            </FormField>
+            <FormField label="DESCRIÇÃO · OPCIONAL">
+              <textarea value={fDesc} onChange={(e) => setFDesc(e.target.value)}
+                rows={2} placeholder="Detalhes, instruções, contexto..."
+                style={formInputStyle(T)} />
+            </FormField>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <FormField label="META · QUANTIDADE">
+                <input type="number" min={1} value={fTarget} onChange={(e) => setFTarget(e.target.value)}
+                  style={formInputStyle(T)} />
+              </FormField>
+              <FormField label="PRAZO">
+                <input type="date" value={fDue} onChange={(e) => setFDue(e.target.value)}
+                  style={formInputStyle(T)} />
+              </FormField>
+            </div>
+            <FormField label={`DELEGAR PARA · ${fAssignees.size} SELECIONADOS`}>
+              <div style={{
+                display: "flex", flexWrap: "wrap", gap: 4,
+                maxHeight: 200, overflow: "auto",
+                padding: 8, border: `1px solid ${T.border}`, backgroundColor: T.bg,
+              }}>
+                <button type="button" onClick={() => setFAssignees(new Set(vendedores))} style={smallChipStyle(T, fAssignees.size === vendedores.length)}>
+                  TODOS
+                </button>
+                <button type="button" onClick={() => setFAssignees(new Set())} style={smallChipStyle(T, false)}>
+                  LIMPAR
+                </button>
+                {vendedores.map((v) => {
+                  const on = fAssignees.has(v);
+                  return (
+                    <button type="button" key={v} onClick={() => {
+                      setFAssignees((prev) => {
+                        const next = new Set(prev);
+                        on ? next.delete(v) : next.add(v);
+                        return next;
+                      });
+                    }} style={smallChipStyle(T, on)}>
+                      {v.toUpperCase()}
+                    </button>
+                  );
+                })}
+              </div>
+            </FormField>
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <BigButton onClick={submit} disabled={submitting} loading={submitting} variant="primary">
+                {submitting ? "CRIANDO" : `CRIAR · ${fAssignees.size} TAREFA${fAssignees.size === 1 ? "" : "S"}`}
+              </BigButton>
+              <BigButton onClick={() => { setShowForm(false); resetForm(); }} disabled={submitting} variant="ghost">
+                CANCELAR
+              </BigButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: T.textMuted, fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase" }}>
+          <Loader2 size={20} style={{ animation: "spin 1s linear infinite", color: CHAI }} />
+        </div>
+      ) : err ? (
+        <div style={{ color: WALNUT, fontFamily: FONT_BODY, fontSize: 10, padding: 12, letterSpacing: "0.06em" }}>⚠ {err}</div>
+      ) : grouped.length === 0 ? (
+        <div style={{
+          textAlign: "center", padding: "60px 0",
+          fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.20em",
+          color: T.textMuted, textTransform: "uppercase",
+        }}>NENHUMA TAREFA</div>
+      ) : (
+        grouped.map(([vendedor, ts]) => {
+          const openCount = ts.filter((t) => t.status === "open").length;
+          return (
+            <div key={vendedor} style={{ marginBottom: 18 }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                paddingBottom: 6, marginBottom: 8,
+                borderBottom: `1px solid ${T.border}`,
+              }}>
+                <div style={{ width: 3, height: 12, backgroundColor: CHAI }} />
+                <div style={{ fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.20em", color: T.textPrimary, textTransform: "uppercase", fontWeight: 600 }}>
+                  {vendedor.toUpperCase()}
+                </div>
+                <div style={{ marginLeft: "auto", fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.18em", color: T.textMuted, textTransform: "uppercase" }}>
+                  {openCount} ABERTAS · {ts.length} TOTAL
+                </div>
+              </div>
+              {ts.map((t) => (
+                <TaskRow key={t.id} task={t} onCancel={() => cancelTask(t.id)} onDelete={() => deleteTask(t.id)} />
+              ))}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+function TaskRow({ task, onCancel, onDelete }: { task: TrackingTask; onCancel: () => void; onDelete: () => void }) {
+  const { T } = useTheme();
+  const pct = task.target_count > 0 ? Math.min(100, Math.round((task.current_count / task.target_count) * 100)) : 0;
+  const done = task.status === "completed" || pct >= 100;
+  const cancelled = task.status === "cancelled";
+  const overdue = !done && !cancelled && task.due_date && task.due_date < todayYmd();
+
+  return (
+    <div style={{
+      padding: "12px 14px", marginBottom: 6,
+      border: `1px solid ${overdue ? WALNUT : T.border}`,
+      backgroundColor: T.surface,
+      opacity: cancelled ? 0.5 : 1,
+    }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 6 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, fontWeight: 500, color: T.textPrimary, letterSpacing: "0.02em" }}>
+            {task.title}
+          </div>
+          {task.description && (
+            <div style={{ fontFamily: FONT_BODY, fontSize: 10, color: T.textSecondary, marginTop: 3, lineHeight: 1.5 }}>
+              {task.description}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {!cancelled && !done && (
+            <button onClick={onCancel} title="Cancelar tarefa" style={iconBtnStyle(T)}>
+              <X size={11} />
+            </button>
+          )}
+          <button onClick={onDelete} title="Apagar" style={{ ...iconBtnStyle(T), color: WALNUT }}>
+            <XCircle size={11} />
+          </button>
+        </div>
+      </div>
+
+      {/* Status / progresso */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 9, fontFamily: FONT_BODY, letterSpacing: "0.10em", color: T.textMuted, textTransform: "uppercase" }}>
+        {task.due_date && (
+          <span style={{ color: overdue ? WALNUT : T.textSecondary }}>
+            {overdue ? "⚠ ATRASADA · " : "PRAZO "}{task.due_date}
+          </span>
+        )}
+        {cancelled && <span style={{ color: WALNUT, fontWeight: 700 }}>CANCELADA</span>}
+        {done && !cancelled && <span style={{ color: CHAI, fontWeight: 700 }}>✓ CONCLUÍDA</span>}
+      </div>
+
+      {/* Barra de progresso */}
+      {!cancelled && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.08em", color: T.textMuted }}>
+            <span>PROGRESSO</span>
+            <span style={{ color: done ? CHAI : T.textPrimary, fontWeight: 600 }}>
+              {task.current_count} / {task.target_count}
+            </span>
+          </div>
+          <div style={{ height: 4, backgroundColor: T.border, position: "relative" }}>
+            <div style={{
+              position: "absolute", top: 0, left: 0, bottom: 0,
+              width: `${pct}%`,
+              backgroundColor: done ? CHAI : CHAI,
+              opacity: done ? 1 : 0.6,
+              transition: "width 0.3s",
+            }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+  const { T } = useTheme();
+  return (
+    <div>
+      <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted, marginBottom: 4, textTransform: "uppercase", fontWeight: 600 }}>
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function formInputStyle(T: Theme): React.CSSProperties {
+  return {
+    width: "100%", padding: "8px 10px",
+    fontFamily: FONT_BODY, fontSize: 11, color: T.textPrimary,
+    backgroundColor: T.bg, border: `1px solid ${T.border}`, outline: "none",
+  };
+}
+
+function smallChipStyle(T: Theme, active: boolean): React.CSSProperties {
+  return {
+    padding: "4px 9px",
+    backgroundColor: active ? CHAI : "transparent",
+    border: `1px solid ${active ? CHAI : T.border}`,
+    color: active ? T.onPrimary : T.textSecondary,
+    fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.16em", fontWeight: 600,
+    textTransform: "uppercase", cursor: "pointer",
+  };
+}
+
+function iconBtnStyle(T: Theme): React.CSSProperties {
+  return {
+    padding: "5px 7px", background: "none", border: `1px solid ${T.border}`,
+    color: T.textSecondary, cursor: "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  };
+}
+
+// ─── Componentes auxiliares ────────────────────────────────────────────
+
+function PageHeader({ title, sub, right, extra }: { title: string; sub?: string; right?: React.ReactNode; extra?: React.ReactNode }) {
+  const { T } = useTheme();
+  return (
+    <header style={{ borderBottom: `1px solid ${T.border}`, padding: "14px 18px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted, marginBottom: 4, textTransform: "uppercase" }}>
+            PARKET · OS
+          </div>
+          <div style={{
+            fontFamily: FONT_DISPLAY, fontSize: 13, letterSpacing: "0.16em",
+            color: T.textPrimary, textTransform: "uppercase",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {title}
+          </div>
+          {sub && (
+            <div style={{ fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.14em", color: T.textSecondary, marginTop: 4 }}>
+              {sub}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>{right}</div>
+      </div>
+      {extra && <div style={{ marginTop: 12 }}>{extra}</div>}
+    </header>
+  );
+}
+
+function ThemeToggle() {
+  const { mode, toggle } = useTheme();
+  return (
+    <IconButton onClick={toggle} title={mode === "dark" ? "Modo claro" : "Modo escuro"}>
+      {mode === "dark" ? <Sun size={11} /> : <Moon size={11} />}
+    </IconButton>
+  );
+}
+
+function Pill({ children, borderColor, bg, title }: { children: React.ReactNode; borderColor: string; bg: string; title?: string }) {
+  return (
+    <div title={title} style={{
+      display: "inline-flex", alignItems: "center", gap: 8,
+      padding: "5px 12px", border: `1px solid ${borderColor}`, backgroundColor: bg,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({ label }: { label: string }) {
+  const { T } = useTheme();
+  return (
+    <div style={{
+      marginTop: 22, marginBottom: 4, paddingTop: 12,
+      borderTop: `1px solid ${T.border}`,
+      display: "flex", alignItems: "center", gap: 8,
+    }}>
+      <div style={{ width: 3, height: 10, backgroundColor: T.borderHover }} />
+      <span style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textSecondary, textTransform: "uppercase" }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, accent, mono, icon, multiline }: {
+  label: string; value: string; accent?: boolean; mono?: boolean; icon?: React.ReactNode; multiline?: boolean;
+}) {
+  const { T, mode } = useTheme();
+  const accentColor = mode === "light" ? WALNUT : CREAM;
+  if (multiline) {
+    return (
+      <div style={{ padding: "11px 0", borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, color: T.textMuted }}>
+          {icon}
+          <span style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted }}>{label}</span>
+        </div>
+        <div style={{
+          fontFamily: mono ? "ui-monospace, monospace" : FONT_BODY,
+          fontSize: 11, fontWeight: 400, letterSpacing: "0.02em",
+          color: accent ? accentColor : T.textPrimary, lineHeight: 1.5, whiteSpace: "pre-wrap",
+        }}>
+          {value}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+      padding: "11px 0", borderBottom: `1px solid ${T.border}`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, color: T.textMuted, flexShrink: 0 }}>
+        {icon}
+        <span style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted }}>{label}</span>
+      </div>
+      <span style={{
+        fontFamily: mono ? "ui-monospace, monospace" : FONT_BODY,
+        fontSize: 11, fontWeight: 400, letterSpacing: mono ? "0.04em" : "0.02em",
+        color: accent ? accentColor : T.textPrimary, textAlign: "right",
+        minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function TextBlock({ children }: { children: React.ReactNode }) {
+  const { T } = useTheme();
+  return (
+    <div style={{ padding: "14px 16px", border: `1px solid ${T.border}`, backgroundColor: T.surface }}>
+      <div style={{ fontFamily: FONT_BODY, fontSize: 11, lineHeight: 1.6, color: T.textPrimary, fontWeight: 300, whiteSpace: "pre-wrap" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function StageOption({ label, onClick, disabled, variant }: {
+  label: string; onClick: () => void; disabled?: boolean; variant?: "positive";
+}) {
+  const { T, mode } = useTheme();
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      width: "100%", padding: "11px 14px", marginBottom: 4,
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      backgroundColor: variant === "positive" ? `${CHAI}18` : T.surface,
+      border: `1px solid ${variant === "positive" ? CHAI : T.border}`,
+      color: variant === "positive" ? (mode === "light" ? WALNUT : CREAM) : T.textPrimary,
+      cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1,
+      fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.18em",
+      textTransform: "uppercase", textAlign: "left",
+      transition: "background 0.15s, border-color 0.15s",
+    }}>
+      <span>{label}</span>
+      <ArrowRight size={10} />
+    </button>
+  );
+}
+
+function ContactButton({ href, target, icon, label }: {
+  href?: string; target?: string; icon: React.ReactNode; label: string;
+}) {
+  const { T } = useTheme();
+  const disabled = !href;
+  return (
+    <a
+      href={href}
+      target={target}
+      rel={target === "_blank" ? "noreferrer" : undefined}
+      onClick={(e) => { if (disabled) { e.preventDefault(); alert("Sem telefone cadastrado neste card."); } }}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        padding: "16px 10px",
+        backgroundColor: disabled ? T.surface : T.surfaceHover,
+        border: `1px solid ${disabled ? T.border : T.borderHover}`,
+        color: disabled ? T.textMuted : T.textPrimary,
+        fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.22em", fontWeight: 500,
+        textTransform: "uppercase", textDecoration: "none",
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
+    >
+      {icon} {label}
+    </a>
+  );
+}
+
+function BigButton({ children, onClick, disabled, loading, variant = "primary", small, icon }: {
+  children: React.ReactNode; onClick?: () => void; disabled?: boolean; loading?: boolean;
+  variant?: "primary" | "ghost" | "walnut" | "walnut-ghost"; small?: boolean; icon?: React.ReactNode;
+}) {
+  const { T } = useTheme();
+  const styles: Record<string, React.CSSProperties> = {
+    primary: { backgroundColor: CHAI, border: `1px solid ${CHAI}`, color: T.onPrimary },
+    ghost: { backgroundColor: T.surface, border: `1px solid ${T.borderHover}`, color: T.textPrimary },
+    walnut: { backgroundColor: WALNUT, border: `1px solid ${WALNUT}`, color: "#F3F0E8" },
+    "walnut-ghost": { backgroundColor: "transparent", border: `1px solid ${WALNUT}80`, color: WALNUT },
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      width: "100%",
+      padding: small ? "10px 8px" : "14px 12px",
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+      fontFamily: FONT_BODY, fontSize: small ? 9 : 10, letterSpacing: "0.22em", fontWeight: 600,
+      textTransform: "uppercase",
+      cursor: disabled ? "not-allowed" : "pointer", opacity: disabled && !loading ? 0.4 : 1,
+      transition: "opacity 0.15s",
+      ...styles[variant],
+    }}>
+      {loading ? <Loader2 size={small ? 11 : 13} style={{ animation: "spin 1s linear infinite" }} /> : icon}
+      {children}
+    </button>
+  );
+}
+
+function IconButton({ children, onClick, title }: { children: React.ReactNode; onClick?: () => void; title?: string }) {
+  const { T } = useTheme();
+  return (
+    <button onClick={onClick} title={title} style={{
+      padding: "7px 9px", background: "none",
+      border: `1px solid ${T.border}`, color: T.textSecondary, cursor: "pointer",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      transition: "background 0.15s, color 0.15s",
+    }}>
+      {children}
+    </button>
+  );
+}
+
+function LinkButton({ to, children, muted, icon }: { to: string; children: React.ReactNode; muted?: boolean; icon?: React.ReactNode }) {
+  const { T } = useTheme();
+  return (
+    <Link to={to} style={{
+      padding: "7px 12px",
+      border: `1px solid ${muted ? T.border : T.borderHover}`,
+      color: muted ? T.textMuted : T.textPrimary,
+      fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", fontWeight: 500,
+      textDecoration: "none", textTransform: "uppercase",
+      display: "flex", alignItems: "center", gap: 6,
+      transition: "color 0.15s, border-color 0.15s",
+    }}>
+      {icon}{children}
+    </Link>
+  );
+}
+
+function NativeSelect({ value, onChange, children, disabled, style }: {
+  value: string; onChange: (v: string) => void; children: React.ReactNode; disabled?: boolean; style?: React.CSSProperties;
+}) {
+  const { T } = useTheme();
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      style={{
+        padding: "8px 10px",
+        backgroundColor: T.surface, border: `1px solid ${T.border}`,
+        color: T.textPrimary, fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.08em",
+        outline: "none", opacity: disabled ? 0.5 : 1, cursor: disabled ? "not-allowed" : "pointer",
+        appearance: "none",
+        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(T.textSecondary)}' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 8px center",
+        paddingRight: 24,
+        ...style,
+      }}
+    >
+      {children}
+    </select>
+  );
+}
+
+function Boot({ label, sub, variant, icon, actionLabel, onAction }: {
+  label: string; sub?: string; variant?: "error"; icon?: React.ReactNode; actionLabel?: string; onAction?: () => void;
+}) {
+  const { T } = useTheme();
+  return (
+    <div style={{
+      position: "fixed", inset: 0, backgroundColor: T.bg, color: T.textPrimary,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONT_BODY, flexDirection: "column", gap: 14, padding: 24, textAlign: "center",
+      transition: "background 0.35s, color 0.35s",
+    }}>
+      {icon || (variant === "error"
+        ? <X size={26} color={WALNUT} />
+        : <Loader2 size={22} color={CHAI} style={{ animation: "spin 1s linear infinite" }} />)}
+      <div style={{
+        fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.22em",
+        color: variant === "error" ? WALNUT : T.textSecondary, textTransform: "uppercase",
+      }}>
+        {label}
+      </div>
+      {sub && (
+        <div style={{ fontFamily: FONT_BODY, fontSize: 10, color: T.textMuted, letterSpacing: "0.06em", maxWidth: 280 }}>
+          {sub}
+        </div>
+      )}
+      {actionLabel && onAction && (
+        <button onClick={onAction} style={{
+          marginTop: 8, padding: "10px 18px",
+          backgroundColor: CHAI, border: `1px solid ${CHAI}`, color: T.onPrimary,
+          fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.22em", fontWeight: 600,
+          textTransform: "uppercase", cursor: "pointer",
+        }}>
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function FilaZerada({ onReload }: { onReload: () => void }) {
+  const { T } = useTheme();
+  return (
+    <div style={{
+      flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 24, textAlign: "center",
+    }}>
+      <div>
+        <Trophy size={36} color={CHAI} style={{ margin: "0 auto 16px" }} />
+        <div style={{
+          fontFamily: FONT_DISPLAY, fontSize: 16, letterSpacing: "0.12em",
+          color: T.textPrimary, textTransform: "uppercase", marginBottom: 8,
+        }}>
+          FILA ZERADA
+        </div>
+        <div style={{
+          fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.12em",
+          color: T.textSecondary, textTransform: "uppercase", marginBottom: 20,
+          maxWidth: 280, lineHeight: 1.6,
+        }}>
+          NENHUM CARD NA SUA FILA DO FUNIL DE VENDAS
+        </div>
+        <button onClick={onReload} style={{
+          padding: "12px 24px",
+          backgroundColor: CHAI, border: `1px solid ${CHAI}`, color: T.onPrimary,
+          fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.22em", fontWeight: 600,
+          textTransform: "uppercase", cursor: "pointer",
+        }}>
+          RECARREGAR
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tarefas delegadas pelo admin — banner no /tracking pro vendedor ──
+function TarefasVendedorBar({ nome }: { nome: string }) {
+  const { T } = useTheme();
+  const [tasks, setTasks] = useState<TrackingTask[]>([]);
+  const [collapsed, setCollapsed] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const reload = async () => {
+    if (!nome) return;
+    const r = await supabase
+      .from("tracking_tasks")
+      .select("*")
+      .eq("assigned_to", nome)
+      .eq("status", "open")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(50);
+    if (!r.error) setTasks((r.data as TrackingTask[]) || []);
+  };
+
+  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nome]);
+
+  // Realtime: novas tarefas e atualizações
+  useEffect(() => {
+    if (!nome) return;
+    const ch = supabase
+      .channel(`tracking-tasks-${nome}`)
+      .on("postgres_changes" as any,
+        { event: "*", schema: "public", table: "tracking_tasks", filter: `assigned_to=eq.${nome}` },
+        () => reload())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nome]);
+
+  const increment = async (task: TrackingTask) => {
+    setBusy(task.id);
+    try {
+      const newCount = Math.min(task.target_count, task.current_count + 1);
+      const completed = newCount >= task.target_count;
+      const updates = [
+        ...(Array.isArray(task.updates) ? task.updates : []),
+        { at: new Date().toISOString(), by: nome, delta: 1 },
+      ];
+      const r = await supabase
+        .from("tracking_tasks")
+        .update({
+          current_count: newCount,
+          status: completed ? "completed" : task.status,
+          completed_at: completed ? new Date().toISOString() : null,
+          updates,
+        })
+        .eq("id", task.id);
+      if (r.error) { alert("Erro: " + r.error.message); return; }
+      reload();
+    } finally { setBusy(null); }
+  };
+
+  if (tasks.length === 0) return null;
+  const total = tasks.reduce((a, t) => a + t.current_count, 0);
+  const target = tasks.reduce((a, t) => a + t.target_count, 0);
+
+  return (
+    <div style={{
+      borderBottom: `1px solid ${T.borderHover}`,
+      backgroundColor: `${CHAI}10`,
+      flexShrink: 0,
+    }}>
+      {/* Header da barra — clicável */}
+      <button onClick={() => setCollapsed((v) => !v)} style={{
+        width: "100%", padding: "8px 14px",
+        display: "flex", alignItems: "center", gap: 10,
+        background: "none", border: "none", cursor: "pointer", color: T.textPrimary,
+      }}>
+        <Sparkles size={12} color={CHAI} />
+        <div style={{ fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.22em", color: CHAI, fontWeight: 700, textTransform: "uppercase" }}>
+          TAREFAS DO ADMIN · {tasks.length}
+        </div>
+        <div style={{ marginLeft: "auto", fontFamily: FONT_BODY, fontSize: 10, color: T.textSecondary, letterSpacing: "0.04em" }}>
+          {total} / {target}
+        </div>
+        {collapsed ? <ArrowRight size={11} color={T.textMuted} /> : <ChevronDown size={11} color={T.textMuted} />}
+      </button>
+
+      {!collapsed && (
+        <div style={{ padding: "0 14px 12px" }}>
+          {tasks.map((t) => {
+            const pct = t.target_count > 0 ? Math.min(100, Math.round((t.current_count / t.target_count) * 100)) : 0;
+            const isBusy = busy === t.id;
+            return (
+              <div key={t.id} style={{
+                marginBottom: 6, padding: "10px 12px",
+                border: `1px solid ${T.border}`, backgroundColor: T.bg,
+              }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500, color: T.textPrimary, letterSpacing: "0.02em" }}>
+                      {t.title}
+                    </div>
+                    {t.description && (
+                      <div style={{ fontFamily: FONT_BODY, fontSize: 9, color: T.textSecondary, marginTop: 2, lineHeight: 1.5 }}>
+                        {t.description}
+                      </div>
+                    )}
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 8, color: T.textMuted, marginTop: 4, letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                      {t.due_date && `PRAZO ${t.due_date} · `}
+                      POR {t.created_by.toUpperCase()}
+                    </div>
+                  </div>
+                  <button onClick={() => increment(t)} disabled={isBusy}
+                    style={{
+                      padding: "8px 12px",
+                      backgroundColor: CHAI, border: `1px solid ${CHAI}`, color: T.onPrimary,
+                      fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.20em", fontWeight: 700,
+                      textTransform: "uppercase", cursor: isBusy ? "wait" : "pointer",
+                      display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
+                      opacity: isBusy ? 0.6 : 1,
+                    }}>
+                    {isBusy ? <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={11} />}
+                    +1
+                  </button>
+                </div>
+                {/* Barra de progresso */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.08em", color: T.textMuted }}>
+                    <span>PROGRESSO</span>
+                    <span style={{ color: T.textPrimary, fontWeight: 600 }}>{t.current_count} / {t.target_count}</span>
+                  </div>
+                  <div style={{ height: 3, backgroundColor: T.border, position: "relative" }}>
+                    <div style={{
+                      position: "absolute", top: 0, left: 0, bottom: 0,
+                      width: `${pct}%`, backgroundColor: CHAI, transition: "width 0.3s",
+                    }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── InstallPrompt — banner discreto pra adicionar PWA na home ──────
+const PROMPT_DISMISS_KEY = "parket.tracking.install.dismissed";
+
+function InstallPrompt() {
+  const { T } = useTheme();
+  const [show, setShow] = useState(false);
+  const [deferred, setDeferred] = useState<any>(null);
+  const [iosHint, setIosHint] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem(PROMPT_DISMISS_KEY)) return;
+    // Já instalado? não mostra
+    const standalone = window.matchMedia?.("(display-mode: standalone)").matches
+      || (window.navigator as any).standalone === true;
+    if (standalone) return;
+
+    const ua = navigator.userAgent;
+    const isIos = /iPhone|iPad|iPod/.test(ua) && !(/CriOS|FxiOS|EdgiOS/.test(ua));
+    if (isIos) {
+      setIosHint(true);
+      setShow(true);
+      return;
+    }
+    const onBefore = (e: any) => {
+      e.preventDefault();
+      setDeferred(e);
+      setShow(true);
+    };
+    window.addEventListener("beforeinstallprompt", onBefore);
+    return () => window.removeEventListener("beforeinstallprompt", onBefore);
+  }, []);
+
+  const dismiss = () => {
+    localStorage.setItem(PROMPT_DISMISS_KEY, String(Date.now()));
+    setShow(false);
+  };
+
+  const install = async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    try { await deferred.userChoice; } catch {}
+    setDeferred(null);
+    dismiss();
+  };
+
+  if (!show) return null;
+  return (
+    <div style={{
+      borderBottom: `1px solid ${T.borderHover}`,
+      backgroundColor: `${CHAI}18`,
+      padding: "10px 14px",
+      display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
+    }}>
+      <Sparkles size={14} color={CHAI} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.22em", color: CHAI, fontWeight: 700, textTransform: "uppercase" }}>
+          INSTALAR NO CELULAR
+        </div>
+        <div style={{ fontFamily: FONT_BODY, fontSize: 10, color: T.textSecondary, marginTop: 3, lineHeight: 1.5 }}>
+          {iosHint
+            ? "Safari → toque em ↥ Compartilhar → 'Adicionar à Tela de Início'"
+            : "Adicione o Tracking à tela inicial pra abrir como app nativo."}
+        </div>
+      </div>
+      {!iosHint && deferred && (
+        <button onClick={install} style={{
+          padding: "7px 12px", backgroundColor: CHAI, border: `1px solid ${CHAI}`, color: T.onPrimary,
+          fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.20em", fontWeight: 600,
+          textTransform: "uppercase", cursor: "pointer",
+        }}>
+          INSTALAR
+        </button>
+      )}
+      <button onClick={dismiss} title="Dispensar" style={{
+        padding: "5px", background: "none", border: "none", cursor: "pointer", color: T.textMuted,
+      }}>
+        <X size={13} />
+      </button>
+    </div>
+  );
+}
+
+// ─── helpers ───────────────────────────────────────────────────────────
+function formatDataAg(ymd: string): { dia: string; mes: string } {
+  // Expecting YYYY-MM-DD
+  const [, m, d] = ymd.split("-").map(Number);
+  const meses = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  return { dia: String(d).padStart(2, "0"), mes: meses[(m || 1) - 1] || "—" };
+}
+
+function todayYmd(): string {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function diaSemana(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dow = new Date(y, (m || 1) - 1, d).getDay();
+  return ["DOMINGO","SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA","SÁBADO"][dow];
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// /tracking/agenda — agenda do vendedor (sincronizada com agendamentos)
+// ────────────────────────────────────────────────────────────────────────
+function TrackingAgendaInner({ appUser }: { appUser: AppUser }) {
+  const { T } = useTheme();
+  const [ags, setAgs] = useState<Agendamento[]>([]);
+  const [cardsById, setCardsById] = useState<Map<string, TrackingCard>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"proximos" | "hoje" | "semana" | "passados">("proximos");
+
+  const nome = appUser.nome || "";
+
+  const reload = async () => {
+    if (!nome) { setErr("Seu usuário não tem nome cadastrado."); setLoading(false); return; }
+    setLoading(true);
+    try {
+      // Janela: 30 dias passados → 90 dias futuros (suficiente pros filtros)
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const past = new Date(today); past.setDate(today.getDate() - 30);
+      const future = new Date(today); future.setDate(today.getDate() + 90);
+      const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+      const agsR = await supabase
+        .from("agendamentos")
+        .select("id, card_id, vendedor, data, hora_inicio, hora_fim, modalidade, meet_link, endereco, cliente_nome, observacoes, status")
+        .eq("vendedor", nome)
+        .gte("data", ymd(past))
+        .lte("data", ymd(future))
+        .order("data", { ascending: true })
+        .order("hora_inicio", { ascending: true })
+        .limit(500);
+      if (agsR.error) throw agsR.error;
+      const agsData = (agsR.data as Agendamento[]) || [];
+      setAgs(agsData);
+
+      // Carrega cards associados pra mostrar título/produto
+      const cardIds = [...new Set(agsData.map((a) => a.card_id).filter(Boolean) as string[])];
+      if (cardIds.length > 0) {
+        const cardsR = await supabase
+          .from("kanban_cards")
+          .select("id, title, responsavel, column_id, dept_id, value, tags, created_at, updated_at, details")
+          .in("id", cardIds)
+          .limit(500);
+        if (cardsR.error) throw cardsR.error;
+        const map = new Map<string, TrackingCard>();
+        (cardsR.data as TrackingCard[]).forEach((c) => map.set(c.id, c));
+        setCardsById(map);
+      } else {
+        setCardsById(new Map());
+      }
+      setErr(null);
+    } catch (e: any) {
+      setErr(e?.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nome]);
+
+  const today = todayYmd();
+  const weekEnd = (() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 7);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  // Filtros + ordenação
+  const filtered = useMemo(() => {
+    return ags.filter((a) => {
+      if (a.status === "cancelado") return false;
+      if (filter === "hoje") return a.data === today;
+      if (filter === "semana") return a.data >= today && a.data <= weekEnd;
+      if (filter === "passados") return a.data < today;
+      // proximos: hoje em diante
+      return a.data >= today;
+    });
+  }, [ags, filter, today, weekEnd]);
+
+  // Agrupa por data
+  const grouped = useMemo(() => {
+    const g: { data: string; items: Agendamento[] }[] = [];
+    let curr: { data: string; items: Agendamento[] } | null = null;
+    filtered.forEach((a) => {
+      if (!curr || curr.data !== a.data) {
+        curr = { data: a.data, items: [] };
+        g.push(curr);
+      }
+      curr.items.push(a);
+    });
+    return g;
+  }, [filtered]);
+
+  const totalHoje = ags.filter((a) => a.data === today && a.status !== "cancelado").length;
+
+  if (loading) return <Boot label="Carregando agenda" />;
+  if (err) return <Boot label={err} variant="error" />;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, backgroundColor: T.bg, color: T.textPrimary,
+      fontFamily: FONT_BODY, display: "flex", flexDirection: "column",
+      overscrollBehavior: "contain", transition: "background 0.35s, color 0.35s",
+    }}>
+      <PageHeader
+        title={`AGENDA · ${nome.toUpperCase()}`}
+        sub={`${String(totalHoje).padStart(2, "0")} HOJE · ${String(ags.filter((a) => a.status !== "cancelado").length).padStart(2, "0")} TOTAIS`}
+        right={
+          <>
+            <ThemeToggle />
+            <IconButton onClick={reload} title="Recarregar"><RefreshCw size={11} /></IconButton>
+            <LinkButton to="/tracking" muted>VOLTAR</LinkButton>
+          </>
+        }
+        extra={
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4 }}>
+            <AgendaTab active={filter === "hoje"} onClick={() => setFilter("hoje")}>HOJE</AgendaTab>
+            <AgendaTab active={filter === "semana"} onClick={() => setFilter("semana")}>7 DIAS</AgendaTab>
+            <AgendaTab active={filter === "proximos"} onClick={() => setFilter("proximos")}>PRÓXIMOS</AgendaTab>
+            <AgendaTab active={filter === "passados"} onClick={() => setFilter("passados")}>PASSADOS</AgendaTab>
+          </div>
+        }
+      />
+
+      <div style={{ flex: 1, overflow: "auto", padding: "12px 14px" }}>
+        {grouped.length === 0 ? (
+          <div style={{
+            textAlign: "center", padding: "60px 0",
+            fontFamily: FONT_BODY, fontSize: 10, letterSpacing: "0.20em",
+            color: T.textMuted, textTransform: "uppercase",
+          }}>
+            <Calendar size={28} color={T.textSecondary} style={{ margin: "0 auto 14px", display: "block" }} />
+            NENHUM AGENDAMENTO
+          </div>
+        ) : (
+          grouped.map((g) => {
+            const isHoje = g.data === today;
+            const d = formatDataAg(g.data);
+            return (
+              <div key={g.data} style={{ marginBottom: 18 }}>
+                {/* Header do dia */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  paddingBottom: 8, marginBottom: 8,
+                  borderBottom: `1px solid ${isHoje ? CHAI : T.border}`,
+                }}>
+                  <div style={{ width: 40, textAlign: "center", flexShrink: 0 }}>
+                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: isHoje ? CHAI : T.textPrimary, lineHeight: 1, fontWeight: 500 }}>
+                      {d.dia}
+                    </div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.20em", color: T.textMuted, marginTop: 2, textTransform: "uppercase" }}>
+                      {d.mes}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.20em", color: T.textSecondary, textTransform: "uppercase" }}>
+                      {diaSemana(g.data)}
+                    </div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.06em", color: T.textMuted, marginTop: 2, textTransform: "uppercase" }}>
+                      {String(g.items.length).padStart(2, "0")} {g.items.length === 1 ? "AGENDAMENTO" : "AGENDAMENTOS"}
+                    </div>
+                  </div>
+                  {isHoje && (
+                    <span style={{ padding: "3px 8px", fontSize: 8, letterSpacing: "0.20em", color: T.onPrimary, backgroundColor: CHAI, fontWeight: 600 }}>
+                      HOJE
+                    </span>
+                  )}
+                </div>
+
+                {/* Itens */}
+                {g.items.map((a) => {
+                  const card = a.card_id ? cardsById.get(a.card_id) : null;
+                  const det = card?.details || {};
+                  const cliente = a.cliente_nome || det.contato_principal || det.nome || card?.title || "(sem cliente)";
+                  const produto = det.produto_interesse;
+                  const stage = card?.column_id ? STAGE_LABEL[card.column_id] : null;
+                  const phone = (det.celular || det.telefone || det.contato_principal || "").toString().replace(/\D/g, "");
+                  const phoneIntl = phone.startsWith("55") ? phone : phone ? "55" + phone : "";
+                  const cancelado = a.status === "cancelado";
+
+                  return (
+                    <div key={a.id} style={{
+                      display: "flex", gap: 10, padding: "12px 14px", marginBottom: 6,
+                      border: `1px solid ${T.border}`, backgroundColor: T.surface,
+                      opacity: cancelado ? 0.45 : 1,
+                    }}>
+                      {/* Hora */}
+                      <div style={{ width: 48, flexShrink: 0, textAlign: "left" }}>
+                        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, color: T.textPrimary, fontWeight: 500, lineHeight: 1, letterSpacing: "0.04em" }}>
+                          {a.hora_inicio.slice(0, 5)}
+                        </div>
+                        {a.hora_fim && (
+                          <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.12em", color: T.textMuted, marginTop: 3 }}>
+                            {a.hora_fim.slice(0, 5)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Conteúdo */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6, marginBottom: 4 }}>
+                          <div style={{ fontFamily: FONT_BODY, fontSize: 12, fontWeight: 500, color: T.textPrimary, letterSpacing: "0.02em", lineHeight: 1.3 }}>
+                            {cliente}
+                          </div>
+                          <span style={{
+                            fontFamily: FONT_BODY, fontSize: 7, letterSpacing: "0.18em", whiteSpace: "nowrap",
+                            color: a.modalidade === "meet" ? CHAI : T.textSecondary,
+                            border: `1px solid ${a.modalidade === "meet" ? CHAI : T.border}`,
+                            padding: "2px 7px", textTransform: "uppercase", flexShrink: 0,
+                          }}>
+                            {a.modalidade === "meet" ? "MEET" : "PRESENCIAL"}
+                          </span>
+                        </div>
+
+                        {/* Sub-info */}
+                        <div style={{ fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.04em", color: T.textSecondary, marginBottom: 6, lineHeight: 1.5 }}>
+                          {stage && <span style={{ color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>{stage}</span>}
+                          {stage && produto && " · "}
+                          {produto && <span>{produto}</span>}
+                          {a.endereco && a.modalidade === "presencial" && (
+                            <div style={{ marginTop: 3, color: T.textMuted }}>{a.endereco}</div>
+                          )}
+                          {a.observacoes && (
+                            <div style={{ marginTop: 4, fontStyle: "italic", color: T.textMuted, fontSize: 9 }}>
+                              {String(a.observacoes).slice(0, 140)}
+                            </div>
+                          )}
+                          {cancelado && (
+                            <div style={{ marginTop: 4, color: WALNUT, letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 8, fontWeight: 600 }}>
+                              · CANCELADO ·
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Ações */}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                          {a.modalidade === "meet" && a.meet_link && !cancelado && (
+                            <a href={a.meet_link} target="_blank" rel="noreferrer" style={ActionLinkStyle(CHAI, T.onPrimary, true)}>
+                              <Video size={9} /> ABRIR MEET
+                            </a>
+                          )}
+                          {phoneIntl && !cancelado && (
+                            <a href={`tel:+${phoneIntl}`} style={ActionLinkStyle(T.borderHover, T.textPrimary)}>
+                              <Phone size={9} /> LIGAR
+                            </a>
+                          )}
+                          {phoneIntl && !cancelado && (
+                            <a href={`https://wa.me/${phoneIntl}`} target="_blank" rel="noreferrer" style={ActionLinkStyle(T.borderHover, T.textPrimary)}>
+                              <MessageCircle size={9} /> WHATSAPP
+                            </a>
+                          )}
+                          {card && (
+                            <Link to={`/card/${card.id}`} target="_blank" style={ActionLinkStyle(T.border, T.textMuted)}>
+                              <ExternalLink size={9} /> CARD
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Copiloto IA — resumo do card via agente.parket.works/api/hb-ia/analyze ──
+const AGENTE_URL = "https://agente.parket.works";
+
+type IAAnalise = {
+  nivel?: string; score?: number;
+  motivo?: string; proxima_acao?: string;
+  feita_at?: string; feita_por?: string;
+};
+
+function CopilotoSection({ card, onUpdated }: {
+  card: TrackingCard;
+  onUpdated: (newDetails: any) => void;
+}) {
+  const { T, mode } = useTheme();
+  const det = card.details || {};
+  const persisted: IAAnalise | null = det.ia_analise && typeof det.ia_analise === "object" ? det.ia_analise : null;
+  const [analise, setAnalise] = useState<IAAnalise | null>(persisted);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [diasNaEtapa, setDiasNaEtapa] = useState<number | null>(null);
+  const autoTriggered = useRef<string | null>(null);
+
+  useEffect(() => {
+    const p = card.details?.ia_analise;
+    setAnalise(p && typeof p === "object" ? p : null);
+  }, [card.id, card.details]);
+
+  // Calcula quantos dias o card está na etapa atual via card_movements
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const r = await supabase
+        .from("card_movements")
+        .select("moved_at")
+        .eq("card_id", card.id)
+        .eq("to_column", card.column_id)
+        .order("moved_at", { ascending: false })
+        .limit(1);
+      if (!alive) return;
+      let since: string | null = null;
+      if (!r.error && r.data && r.data.length > 0) since = r.data[0].moved_at;
+      else since = card.updated_at || card.created_at; // fallback
+      if (since) {
+        const dias = Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 86400000));
+        setDiasNaEtapa(dias);
+      }
+    })();
+    return () => { alive = false; };
+  }, [card.id, card.column_id, card.updated_at, card.created_at]);
+
+  const analisar = async () => {
+    setLoading(true); setErr(null);
+    try {
+      const payload = {
+        card_id: card.id,
+        card_title: card.title,
+        slug: card.column_id,
+        produto_interesse: det.produto_interesse,
+        metragem: Number(det.metragem_estimada || det.area_m2 || det.metragem) || null,
+        valor_mesa: parseValueText(det.valor_orcamento_enviado || card.value || "") || null,
+        cidade: det.cidade,
+        responsavel: card.responsavel,
+        mensagens: Array.isArray(det.mensagens_ia)
+          ? det.mensagens_ia.slice(-15).map((m: any) => ({
+              direction: m.de === "cliente" ? "in" : "out",
+              text: m.texto || "", at: m.ts,
+            }))
+          : [],
+      };
+      const r = await fetch(`${AGENTE_URL}/api/hb-ia/analyze`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      const data = await r.json();
+      const novo: IAAnalise = {
+        nivel: data.nivel, score: data.score,
+        motivo: data.motivo, proxima_acao: data.proxima_acao,
+        feita_at: new Date().toISOString(), feita_por: "ia",
+      };
+      setAnalise(novo);
+      const nextDetails = { ...(det), ia_analise: novo };
+      await supabase.from("kanban_cards").update({ details: nextDetails }).eq("id", card.id);
+      onUpdated(nextDetails);
+    } catch (e: any) {
+      setErr(e?.message || "Erro");
+    } finally { setLoading(false); }
+  };
+
+  // Auto-trigger: se não tem análise persistida pra esse card, gera automaticamente
+  useEffect(() => {
+    if (autoTriggered.current === card.id) return;
+    if (persisted) return; // já tem
+    autoTriggered.current = card.id;
+    analisar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card.id]);
+
+  const accent = mode === "light" ? WALNUT : CREAM;
+  const hasAnalise = !!(analise && (analise.motivo || analise.proxima_acao));
+
+  return (
+    <>
+      <SectionHeader label="COPILOTO IA" />
+      <div style={{ border: `1px solid ${T.border}`, backgroundColor: T.surface, padding: "12px 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasAnalise || diasNaEtapa != null ? 10 : 0, gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <Bot size={12} color={CHAI} />
+            <span style={{ fontFamily: FONT_BODY, fontSize: 9, letterSpacing: "0.20em", color: T.textSecondary, textTransform: "uppercase", fontWeight: 600 }}>
+              ANÁLISE DO LEAD
+            </span>
+          </div>
+          <button onClick={analisar} disabled={loading} style={{
+            padding: "5px 10px",
+            backgroundColor: "transparent",
+            border: `1px solid ${CHAI}`,
+            color: CHAI,
+            fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.20em", fontWeight: 600,
+            textTransform: "uppercase", cursor: loading ? "wait" : "pointer",
+            display: "flex", alignItems: "center", gap: 5, opacity: loading ? 0.6 : 1,
+          }}>
+            {loading
+              ? <><Loader2 size={9} style={{ animation: "spin 1s linear infinite" }} /> ANALISANDO</>
+              : <><RefreshCw size={9} /> ATUALIZAR</>}
+          </button>
+        </div>
+
+        {/* Dias na etapa atual */}
+        {diasNaEtapa != null && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", marginBottom: 10,
+            border: `1px solid ${T.border}`,
+            backgroundColor: diasNaEtapa > 7 ? `${WALNUT}25` : T.bg,
+          }}>
+            <CalendarClock size={11} color={diasNaEtapa > 7 ? WALNUT : T.textSecondary} />
+            <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted, textTransform: "uppercase" }}>
+              NA ETAPA ATUAL
+            </div>
+            <div style={{ marginLeft: "auto", fontFamily: FONT_DISPLAY, fontSize: 14, color: diasNaEtapa > 7 ? WALNUT : T.textPrimary, fontWeight: 500, letterSpacing: "0.04em" }}>
+              {diasNaEtapa === 0 ? "HOJE" : `${diasNaEtapa} ${diasNaEtapa === 1 ? "DIA" : "DIAS"}`}
+            </div>
+          </div>
+        )}
+
+        {err && (
+          <div style={{ fontFamily: FONT_BODY, fontSize: 9, color: WALNUT, marginTop: 8, letterSpacing: "0.06em" }}>
+            ⚠ {err}
+          </div>
+        )}
+
+        {!hasAnalise && loading && (
+          <div style={{ fontFamily: FONT_BODY, fontSize: 10, color: T.textMuted, letterSpacing: "0.06em", lineHeight: 1.6, marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+            <Loader2 size={11} style={{ animation: "spin 1s linear infinite", color: CHAI }} />
+            Analisando lead...
+          </div>
+        )}
+
+        {hasAnalise && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {(analise!.nivel || analise!.score != null) && (
+              <div style={{ display: "flex", gap: 14, alignItems: "center", paddingBottom: 8, borderBottom: `1px solid ${T.border}` }}>
+                {analise!.nivel && (
+                  <div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted }}>NÍVEL</div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: accent, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 2 }}>
+                      {analise!.nivel}
+                    </div>
+                  </div>
+                )}
+                {analise!.score != null && (
+                  <div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted }}>SCORE</div>
+                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: T.textPrimary, fontWeight: 500, letterSpacing: "0.04em", marginTop: 2 }}>
+                      {analise!.score}<span style={{ fontSize: 9, color: T.textMuted, letterSpacing: "0.14em", marginLeft: 4 }}>/100</span>
+                    </div>
+                  </div>
+                )}
+                {analise!.feita_at && (
+                  <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted }}>QUANDO</div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 9, color: T.textSecondary, marginTop: 2, letterSpacing: "0.04em" }}>
+                      {fmtRelative(analise!.feita_at)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {analise!.motivo && (
+              <div>
+                <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: T.textMuted, marginBottom: 4 }}>
+                  ANÁLISE
+                </div>
+                <div style={{ fontFamily: FONT_BODY, fontSize: 11, lineHeight: 1.6, color: T.textPrimary, fontWeight: 300, whiteSpace: "pre-wrap" }}>
+                  {analise!.motivo}
+                </div>
+              </div>
+            )}
+
+            {analise!.proxima_acao && (
+              <div style={{ padding: "10px 12px", border: `1px solid ${CHAI}50`, backgroundColor: `${CHAI}12` }}>
+                <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: CHAI, marginBottom: 5, fontWeight: 600 }}>
+                  ▸ PRÓXIMA AÇÃO RECOMENDADA
+                </div>
+                <div style={{ fontFamily: FONT_BODY, fontSize: 11, lineHeight: 1.6, color: T.textPrimary, fontWeight: 400 }}>
+                  {analise!.proxima_acao}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Form genérico de observação antes de confirmar ação ───────────────
+function ObsForm({ action, busy, onCancel }: {
+  action: PendingAction;
+  busy: boolean;
+  onCancel: () => void;
+}) {
+  const { T } = useTheme();
+  const [text, setText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const isWalnut = action.variant === "walnut";
+
+  const confirm = async () => {
+    setSubmitting(true);
+    try { await action.exec(text.trim() || undefined); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div style={{
+      borderTop: `1px solid ${T.borderHover}`, backgroundColor: T.surface,
+      padding: "14px 18px", flexShrink: 0,
+    }}>
+      <div style={{ fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.22em", color: isWalnut ? WALNUT : T.textPrimary, marginBottom: 8, fontWeight: 700 }}>
+        {action.label}
+      </div>
+      <textarea
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={3}
+        placeholder={action.hint || "Observação (opcional)"}
+        style={{
+          width: "100%", padding: "10px 12px",
+          fontFamily: FONT_BODY, fontSize: 11, color: T.textPrimary,
+          backgroundColor: T.bg, border: `1px solid ${isWalnut ? `${WALNUT}80` : T.borderHover}`, outline: "none",
+          resize: "vertical",
+        }}
+      />
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <BigButton onClick={confirm} disabled={busy || submitting} loading={busy || submitting} variant={isWalnut ? "walnut" : "primary"}>
+          {text.trim() ? "CONFIRMAR · COM NOTA" : "CONFIRMAR"}
+        </BigButton>
+        <BigButton onClick={onCancel} disabled={submitting} variant="ghost">CANCELAR</BigButton>
+      </div>
+    </div>
+  );
+}
+
+function AgendaTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  const { T } = useTheme();
+  return (
+    <button onClick={onClick} style={{
+      padding: "8px 4px",
+      background: active ? `${CHAI}18` : "transparent",
+      border: `1px solid ${active ? CHAI : T.border}`,
+      color: active ? T.textPrimary : T.textSecondary,
+      fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.18em", fontWeight: 600,
+      textTransform: "uppercase", cursor: "pointer",
+      transition: "all 0.15s",
+    }}>
+      {children}
+    </button>
+  );
+}
+
+function ActionLinkStyle(borderColor: string, color: string, filled = false): React.CSSProperties {
+  return {
+    padding: "5px 9px",
+    border: `1px solid ${borderColor}`,
+    backgroundColor: filled ? borderColor : "transparent",
+    color: color,
+    fontFamily: FONT_BODY, fontSize: 8, letterSpacing: "0.18em", fontWeight: 600,
+    textTransform: "uppercase", textDecoration: "none",
+    display: "inline-flex", alignItems: "center", gap: 4,
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PIPELINE — Kanban do vendedor (colunas como /book/vendas) + botão Orçar
+// ════════════════════════════════════════════════════════════════════════
+const PIPELINE_COLS = [
+  "novas-oportunidades",
+  "contato-inicial",
+  "em-briefing",
+  "criacao-orcamento",
+  "apresentacao-proposta",
+  "em-negociacao",
+] as const;
+const PIPELINE_COL_COLOR: Record<string, string> = {
+  "novas-oportunidades":   "#6B7280",
+  "contato-inicial":       "#3B82F6",
+  "em-briefing":           "#6366F1",
+  "criacao-orcamento":     "#C8A14B",
+  "apresentacao-proposta": "#F97316",
+  "em-negociacao":         "#EC4899",
+};
+
+function PipelineView({ cards, appUser, T }: { cards: TrackingCard[]; appUser: AppUser; T: Theme }) {
+  const [busca, setBusca] = useState("");
+  const [orcCard, setOrcCard] = useState<TrackingCard | null>(null);
+
+  const cardsByCol = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const match = (c: TrackingCard) => {
+      if (!q) return true;
+      const d: any = c.details || {};
+      return (c.title || "").toLowerCase().includes(q)
+          || (d.cidade || "").toLowerCase().includes(q)
+          || (d.celular || d.telefone || "").includes(q);
+    };
+    const map: Record<string, TrackingCard[]> = {};
+    for (const col of PIPELINE_COLS) map[col] = [];
+    for (const c of cards) {
+      if (!match(c)) continue;
+      const col = (c.column_id || "").toString();
+      if (map[col]) map[col].push(c);
+    }
+    return map;
+  }, [cards, busca]);
+
+  const totalVisivel = useMemo(() =>
+    Object.values(cardsByCol).reduce((s, arr) => s + arr.length, 0),
+    [cardsByCol]
+  );
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: T.bg, minHeight: 0 }}>
+      {/* Toolbar busca */}
+      <div style={{ padding: 12, display: "flex", gap: 8, borderBottom: `1px solid ${T.border}` }}>
+        <input
+          value={busca} onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar cliente, cidade ou telefone…"
+          style={{
+            flex: 1, padding: "8px 10px", background: T.surface, color: T.textPrimary,
+            border: `1px solid ${T.border}`, fontSize: 12, fontFamily: FONT_BODY, outline: "none",
+          }}
+        />
+        <div style={{ color: T.textMuted, fontSize: 10, alignSelf: "center", letterSpacing: "0.14em" }}>
+          {totalVisivel}/{cards.length}
+        </div>
+      </div>
+
+      {/* Kanban: scroll horizontal de colunas, cada coluna scroll vertical interno */}
+      <div style={{ flex: 1, overflowX: "auto", overflowY: "hidden", padding: 12, display: "flex", gap: 10, minHeight: 0 }}>
+        {PIPELINE_COLS.map((colSlug) => {
+          const colCards = cardsByCol[colSlug] || [];
+          const cor = PIPELINE_COL_COLOR[colSlug] || T.textMuted;
+          const valorTotal = colCards.reduce((s, c) => s + (parseValueText(c.value) || 0), 0);
+          return (
+            <div key={colSlug} style={{
+              flexShrink: 0, width: 260, display: "flex", flexDirection: "column",
+              background: T.surface, border: `1px solid ${T.border}`, maxHeight: "100%",
+            }}>
+              {/* Header da coluna */}
+              <div style={{ padding: "10px 12px", borderBottom: `1px solid ${T.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ display: "block", width: 3, height: 10, background: cor, flexShrink: 0 }} />
+                  <span style={{
+                    fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase",
+                    fontWeight: 600, color: cor, fontFamily: FONT_BODY, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }} title={STAGE_LABEL[colSlug] || colSlug}>
+                    {STAGE_LABEL[colSlug] || colSlug}
+                  </span>
+                  <span style={{
+                    fontSize: 9, padding: "1px 6px", border: `1px solid ${T.border}`,
+                    color: T.textSecondary, fontFamily: FONT_BODY,
+                  }}>{colCards.length}</span>
+                </div>
+                {valorTotal > 0 && (
+                  <div style={{ marginTop: 4, fontSize: 9, color: T.textPrimary, fontFamily: FONT_BODY }}>
+                    {fmtBRL(valorTotal)}
+                  </div>
+                )}
+              </div>
+
+              {/* Lista vertical de cards */}
+              <div style={{ flex: 1, overflowY: "auto", padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                {colCards.length === 0 ? (
+                  <div style={{ padding: 14, textAlign: "center", color: T.textMuted, fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase" }}>
+                    Vazio
+                  </div>
+                ) : (
+                  colCards.slice(0, 80).map((c) => {
+                    const d: any = c.details || {};
+                    const valor = parseValueText(c.value) || 0;
+                    const cidade = d.cidade || d.endereco_obra || "";
+                    return (
+                      <div key={c.id} style={{
+                        background: T.bg, border: `1px solid ${T.border}`, padding: 8,
+                        display: "flex", flexDirection: "column", gap: 4,
+                      }}>
+                        <Link to={`/card/${c.id}`} style={{
+                          color: T.textPrimary, fontSize: 11, fontWeight: 600,
+                          fontFamily: FONT_BODY, textDecoration: "none",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }} title={c.title || ""}>
+                          {c.title || c.id.slice(0, 8)}
+                        </Link>
+                        {(cidade || valor > 0) && (
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: 9, color: T.textSecondary }}>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cidade}</span>
+                            {valor > 0 && <span style={{ color: T.textPrimary, flexShrink: 0 }}>{fmtBRL(valor)}</span>}
+                          </div>
+                        )}
+                        <button onClick={() => setOrcCard(c)}
+                          title="Solicitar orçamento"
+                          style={{
+                            marginTop: 2, padding: "4px 6px", background: "transparent",
+                            border: `1px solid ${T.borderHover}`, color: T.textPrimary,
+                            fontSize: 8, letterSpacing: "0.14em", fontFamily: FONT_BODY,
+                            cursor: "pointer", textTransform: "uppercase",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4,
+                          }}>
+                          <Calculator size={9} /> Orçar
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+                {colCards.length > 80 && (
+                  <div style={{ padding: 6, textAlign: "center", color: T.textMuted, fontSize: 9, letterSpacing: "0.14em" }}>
+                    +{colCards.length - 80} mais
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {orcCard && (
+        <SolicitarOrcamentoModal
+          card={orcCard as any}
+          appUser={appUser}
+          onClose={() => setOrcCard(null)}
+          onCreated={() => setOrcCard(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// TAREFAS — agenda_tarefas do vendedor (todas, com agrupamento por urgência)
+// ════════════════════════════════════════════════════════════════════════
+function TarefasView({ appUser, T }: { appUser: AppUser; T: Theme }) {
+  const [items, setItems] = useState<AgendaTarefa[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [filtro, setFiltro] = useState<"pendentes" | "todas">("pendentes");
+
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const arr = await api.tarefas(undefined, undefined, filtro === "pendentes" ? "pendente" : undefined);
+      setItems(arr);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [filtro]);
+
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const grupos = useMemo(() => {
+    const g = { atrasadas: [] as AgendaTarefa[], hoje: [] as AgendaTarefa[], futuro: [] as AgendaTarefa[], semData: [] as AgendaTarefa[] };
+    for (const t of items) {
+      if (!t.data) g.semData.push(t);
+      else if (t.data < hojeISO && t.status === "pendente") g.atrasadas.push(t);
+      else if (t.data === hojeISO) g.hoje.push(t);
+      else g.futuro.push(t);
+    }
+    return g;
+  }, [items, hojeISO]);
+
+  return (
+    <div style={{ flex: 1, overflow: "auto", padding: 14, background: T.bg }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button onClick={() => setNovoOpen(true)} style={{
+          padding: "8px 12px", background: T.textPrimary, color: T.bg,
+          border: "none", fontSize: 10, letterSpacing: "0.16em",
+          fontFamily: FONT_BODY, cursor: "pointer", textTransform: "uppercase",
+          display: "inline-flex", alignItems: "center", gap: 6,
+        }}>
+          <Plus size={11} /> Nova tarefa
+        </button>
+        <div style={{ display: "flex", border: `1px solid ${T.border}` }}>
+          {(["pendentes", "todas"] as const).map((f) => (
+            <button key={f} onClick={() => setFiltro(f)}
+              style={{
+                padding: "8px 12px", background: filtro === f ? T.surfaceHover : "transparent",
+                color: filtro === f ? T.textPrimary : T.textSecondary,
+                border: "none", borderRight: f === "pendentes" ? `1px solid ${T.border}` : "none",
+                fontSize: 10, letterSpacing: "0.16em", fontFamily: FONT_BODY, cursor: "pointer", textTransform: "uppercase",
+              }}>
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: "center", color: T.textMuted }}>
+          <Loader2 size={16} style={{ display: "inline-block", animation: "spin 1s linear infinite" }} />
+        </div>
+      ) : (
+        <>
+          {grupos.atrasadas.length > 0 && <TarefaGrupo titulo="ATRASADAS" cor="#D34"  items={grupos.atrasadas} T={T} onChange={reload} />}
+          {grupos.hoje.length > 0      && <TarefaGrupo titulo="HOJE"      cor="#D5A" items={grupos.hoje}      T={T} onChange={reload} />}
+          {grupos.futuro.length > 0    && <TarefaGrupo titulo="FUTURAS"   cor="#5BA" items={grupos.futuro}    T={T} onChange={reload} />}
+          {grupos.semData.length > 0   && <TarefaGrupo titulo="SEM DATA"  cor="#888" items={grupos.semData}   T={T} onChange={reload} />}
+          {items.length === 0 && (
+            <div style={{ padding: 40, textAlign: "center", color: T.textMuted, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase" }}>
+              Nenhuma tarefa {filtro === "pendentes" ? "pendente" : ""}.
+            </div>
+          )}
+        </>
+      )}
+
+      {novoOpen && (
+        <TarefaModal appUser={appUser} tarefa={null}
+          onClose={() => setNovoOpen(false)}
+          onSaved={() => { setNovoOpen(false); reload(); }} />
+      )}
+    </div>
+  );
+}
+
+function TarefaGrupo({ titulo, cor, items, T, onChange }: { titulo: string; cor: string; items: AgendaTarefa[]; T: Theme; onChange: () => void }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <div style={{ width: 3, height: 10, background: cor }} />
+        <div style={{ fontSize: 10, letterSpacing: "0.20em", fontFamily: FONT_BODY, color: T.textPrimary, fontWeight: 600 }}>
+          {titulo} <span style={{ color: T.textMuted, marginLeft: 6 }}>{items.length}</span>
+        </div>
+      </div>
+      <div style={{ display: "grid", gap: 4 }}>
+        {items.map((t) => (
+          <TarefaLinha key={t.id} t={t} T={T} onChange={onChange} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TarefaLinha({ t, T, onChange }: { t: AgendaTarefa; T: Theme; onChange: () => void }) {
+  const feita = t.status === "feita";
+  const prioCor = t.prioridade === "alta" ? "#D34" : t.prioridade === "baixa" ? T.textMuted : "#D5A";
+  return (
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 10px",
+      background: T.surface, border: `1px solid ${T.border}`, opacity: feita ? 0.55 : 1,
+    }}>
+      <button
+        onClick={async () => { await api.toggleTarefa(t.id, !feita); onChange(); }}
+        style={{
+          width: 16, height: 16, marginTop: 2,
+          background: feita ? "#5BA" : "transparent",
+          border: `1px solid ${feita ? "#5BA" : T.border}`,
+          color: T.bg, cursor: "pointer",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}>
+        {feita && <Check size={10} />}
+      </button>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: T.textPrimary, fontSize: 12, fontFamily: FONT_BODY, textDecoration: feita ? "line-through" : "none" }}>
+          {t.titulo}
+        </div>
+        {(t.descricao || t.hora || t.parceiro_id) && (
+          <div style={{ color: T.textSecondary, fontSize: 9, marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {t.hora && <span><CalendarClock size={9} style={{ display: "inline" }} /> {t.hora.slice(0, 5)}</span>}
+            {t.descricao && <span style={{ opacity: 0.8 }}>{t.descricao.slice(0, 80)}</span>}
+            {t.parceiro_id && <span style={{ color: cor4parceiro(T) }}>{`carteira`}</span>}
+          </div>
+        )}
+      </div>
+      {t.prioridade !== "media" && (
+        <span style={{
+          fontSize: 8, letterSpacing: "0.16em", color: prioCor, padding: "2px 6px",
+          border: `1px solid ${prioCor}40`, textTransform: "uppercase", fontFamily: FONT_BODY,
+        }}>{t.prioridade}</span>
+      )}
+    </div>
+  );
+}
+
+function cor4parceiro(T: Theme) { return T.textSecondary; }
+
+// ════════════════════════════════════════════════════════════════════════
+// CARTEIRA — parceiros do vendedor + botão "Criar tarefa pra parceiro"
+// ════════════════════════════════════════════════════════════════════════
+function CarteiraView({ appUser, T }: { appUser: AppUser; T: Theme }) {
+  const [parceiros, setParceiros] = useState<CarteiraParceiro[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState("");
+  const [novoTaskParceiro, setNovoTaskParceiro] = useState<CarteiraParceiro | null>(null);
+
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const arr = await api.carteiraParceiros(appUser.canSeeAll ? undefined : appUser.id);
+      setParceiros(arr);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
+
+  const filtered = useMemo(() => {
+    if (!busca.trim()) return parceiros;
+    const q = busca.toLowerCase();
+    return parceiros.filter((p) =>
+      p.nome.toLowerCase().includes(q) ||
+      (p.empresa || "").toLowerCase().includes(q) ||
+      (p.cidade || "").toLowerCase().includes(q)
+    );
+  }, [parceiros, busca]);
+
+  return (
+    <div style={{ flex: 1, overflow: "auto", padding: 14, background: T.bg }}>
+      <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+        <input
+          value={busca} onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar parceiro, empresa ou cidade…"
+          style={{
+            flex: 1, padding: "8px 10px", background: T.surface, color: T.textPrimary,
+            border: `1px solid ${T.border}`, fontSize: 12, fontFamily: FONT_BODY, outline: "none",
+          }}
+        />
+        <Link to="/carteira" style={{
+          padding: "8px 12px", background: "transparent", color: T.textSecondary,
+          border: `1px solid ${T.border}`, textDecoration: "none",
+          fontSize: 10, letterSpacing: "0.16em", fontFamily: FONT_BODY, textTransform: "uppercase",
+          display: "inline-flex", alignItems: "center", gap: 5,
+        }}>
+          GERENCIAR <ExternalLink size={9} />
+        </Link>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: "center", color: T.textMuted }}>
+          <Loader2 size={16} style={{ display: "inline-block", animation: "spin 1s linear infinite" }} />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: 40, textAlign: "center", color: T.textMuted, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase" }}>
+          Nenhum parceiro {busca ? "nesta busca" : "cadastrado"}.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 6 }}>
+          {filtered.map((p) => (
+            <div key={p.id} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", background: T.surface, border: `1px solid ${T.border}`,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: T.textPrimary, fontSize: 13, fontWeight: 600, fontFamily: FONT_BODY }}>
+                  {p.nome}
+                </div>
+                <div style={{ color: T.textSecondary, fontSize: 10, marginTop: 2, display: "flex", gap: 10, flexWrap: "wrap", textTransform: "uppercase", letterSpacing: "0.10em" }}>
+                  <span>{p.tipo}</span>
+                  {p.empresa && <span>· {p.empresa}</span>}
+                  {(p.cidade || p.estado) && <span>· {[p.cidade, p.estado].filter(Boolean).join("/")}</span>}
+                </div>
+              </div>
+              <button onClick={() => setNovoTaskParceiro(p)}
+                title="Criar tarefa pra esse parceiro (ex: ligar pra arquiteto)"
+                style={{
+                  padding: "6px 10px", background: T.textPrimary, color: T.bg,
+                  border: "none", fontSize: 9, letterSpacing: "0.16em", fontFamily: FONT_BODY,
+                  cursor: "pointer", textTransform: "uppercase",
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                }}>
+                <Plus size={10} /> Tarefa
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {novoTaskParceiro && (
+        <TarefaModal appUser={appUser} tarefa={null}
+          parceiroId={novoTaskParceiro.id}
+          onClose={() => setNovoTaskParceiro(null)}
+          onSaved={() => setNovoTaskParceiro(null)} />
+      )}
+    </div>
+  );
+}

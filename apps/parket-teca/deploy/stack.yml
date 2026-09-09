@@ -1,0 +1,76 @@
+version: "3.8"
+
+services:
+  api:
+    image: parket-teca-api:latest
+    networks:
+      - network_public
+      - parket-api_internal
+    environment:
+      TECA_PG_HOST: postgres
+      TECA_PG_PORT: "5432"
+      TECA_PG_DB: postgres
+      TECA_PG_USER: postgres
+      TECA_PG_PASSWORD_FILE: /run/secrets/parket_pg_local_password
+      TECA_ANTHROPIC_OAUTH_TOKEN_FILE: /run/secrets/teca_anthropic_oauth
+      TECA_CLAUDE_MODEL: claude-sonnet-4-5-20250929
+      TECA_MEMORY_DIR: /data/memory
+      TECA_DOCS_DIRS: /data/docs
+      TECA_CORS_ORIGINS: https://teca.parket.works
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export TECA_PG_PASSWORD=$$(cat $${TECA_PG_PASSWORD_FILE})
+        export TECA_ANTHROPIC_OAUTH_TOKEN=$$(cat $${TECA_ANTHROPIC_OAUTH_TOKEN_FILE} 2>/dev/null || echo "")
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    secrets:
+      - parket_pg_local_password
+      - teca_anthropic_oauth
+    volumes:
+      - /root/.claude/projects/-root/memory:/data/memory:ro
+      - /root/relatorios:/data/docs/relatorios:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+      mode: replicated
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+
+  web:
+    image: parket-teca-web:latest
+    networks:
+      - network_public
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+      mode: replicated
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      update_config: { parallelism: 1, order: start-first, failure_action: rollback }
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=network_public
+        - traefik.http.routers.parket-teca-http.rule=Host(`teca.parket.works`)
+        - traefik.http.routers.parket-teca-http.entrypoints=web
+        - traefik.http.routers.parket-teca-http.middlewares=https-redirect
+        - traefik.http.routers.parket-teca.rule=Host(`teca.parket.works`)
+        - traefik.http.routers.parket-teca.entrypoints=websecure
+        - traefik.http.routers.parket-teca.tls=true
+        - traefik.http.routers.parket-teca.tls.certresolver=letsencryptresolver
+        - traefik.http.services.parket-teca.loadbalancer.server.port=80
+
+networks:
+  network_public:
+    external: true
+  parket-api_internal:
+    external: true
+
+secrets:
+  parket_pg_local_password:
+    external: true
+  teca_anthropic_oauth:
+    external: true

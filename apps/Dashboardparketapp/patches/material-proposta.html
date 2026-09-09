@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orçamento de Material — Parket</title>
+<meta property="og:title" content="Orçamento de Material — Parket">
+<meta property="og:description" content="Fornecimento de madeira nobre — Parket">
+<meta property="og:image" content="https://space.parket.works/og-proposta.jpg">
+<meta property="og:type" content="website">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, Helvetica, sans-serif; background: #f4f1e8; color: #1a1a1a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 24px 18px; }
+.loading, .erro { text-align: center; padding: 60px 20px; font-size: 14px; color: #6a6a6a; }
+.erro { color: #dc2626; }
+.btn-bar { position: sticky; top: 0; z-index: 50; background: rgba(244,241,232,0.95); backdrop-filter: blur(6px); display: flex; justify-content: flex-end; gap: 8px; padding: 10px 18px; border-bottom: 1px solid #d4cfb8; margin: -24px -18px 18px -18px; }
+.btn { background: #1a1a1a; color: #D4A853; border: none; padding: 9px 18px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; letter-spacing: 0.05em; }
+.btn:hover { background: #2a2a2a; }
+.btn.alt { background: #D4A853; color: #1a1a1a; }
+.doc { background: #fff; padding: 32px 38px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-radius: 4px; }
+.cap-hdr { text-align: center; padding-bottom: 18px; border-bottom: 3px solid #D4A853; margin-bottom: 22px; }
+.cap-hdr .marca { font-size: 11pt; letter-spacing: 0.4em; color: #D4A853; font-weight: 700; }
+.cap-hdr h1 { font-size: 19pt; margin: 6px 0 2px; letter-spacing: -0.01em; }
+.cap-hdr .sub { font-size: 9pt; color: #6a6a6a; letter-spacing: 0.15em; text-transform: uppercase; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; margin-bottom: 22px; }
+.info-box { background: #fafaf7; border-left: 3px solid #D4A853; padding: 10px 12px; border-radius: 0 2px 2px 0; }
+.info-box .l { font-size: 8pt; color: #6a6a6a; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+.info-box .v { font-size: 11pt; font-weight: 600; }
+.sec-title { font-size: 13pt; font-weight: 700; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #d4cfb8; }
+table.itens { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+table.itens th { background: #1a1a1a; color: #D4A853; text-align: left; padding: 8px 10px; font-size: 9pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+table.itens th.r { text-align: right; }
+table.itens td { padding: 9px 10px; border-bottom: 1px solid #e8e4d8; font-size: 10pt; vertical-align: top; }
+table.itens td.r { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+table.itens tr:nth-child(even) td { background: #fafaf7; }
+table.itens .desc-title { font-weight: 700; margin-bottom: 2px; }
+table.itens .desc-body { font-size: 9pt; color: #5a5a5a; margin-top: 1px; white-space: pre-line; }
+.totais { background: #1a1a1a; color: #fff; padding: 14px 18px; border-radius: 4px; margin-top: 12px; }
+.totais-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 10.5pt; }
+.totais-row.tot { border-top: 1px solid #D4A853; margin-top: 6px; padding-top: 10px; font-size: 14pt; font-weight: 700; }
+.totais-row .lbl { color: #c8c8c8; }
+.totais-row.tot .lbl { color: #D4A853; }
+.totais-row .val { font-variant-numeric: tabular-nums; }
+.obs { background: #fafaf7; padding: 12px 16px; border-radius: 3px; margin-top: 18px; }
+.obs h3 { font-size: 11pt; margin-bottom: 6px; color: #1a1a1a; }
+.obs p { font-size: 10pt; line-height: 1.6; margin-bottom: 4px; white-space: pre-line; }
+.disclaimer { margin-top: 20px; padding: 12px 16px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 0 3px 3px 0; font-size: 9.5pt; color: #5a4a14; line-height: 1.5; }
+.foot { margin-top: 24px; padding-top: 14px; border-top: 1px solid #d4cfb8; text-align: center; font-size: 9pt; color: #6a6a6a; }
+.foot strong { color: #1a1a1a; }
+@media print { body { background: #fff; } .btn-bar { display: none; } .wrap { padding: 0; max-width: none; } .doc { box-shadow: none; border-radius: 0; padding: 18px 24px; } }
+@media (max-width: 640px) { .wrap { padding: 14px 10px; } .doc { padding: 20px 18px; } .info-grid { grid-template-columns: 1fr; } table.itens th, table.itens td { padding: 7px 8px; font-size: 9.5pt; } .cap-hdr h1 { font-size: 16pt; } }
+</style>
+</head>
+<body>
+<div class="wrap"><div id="root"><div class="loading">Carregando orçamento de material...</div></div></div>
+<script>
+(function () {
+  var REST = "https://api.parket.works/rest/v1";
+  var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NDI1MjcsImV4cCI6MjA4ODUxODUyN30.ciZA1H-UvlYG2OPWqrFChj-_ttiFD5W5BmrST-gUJ-0";
+
+  function brl(n) { return (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+  function num(n, frac) { frac = frac == null ? 2 : frac; return (Number(n) || 0).toLocaleString("pt-BR", { minimumFractionDigits: frac, maximumFractionDigits: frac }); }
+  function dateBR(iso) { try { return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }); } catch (e) { return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }); } }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  function getIdFromUrl() {
+    var m = location.pathname.match(/\/material\/([A-Za-z0-9\-_]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    var p = new URLSearchParams(location.search);
+    return p.get("id") || p.get("numero");
+  }
+
+  async function fetchJson(path) {
+    var r = await fetch(REST + path, { headers: { apikey: ANON, "Accept-Profile": "orcamento_produtos" } });
+    if (!r.ok) throw new Error("REST " + r.status);
+    return await r.json();
+  }
+
+  function render(proposta, itens) {
+    var sub = (itens || []).reduce(function (a, b) { return a + (Number(b.valor) || 0); }, 0);
+    var desc = 0;
+    if (proposta.desconto_modo === "valor") desc = Math.min(sub, Number(proposta.desconto_valor) || 0);
+    else desc = sub * ((Number(proposta.desconto_perc) || 0) / 100);
+    var frete = Number(proposta.frete_valor) || 0;
+    var total = sub - desc + frete;
+    var validade = Number(proposta.validade_dias) || 15;
+    var dataEmit = dateBR(proposta.created_at || new Date().toISOString());
+    var validadeAte = new Date(proposta.created_at || new Date());
+    validadeAte.setDate(validadeAte.getDate() + validade);
+    var validadeStr = validadeAte.toLocaleDateString("pt-BR");
+    var meta = proposta.meta || {};
+    var pag = meta.pagamento || {};
+
+    var html = '<div class="btn-bar">'
+      + '<button class="btn" onclick="window.print()">Imprimir / Salvar PDF</button>'
+      + '<button class="btn alt" onclick="navigator.share?navigator.share({title:document.title,url:location.href}):navigator.clipboard.writeText(location.href).then(function(){alert(\'Link copiado!\');})">Compartilhar</button>'
+      + "</div>";
+    html += '<div class="doc">';
+
+    html += '<div class="cap-hdr">'
+      + '<div class="marca">PARKET</div>'
+      + "<h1>Orçamento de Material</h1>"
+      + '<div class="sub">FORNECIMENTO · ' + esc(proposta.numero) + "</div>"
+      + "</div>";
+
+    html += '<div class="sec-title">Cliente</div>';
+    html += '<div class="info-grid">';
+    html += '<div class="info-box"><div class="l">Cliente</div><div class="v">' + esc(proposta.cliente || "—") + "</div></div>";
+    if (proposta.cnpj_cpf) html += '<div class="info-box"><div class="l">CPF / CNPJ</div><div class="v">' + esc(proposta.cnpj_cpf) + "</div></div>";
+    if (proposta.arquiteto) html += '<div class="info-box"><div class="l">Arquiteto / Designer</div><div class="v">' + esc(proposta.arquiteto) + "</div></div>";
+    if (proposta.endereco) html += '<div class="info-box" style="grid-column:1/-1"><div class="l">Endereço da obra</div><div class="v">' + esc(proposta.endereco) + "</div></div>";
+    html += "</div>";
+
+    html += '<div class="sec-title">Atendimento Parket</div>';
+    html += '<div class="info-grid">';
+    html += '<div class="info-box"><div class="l">Data de emissão</div><div class="v">' + dataEmit + "</div></div>";
+    html += '<div class="info-box"><div class="l">Validade</div><div class="v">' + validade + " dias (até " + validadeStr + ")</div></div>";
+    if (proposta.vendedor) html += '<div class="info-box"><div class="l">Vendedor</div><div class="v">' + esc(proposta.vendedor) + "</div></div>";
+    if (proposta.vendedor_telefone) html += '<div class="info-box"><div class="l">Telefone vendedor</div><div class="v">' + esc(proposta.vendedor_telefone) + "</div></div>";
+    if (proposta.vendedor_email) html += '<div class="info-box"><div class="l">Email vendedor</div><div class="v">' + esc(proposta.vendedor_email) + "</div></div>";
+    if (proposta.orcamentista) html += '<div class="info-box"><div class="l">Orçamentista</div><div class="v">' + esc(proposta.orcamentista) + "</div></div>";
+    html += "</div>";
+
+    html += '<div class="sec-title">Itens</div>';
+    html += '<table class="itens"><thead><tr>'
+      + '<th style="width:7%">#</th>'
+      + "<th>Descrição</th>"
+      + '<th class="r" style="width:18%">Valor</th>'
+      + "</tr></thead><tbody>";
+
+    // Filtra defensivamente INSUMOS/INSTALA/GEST
+    var itensValidos = (itens || []).filter(function (it) {
+      var d = (it.descritivo || "").split("\n")[0] || "";
+      return !/^\s*(INSUMOS|INSTALA|GEST|M[ÃA]O\s+DE\s+OBRA)/i.test(d);
+    }).sort(function (a, b) {
+      return (Number(a.ordem) || 0) - (Number(b.ordem) || 0);
+    });
+
+    if (itensValidos.length === 0) {
+      html += '<tr><td colspan="3" style="text-align:center;color:#6a6a6a;padding:24px">Nenhum item neste orçamento.</td></tr>';
+    } else {
+      itensValidos.forEach(function (it, idx) {
+        var lines = (it.descritivo || "").split("\n").filter(function (l) { return l.trim(); });
+        var title = lines[0] || it.categoria || "Item";
+        var body = lines.slice(1).join("\n");
+        html += "<tr>"
+          + "<td>" + String(idx + 1).padStart(2, "0") + "</td>"
+          + '<td><div class="desc-title">' + esc(title) + "</div>"
+          + (body ? '<div class="desc-body">' + esc(body) + "</div>" : "") + "</td>"
+          + '<td class="r">' + brl(it.valor) + "</td>"
+          + "</tr>";
+      });
+    }
+    html += "</tbody></table>";
+
+    html += '<div class="totais">';
+    html += '<div class="totais-row"><span class="lbl">Subtotal</span><span class="val">' + brl(sub) + "</span></div>";
+    if (desc > 0) {
+      var labelDesc = proposta.desconto_modo === "valor" ? "Desconto" : "Desconto (" + proposta.desconto_perc + "%)";
+      html += '<div class="totais-row"><span class="lbl">' + labelDesc + '</span><span class="val">− ' + brl(desc) + "</span></div>";
+    }
+    if (frete > 0) html += '<div class="totais-row"><span class="lbl">Frete</span><span class="val">' + brl(frete) + "</span></div>";
+    html += '<div class="totais-row tot"><span class="lbl">TOTAL</span><span class="val">' + brl(total) + "</span></div>";
+    html += "</div>";
+
+    var temCond = proposta.forma_pagamento || pag.razao_social || pag.dados_bancarios || pag.prazo_entrega || pag.prazo_execucao || pag.garantia;
+    if (temCond) {
+      html += '<div class="sec-title">Condições Comerciais</div>';
+      if (proposta.forma_pagamento) html += '<div class="obs"><h3>Forma de pagamento</h3><p>' + esc(proposta.forma_pagamento) + "</p></div>";
+      if (pag.razao_social || pag.prazo_entrega || pag.prazo_execucao || pag.garantia) {
+        html += '<div class="info-grid">';
+        if (pag.razao_social) html += '<div class="info-box" style="grid-column:1/-1"><div class="l">Razão social (faturamento)</div><div class="v">' + esc(pag.razao_social) + "</div></div>";
+        if (pag.prazo_entrega) html += '<div class="info-box"><div class="l">Prazo de entrega</div><div class="v">' + esc(pag.prazo_entrega) + "</div></div>";
+        if (pag.prazo_execucao) html += '<div class="info-box"><div class="l">Prazo de execução</div><div class="v">' + esc(pag.prazo_execucao) + "</div></div>";
+        if (pag.garantia) html += '<div class="info-box"><div class="l">Garantia</div><div class="v">' + esc(pag.garantia) + "</div></div>";
+        html += "</div>";
+      }
+      if (pag.dados_bancarios) html += '<div class="obs"><h3>Dados bancários</h3><p>' + esc(pag.dados_bancarios) + "</p></div>";
+    }
+
+    html += '<div class="disclaimer">'
+      + '<strong>Importante.</strong> Este orçamento contempla <strong>apenas o fornecimento de material</strong> em madeira nobre Parket. '
+      + 'Não estão inclusos: instalação, mão de obra, gestão de obra ou serviços auxiliares. '
+      + 'Caso necessite desses serviços, solicite um <em>Orçamento Completo</em> ao seu atendente Parket.'
+      + "</div>";
+
+    html += '<div class="foot">'
+      + "<strong>PARKET — Madeira Nobre</strong><br>"
+      + "Rua Circular do Bosque, 628 · Casa Millan · Jardim Guedala · São Paulo, SP · CEP 05604-010<br>"
+      + "parket.com.br · @parket.parket"
+      + "</div>";
+
+    html += "</div>";
+    document.getElementById("root").innerHTML = html;
+    document.title = "Material " + proposta.numero + " · Parket";
+  }
+
+  (async function () {
+    try {
+      var id = getIdFromUrl();
+      if (!id) throw new Error("ID/número não informado na URL");
+
+      // Tenta primeiro por numero (PMAT-XXXX), depois por id UUID
+      var query;
+      if (/^PMAT-/i.test(id)) query = "/simulacao_produtos?numero=eq." + encodeURIComponent(id) + "&limit=1";
+      else query = "/simulacao_produtos?id=eq." + encodeURIComponent(id) + "&limit=1";
+
+      var props = await fetchJson(query);
+      if (!props || props.length === 0) throw new Error("Orçamento não encontrado: " + id);
+      var proposta = props[0];
+      var itens = await fetchJson("/simulacao_produtos_itens?simulacao_id=eq." + proposta.id + "&order=ordem");
+      render(proposta, itens);
+    } catch (e) {
+      document.getElementById("root").innerHTML = '<div class="erro">Erro: ' + (e.message || "falha ao carregar") + "</div>";
+      console.error(e);
+    }
+  })();
+})();
+</script>
+</body>
+</html>

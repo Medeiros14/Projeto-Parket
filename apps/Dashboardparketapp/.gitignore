@@ -1,0 +1,26 @@
+<<<<<<< Updated upstream
+node_modules
+dist
+.env
+.env.local
+*.log
+=======
+node_modules/
+.cache/
+.vite/
+dist/
+output/
+_archived/
+*.log
+*.tmp
+.dist_golden_new/
+
+# Arquivos soltos obsoletos
+*.pdf
+"Captura de Tela"*
+"CRONOGRAMA -"*
+"FX GERAL"*
+"Copia de"*
+"Tabela"*.csv
+"Tempo Padrão"*
+>>>>>>> Stashed changes

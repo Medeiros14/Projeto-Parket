@@ -25,7 +25,7 @@ log = structlog.get_logger()
 PG_SERVICE = "parket-pg-local_postgres"
 
 # Mesmo PAT/projeto dos syncs oficiais (/root/valoria-app/db/sync_*.py).
-_SUPA_PAT = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+_SUPA_PAT = "SUPABASE_MGMT_TOKEN_REMOVIDO"
 _VALORIA_PROJECT = "skbjmlzgaeupflujomzw"
 
 

@@ -17,7 +17,7 @@ from app.tools.confirm import request_confirmation
 
 log = structlog.get_logger()
 
-SUPABASE_MGMT_TOKEN = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+SUPABASE_MGMT_TOKEN = "SUPABASE_MGMT_TOKEN_REMOVIDO"
 SUPABASE_PROJECT_REF = "hbxpilrxmitvzebluoom"
 MGMT_BASE = f"https://api.supabase.com/v1/projects/{SUPABASE_PROJECT_REF}"
 

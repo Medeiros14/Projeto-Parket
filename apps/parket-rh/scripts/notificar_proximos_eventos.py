@@ -10,7 +10,7 @@ import sys
 import urllib.request
 from datetime import date, timedelta
 
-SUPABASE_TOKEN = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+SUPABASE_TOKEN = "SUPABASE_MGMT_TOKEN_REMOVIDO"
 SUPABASE_PROJECT = "hbxpilrxmitvzebluoom"
 EVOLUTION_BASE = "https://conect.parket.works"
 EVOLUTION_APIKEY = "4eab105201410d6865b86dca76ee9fa3"

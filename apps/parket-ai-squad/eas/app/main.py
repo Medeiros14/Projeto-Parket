@@ -280,7 +280,7 @@ def build_app() -> FastAPI:
         """Últimas atividades em public.claude_atividades (log público).
         Lê via Supabase Mgmt API com SBP token."""
         import httpx
-        SBP = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+        SBP = "SUPABASE_MGMT_TOKEN_REMOVIDO"
         where = f"WHERE setor = '{setor}'" if setor else ""
         sql = (
             f"SELECT id::text, data AS created_at, titulo, descricao, setor, categoria, criado_por AS feita_por "
@@ -525,7 +525,7 @@ def build_app() -> FastAPI:
 
         # Atividades públicas (claude_atividades — log do time)
         try:
-            SBP = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+            SBP = "SUPABASE_MGMT_TOKEN_REMOVIDO"
             sql = (
                 f"SELECT id::text, data AS created_at, titulo, setor, categoria, criado_por "
                 f"FROM public.claude_atividades ORDER BY data DESC LIMIT {int(limit)}"

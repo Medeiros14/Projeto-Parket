@@ -5,7 +5,7 @@ do Operacional via token overlap + Levenshtein. UPDATE só onde encontrar.
 """
 import json, urllib.request, unicodedata, re
 
-SBP = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+SBP = "SUPABASE_MGMT_TOKEN_REMOVIDO"
 URL = "https://api.supabase.com/v1/projects/hbxpilrxmitvzebluoom/database/query"
 
 def sql(q):

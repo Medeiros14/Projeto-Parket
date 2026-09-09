@@ -45,7 +45,7 @@ def main():
     # Faz via raw SQL através do PostgREST? PostgREST não roda SQL livre.
     # Solução: usa Management API do user pra rodar a SELECT (mesmo padrão dos outros scripts dele).
     import httpx
-    SBKEY_MGMT = os.environ.get("SBKEY_MGMT", "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63")
+    SBKEY_MGMT = os.environ.get("SBKEY_MGMT", "SUPABASE_MGMT_TOKEN_REMOVIDO")
     PROJ_REF = os.environ.get("PROJ_REF", "hbxpilrxmitvzebluoom")
 
     sql = """

@@ -6,7 +6,7 @@ set -e
 # Restaura com: ./backup-supabase-predeploy.sh restore <timestamp>
 
 SUPABASE_API="https://api.supabase.com/v1/projects/hbxpilrxmitvzebluoom/database/query"
-SUPABASE_TOKEN="sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+SUPABASE_TOKEN="SUPABASE_MGMT_TOKEN_REMOVIDO"
 BACKUP_DIR="/root/.supabase-backups"
 mkdir -p "$BACKUP_DIR"
 

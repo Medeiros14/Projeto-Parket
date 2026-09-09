@@ -37,7 +37,7 @@ def sb_key():
 
 def sb_query(sql):
     """Run SQL via Supabase Management API."""
-    TOKEN = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+    TOKEN = "SUPABASE_MGMT_TOKEN_REMOVIDO"
     req = urllib.request.Request(
         "https://api.supabase.com/v1/projects/hbxpilrxmitvzebluoom/database/query",
         data=json.dumps({"query": sql}).encode(),

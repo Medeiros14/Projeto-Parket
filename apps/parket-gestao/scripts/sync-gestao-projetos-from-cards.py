@@ -34,7 +34,7 @@ Roda a cada 5min via cron. Idempotente.
 """
 import requests, subprocess, sys
 
-PAT = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+PAT = "SUPABASE_MGMT_TOKEN_REMOVIDO"
 CLOUD = "hbxpilrxmitvzebluoom"
 H = {"Authorization": f"Bearer {PAT}", "Content-Type": "application/json"}
 

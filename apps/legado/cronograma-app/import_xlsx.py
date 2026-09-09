@@ -6,7 +6,7 @@ Sem match → card_id null, nome_obra preserva o texto do xlsx.
 """
 import openpyxl, unicodedata, re, json, urllib.request, datetime as dt
 
-SBP = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+SBP = "SUPABASE_MGMT_TOKEN_REMOVIDO"
 PROJECT = "hbxpilrxmitvzebluoom"
 QUERY_URL = f"https://api.supabase.com/v1/projects/{PROJECT}/database/query"
 

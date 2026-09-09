@@ -23,7 +23,7 @@ import json
 SBKEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieHBpbHJ4bWl0dnplYmx1b29tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk0MjUyNywiZXhwIjoyMDg4NTE4NTI3fQ.fTovVTCBFcMrrhVCR6TsneALfMRLLLHZdMmSJH16L4A"
 SUPABASE_URL = "https://hbxpilrxmitvzebluoom.supabase.co"
 MGMT_API = "https://api.supabase.com/v1/projects/hbxpilrxmitvzebluoom/database/query"
-MGMT_TOKEN = "sbp_01ac2cd076c0a0f6f21eaa4404bc0af1c2ddbe63"
+MGMT_TOKEN = "SUPABASE_MGMT_TOKEN_REMOVIDO"
 BUCKET = "rh-documentos"
 ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else "/tmp/legado")
 
